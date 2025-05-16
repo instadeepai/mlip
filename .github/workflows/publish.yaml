@@ -1,0 +1,30 @@
+name: Package publishing
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish-new-mlip-release:
+    runs-on: instadeep-ci
+
+    container:
+       image: python:3.10.12-slim-bullseye
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: install poetry
+        run: |
+          POETRY_VERSION=1.8.4
+          pip install -U pip setuptools
+          pip install poetry==${POETRY_VERSION}
+
+      # - name: build and publish
+      #   run: |
+      #     export POETRY_PYPI_TOKEN_PYPI=${{secrets.POETRY_PYPI_TOKEN}}
+      #     poetry build
+      #     poetry publish

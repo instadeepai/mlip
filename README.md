@@ -33,7 +33,7 @@ bring MLIP to large-scale industrial application.
 See the [Installation](#-installation) section for details on how to install
 MLIP-JAX and the example Google Colab notebooks linked below for a quick way
 to get started. For detailed instructions, visit our extensive
-[code documentation](https://instadeep.github.io/mlip/).
+[code documentation](https://instadeepai.github.io/mlip/).
 
 This repository currently supports implementations of:
 - [MACE](https://arxiv.org/abs/2206.07697)
@@ -80,7 +80,7 @@ pip install git+https://github.com/jax-md/jax-md.git
 ## ⚡ Examples
 
 In addition to the in-depth tutorials provided as part of our documentation
-[here](https://instadeep.github.io/mlip/user_guide/index.html#deep-dive-tutorials),
+[here](https://instadeepai.github.io/mlip/user_guide/index.html#deep-dive-tutorials),
 we also provide example Jupyter notebooks that can be used as
 simple templates to build your own MLIP pipelines:
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mlip"
-version = "0.0.1a0"
+version = "0.0.1a1"
 description = ""
 license = "LICENSE"
 authors = [

@@ -1,0 +1,9 @@
+[tool.poetry]
+name = "mlip"
+version = "0.0.0"
+description = ""
+license = "LICENSE"
+authors = [
+    "InstaDeep",
+]
+readme = "README.md"

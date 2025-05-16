@@ -1,0 +1,84 @@
+name: Open-source Tests and Linters 🧪
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'new-release*'
+
+jobs:
+  linters:
+    runs-on: ubuntu-latest
+    container:
+       image: python:3.10.12-slim-bullseye
+    steps:
+      - name: checkout code 📦
+        uses: actions/checkout@v4
+
+      # Workaround for https://github.com/actions/checkout/issues/1169
+      - name: setup
+        run: |
+          apt-get update && apt-get install -y \
+          coreutils \
+          git
+          git config --system --add safe.directory $GITHUB_WORKSPACE
+
+      - name: install poetry
+        run: |
+          POETRY_VERSION=1.8.4
+          pip install -U pip setuptools
+          pip install poetry==${POETRY_VERSION}
+          poetry install
+
+      - name: run linters 🖌️
+        run: |
+          git init
+          poetry run pre-commit run --all-files --verbose
+
+  tests:
+    runs-on: ubuntu-latest
+    container:
+       image: python:3.10.12-slim-bullseye
+    steps:
+      - name: checkout code 📂
+        uses: actions/checkout@v4
+
+      - name: setup
+        run: |
+          apt-get update && apt-get install -y \
+          coreutils \
+          git
+
+      - name: install poetry
+        run: |
+          POETRY_VERSION=1.8.4
+          pip install -U pip setuptools
+          pip install poetry==${POETRY_VERSION}
+          poetry install
+          poetry add git+https://github.com/jax-md/jax-md.git
+
+      - name: run tests 🧪
+        run: |
+          poetry run pytest --ignore tests/experiments --verbose \
+                                            --cov-report xml:coverage.xml \
+                                            --cov-report term-missing \
+                                            --junitxml=pytest.xml \
+                                            --cov=mlip tests/
+
+      - name: pytest coverage comment
+        id: coverageComment
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          pytest-xml-coverage-path: ./coverage.xml
+          junitxml-path: ./pytest.xml
+
+      - name: Create the Badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.BOT_ACCESS_TOKEN }}
+          gistID: b6e4bf384215e60775699a83c3c00aef
+          filename: pytest-coverage-comment.json
+          label: Test Coverage
+          message: ${{ steps.coverageComment.outputs.coverage }}
+          color: ${{ steps.coverageComment.outputs.color }}
+          namedLogo: python

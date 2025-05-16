@@ -1,0 +1,63 @@
+default_stages: [ "pre-commit", "commit-msg", "pre-push" ]
+default_language_version:
+  python: python3.10
+
+repos:
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/psf/black
+    rev: 24.2.0
+    hooks:
+      - id: black
+        name: "Code formatter"
+        exclude: notebooks/
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: end-of-file-fixer
+        name: "End of file fixer"
+        exclude: docker/template.env *.fasta
+      - id: debug-statements
+        name: "Debug imports and breakpoints checker"
+      - id: requirements-txt-fixer
+        name: "Requirements txt fixer"
+      - id: mixed-line-ending
+        name: "Mixed line ending fixer"
+      - id: check-yaml
+        name: "Yaml checker"
+        args: [ '--unsafe' ]
+      - id: trailing-whitespace
+        name: "Trailing whitespace fixer"
+
+  - repo: https://github.com/PyCQA/flake8
+    rev: 4.0.1
+    hooks:
+      - id: flake8
+        # E203 - ":" with whitespace before it
+        # W503 - line break before binary operator (conflicts with other pre-commit hooks).
+        # CCR001 - Cognitive complexity (it's too annoying - write the functions you want ;)).
+        # C408 - allow to write dict() instead of rewriting as literal
+        name: "Linter"
+        args:
+          - --config=setup.cfg
+          - --ignore=E203,W503,CCR001,C408
+          - --max-line-length=88
+        additional_dependencies:
+          - pep8-naming
+          - flake8-builtins
+          - flake8-comprehensions
+          - flake8-bugbear
+          - flake8-pytest-style
+          - flake8-cognitive-complexity
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v2.3.0
+    hooks:
+      - id: conventional-pre-commit
+        name: "Commit linter"
+        stages: [ commit-msg ]
+        args: [ ci, build, docs, feat, fix, perf, refactor, style, test, EXP, revert, chore, config, release]

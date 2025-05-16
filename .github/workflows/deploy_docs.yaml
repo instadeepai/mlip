@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          apt-get update && apt-get install -y coreutils
+          apt-get update && apt-get install -y coreutils git
           POETRY_VERSION=1.8.4
           pip install -U pip setuptools
           pip install poetry==${POETRY_VERSION}

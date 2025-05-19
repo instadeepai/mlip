@@ -23,8 +23,8 @@ jobs:
           pip install -U pip setuptools
           pip install poetry==${POETRY_VERSION}
 
-      # - name: build and publish
-      #   run: |
-      #     export POETRY_PYPI_TOKEN_PYPI=${{secrets.POETRY_PYPI_TOKEN}}
-      #     poetry build
-      #     poetry publish
+      - name: build and publish
+        run: |
+          export POETRY_PYPI_TOKEN_PYPI=${{secrets.POETRY_PYPI_TOKEN}}
+          poetry build
+          poetry publish

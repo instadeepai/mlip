@@ -7,8 +7,6 @@
 The *mlip* library is currently available as a pre-release version only.
 The release of the first stable version will follow later this month.
 
-**The pre-release version of this library is not pushed to PyPI yet, but is expected to be soon.**
-
 ## 👀 Overview
 
 *mlip* is a Python library for training and deploying

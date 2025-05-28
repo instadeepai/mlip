@@ -9,7 +9,7 @@ Create a model and force field
 --------------------------------
 
 This section discusses how to initialize an MLIP model for subsequent training.
-If you are just interested in loading a pretrained model for application in simulations,
+If you are just interested in loading a pre-trained model for application in simulations,
 please see the dedicated section :ref:`below <load_zip_model>`.
 
 Our MLIP models exist in two abstraction levels:
@@ -109,7 +109,7 @@ Load a model from a zip archive
 -------------------------------
 
 To load a model (e.g., MACE) from our lightweight zip format that we ship our
-foundation models with, you can use the function
+pre-trained models with, you can use the function
 :py:func:`load_model_from_zip <mlip.models.model_io.load_model_from_zip>`:
 
 .. code-block:: python

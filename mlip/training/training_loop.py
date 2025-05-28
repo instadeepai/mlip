@@ -139,7 +139,7 @@ class TrainingLoop:
 
         self.best_evaluation_step = -1
         self.best_evaluation_loss = float("inf")
-        self.best_params = None
+        self._best_params = None
 
         self._should_unreplicate_train_batches = (
             not should_parallelize
@@ -245,7 +245,7 @@ class TrainingLoop:
             )
             self.best_evaluation_loss = eval_loss
             self.best_evaluation_epoch = self.epoch_number
-            self.best_params = self._eval_params_from_current_training_state()
+            self._best_params = self._eval_params_from_current_training_state()
 
             self.io_handler.save_checkpoint(
                 (
@@ -273,7 +273,7 @@ class TrainingLoop:
         run_evaluation(
             self.eval_step,
             test_dataset,
-            self.best_params,
+            self._best_params,
             self.epoch_number,
             self.io_handler,
             devices,
@@ -410,9 +410,15 @@ class TrainingLoop:
     @property
     def best_model(self) -> ForceField:
         """Returns the current state of the force field model with the best
-        parameters so far.
+        parameters so far. The parameters are unreplicated before being returned if
+        training is run on multiple GPUs.
 
         Returns:
             The force field model with the best parameters so far.
         """
-        return ForceField(self.force_field.predictor, self.best_params)
+        params = (
+            flax.jax_utils.unreplicate(self._best_params)
+            if self.should_parallelize
+            else self._best_params
+        )
+        return ForceField(self.force_field.predictor, params)

@@ -58,8 +58,8 @@ can be accessed after the run like this:
 
 However, the final parameters are not always the ones with the best
 performance on the validation set, and hence,
-you can also access these with ``training_loop.best_params`` or directly
-use `training_loop.best_model` to get the
+you can also access these with ``training_loop.best_model.params``.
+Therefore, use `training_loop.best_model` to get the
 :py:class:`ForceField <mlip.models.force_field.ForceField>` instance that holds
 the best parameters. If you want to save a
 trained force field not only via the checkpointing API described further below,

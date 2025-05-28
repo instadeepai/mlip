@@ -1,3 +1,7 @@
+# MIT License
+# Copyright (c) 2022 mace-jax
+# See https://github.com/ACEsuit/mace-jax/blob/main/MIT.md
+#
 # Copyright 2025 InstaDeep Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

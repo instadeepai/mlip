@@ -7,7 +7,7 @@ Model fine-tuning
 
    Currently, fine-tuning is only available for MACE models.
 
-A common use case is fine-tuning a pre-trained MLIP foundation model
+A common use case is fine-tuning a pre-trained MLIP model
 on additional data to improve its accuracy for specific types of chemical systems.
 
 In the following, we describe how to fine-tune an MLIP model with this library. We
@@ -15,20 +15,20 @@ recall that an MLIP model can be trained using multiple read-out heads. Note tha
 currently, this is just implemented for the MACE architecture. The number of read-out
 heads can be set via ``num_readout_heads`` in
 :py:func:`MaceConfig <mlip.models.mace.config.MaceConfig>`.
-By default, one trains a foundation model with only one read-out head. However, it does
+By default, one trains a model with only one read-out head. However, it does
 not matter for this fine-tuning step whether a model already has *N* read-out heads,
 it can be fine-tuned by adding more heads and optimizing their associated weights only.
 Note that the final energy prediction of a model is obtained by summing the outputs
 of the *N* read-out heads.
 
 To fine-tune a given model, set up the new model with at least one more read-out head
-than the foundation model you already have pre-trained.
+than the pre-trained model.
 
 .. code-block:: python
 
     from mlip.models import Mace, ForceField
 
-    foundation_model_params = _get_params_for_pretrained_model()  # placeholder
+    pretrained_model_params = _get_params_for_pretrained_model()  # placeholder
 
     # Make sure the new model you create has at least one more read-out head
     mace = Mace(Mace.Config(num_readout_heads=2), dataset_info)
@@ -43,7 +43,7 @@ the function
     from mlip.models.params_transfer import transfer_params
 
     transferred_params, finetuning_blocks = transfer_params(
-        foundation_model_params,
+        pretrained_model_params,
         initial_force_field.params,
         scale_factor=0.1,
     )
@@ -64,7 +64,7 @@ to experiment with this hyperparameter themselves.
 
 The resulting ``transferred_params`` have the shape of your new model, but the new
 heads are not yet optimized. The other parameters are taken from the pre-trained
-foundation model. The second output of the function ``finetuning_blocks`` holds a list
+model. The second output of the function ``finetuning_blocks`` holds a list
 of module names inside the parameters that correspond to the blocks of untrained
 parameters. This list will be needed for the subsequent step.
 
@@ -99,7 +99,7 @@ the transferred parameters works like this:
 **To summarize, there are only three additional steps that are**
 **required for fine-tuning in contrast to a regular model training:**
 
-* Loading the original foundation model parameters *and* setting up a new model that
+* Loading the original pre-trained model parameters *and* setting up a new model that
   has the same configuration but with one or more additional read-out heads.
 * Transfer the parameters using the function
   :py:func:`transfer_params() <mlip.models.params_transfer.transfer_params>`.
@@ -107,7 +107,7 @@ the transferred parameters works like this:
   :py:func:`mask_optimizer_for_finetuning() <mlip.training.finetuning_utils.mask_optimizer_for_finetuning>`.
 
 **Additional note:** When fine-tuning on datasets that are quite different to the
-original dataset which the foundation model was trained on, we recommend to add a subset
+original dataset which the pre-trained model was trained on, we recommend to add a subset
 of the original dataset to the dataset the fine-tuning is performed on. The proportion
 to which the original dataset should extend the new data points (e.g., 50:50 or
 90:10 ratio) is a hyperparameter to experiment with and the optimal choice

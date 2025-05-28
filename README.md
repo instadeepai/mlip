@@ -96,9 +96,22 @@ pip install notebook && jupyter notebook
 The installation of *mlip* itself is included within the notebooks. We recommend to
 run these notebooks with GPU acceleration enabled.
 
-## 🤗 Foundation models (via HuggingFace)
+Alternatively, we provide a `Dockerfile` in this repository that you can use to
+run the tutorial notebooks. This can be achieved by executing the following lines
+from any directory that contains the downloaded `Dockerfile`:
 
-We have prepared foundation models pre-trained on a subset of the
+```bash
+docker build . -t mlip_tutorials
+docker run -p 8888:8888 --gpus all mlip_tutorials
+```
+
+Note that this will only work on machines with NVIDIA GPUs.
+Once running, you can access the Jupyter notebook server by clicking on the URL
+displayed in the console of the form "http[]()://127.0.0.1:8888/tree?token=abcdef...".
+
+## 🤗 Pre-trained models (via HuggingFace)
+
+We have prepared pre-trained models trained on a subset of the
 [SPICE2 dataset](https://zenodo.org/records/10975225) for each of the models included in
 this repo. They can be accessed directly on [InstaDeep's MLIP collection](https://huggingface.co/collections/InstaDeepAI/ml-interatomic-potentials-68134208c01a954ede6dae42),
 along with our curated dataset or directly through
@@ -112,13 +125,40 @@ hf_hub_download(repo_id="InstaDeepAI/visnet-organics", filename="visnet_organics
 hf_hub_download(repo_id="InstaDeepAI/nequip-organics", filename="nequip_organics_01.zip", local_dir="")
 hf_hub_download(repo_id="InstaDeepAI/SPICE2-curated", filename="SPICE2_curated.zip", local_dir="")
 ```
-Note that the foundation models are released on a different license than this library,
+Note that the pre-trained models are released on a different license than this library,
 please refer to the model cards of the relevant HuggingFace repos.
+
+## 🚀 Inference time benchmarks
+
+In order to showcase the runtime efficiency, we conducted benchmarks across all three models
+on two different systems: 1UAO (138 atoms) and 1ABT (1205 atoms), both run for 1ns on a H100
+NVidia GPU. All model implementations are our own, including the Torch + ASE benchmarks, and
+should not be considered representative of the performance of the code developed by the
+original authors of the methods. Further details can be found in our whitepaper (see below).
+
+**MACE (2,139,152 parameters):**
+| Systems   | JAX + JAX MD | JAX + ASE    | Torch + ASE  |
+| --------- |-------------:|-------------:|-------------:|
+| 1UAO      | 6.3 ms/step  | 11.6 ms/step | TBC ms/step  |
+| 1ABT      | TBC ms/step  | TBC ms/step  | TBC ms/step  |
+
+**ViSNet (1,137,922 parameters):**
+| Systems   | JAX + JAX MD | JAX + ASE    | Torch + ASE  |
+| --------- |-------------:|-------------:|-------------:|
+| 1UAO      | 2.9 ms/step  | 6.2 ms/step  | 33.8 ms/step |
+| 1ABT      | 25.4 ms/step | TBC ms/step  | TBC ms/step  |
+
+**NequIP (1,327,792 parameters):**
+| Systems   | JAX + JAX MD | JAX + ASE    | Torch + ASE  |
+| --------- |-------------:|-------------:|-------------:|
+| 1UAO      | 3.8 ms/step  | 8.5 ms/step  | 38.7 ms/step |
+| 1ABT      | TBC ms/step  | TBC ms/step  | TBC ms/step  |
 
 ## 🙏 Acknowledgments
 
-We would like to acknowledge beta testers for this library: Leon Wehrhan,
-Sebastien Boyer, Massimo Bortone, Tom Barrett, and Alex Laterre.
+We would like to acknowledge beta testers for this library: Isabel Wilkinson,
+Nick Venanzi, Hassan Sirelkhatim, Leon Wehrhan, Sebastien Boyer, Massimo Bortone,
+Tom Barrett, and Alex Laterre.
 
 ## 📚 Citing our work
 
@@ -128,4 +168,4 @@ C. Brunken, O. Peltre, H. Chomet, L. Walewski, M. McAuliffe, V. Heyraud,
 S. Attias, M. Maarand, Y. Khanfir, E. Toledo, F. Falcioni, M. Bluntzer,
 S. Acosta-Gutiérrez and J. Tilly, *Machine Learning Interatomic Potentials:
 library for efficient training, model development and simulation of molecular systems*,
-uploaded to arXiv soon.
+available on the arXiv.

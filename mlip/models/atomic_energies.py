@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from typing import Optional, Union
 
 import jax.numpy as jnp
 
 from mlip.data.dataset_info import DatasetInfo
 from mlip.data.helpers.atomic_number_table import AtomicNumberTable
-
-logger = logging.getLogger("mlip")
 
 
 def get_atomic_energies(
@@ -69,19 +66,13 @@ def get_atomic_energies(
             z_table.z_to_index(z): energy
             for z, energy in dataset_info.atomic_energies_map.items()
         }
-        logger.debug(
-            f"Computed average atomic energies using least "
-            f"squares, taken from dataset info: {atomic_energies_dict}"
-        )
         atomic_energies = jnp.array(
             [atomic_energies_dict[i] for i in range(len(z_table.zs))]
         )
     elif atomic_energies_input == "zero":
-        logger.debug("Not using atomic energies, setting them to zero.")
         atomic_energies = jnp.zeros(num_species)
     elif isinstance(atomic_energies_input, dict):
         atomic_energies_dict = atomic_energies_input
-        logger.debug(f"Use Atomic Energies that are provided: {atomic_energies_dict}")
         atomic_energies = jnp.array(
             [atomic_energies_dict.get(z, 0.0) for z in range(num_species)]
         )

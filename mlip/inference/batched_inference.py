@@ -136,6 +136,10 @@ def run_batched_inference(
     stress tensors. Result will be returned as a list of `Prediction` objects, one
     for each input structure.
 
+    Note: When using ``batch_size=1``, we recommend to set ``max_n_node`` and
+    ``max_n_edge`` explicitly to avoid edge cases in the automated computation of these
+    parameters that may cause errors.
+
     Args:
         structures: The structures to batch and then compute predictions for.
         force_field: The force field object to compute the predictions with.

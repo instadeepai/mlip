@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mlip"
-version = "0.0.1a5"
+version = "0.1.0"
 description = "Machine Learning Interatomic Potentials in JAX"
 license = "LICENSE"
 authors = [

@@ -2,4 +2,10 @@
 
 ## Release 0.1.0
 
-To be added upon release...
+- Implemented model architectures: MACE, NequIP and ViSNet
+- Dataset preprocessing
+- Training of MLIP models
+- Batched inference with trained MLIP models
+- MD simulations with MLIP models using JAX-MD and ASE simulation backends
+- Energy minimizations with MLIP models using the same simulation backends
+- Fine-tuning of pre-trained MLIP models (only for MACE)

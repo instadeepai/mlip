@@ -2,11 +2,6 @@
 
 ![badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mlipbot/b6e4bf384215e60775699a83c3c00aef/raw/pytest-coverage-comment.json)
 
-## ⚠️ Important note
-
-The *mlip* library is currently available as a pre-release version only.
-The release of the first stable version will follow later this month.
-
 ## 👀 Overview
 
 *mlip* is a Python library for training and deploying
@@ -27,6 +22,9 @@ material science applications, (2) **extensibility and flexibility** for users m
 experienced with MLIP and JAX, and (3) a focus on **high inference speeds** that enable
 running long MD simulations on large systems which we believe is necessary in order to
 bring MLIP to large-scale industrial application.
+See our [inference speed benchmark](#-inference-time-benchmarks) below.
+With our library, we observe a 10x speedup on 138 atoms and up to 4x speed up
+on 1205 atoms over equivalent implementations relying on Torch and ASE.
 
 See the [Installation](#-installation) section for details on how to install
 MLIP-JAX and the example Google Colab notebooks linked below for a quick way
@@ -74,6 +72,11 @@ directly from the GitHub repository, like this:
 ```bash
 pip install git+https://github.com/jax-md/jax-md.git
 ```
+
+Furthermore, note that among our library dependencies we have pinned the versions
+for *jaxlib*, *matscipy*, and *orbax-checkpoint* to one specific version only to
+prioritize reliability, however, we plan to allow for a more flexible definition of
+our dependencies in upcoming releases.
 
 ## ⚡ Examples
 
@@ -130,35 +133,39 @@ please refer to the model cards of the relevant HuggingFace repos.
 
 ## 🚀 Inference time benchmarks
 
-In order to showcase the runtime efficiency, we conducted benchmarks across all three models
-on two different systems: 1UAO (138 atoms) and 1ABT (1205 atoms), both run for 1ns on a H100
-NVidia GPU. All model implementations are our own, including the Torch + ASE benchmarks, and
+In order to showcase the runtime efficiency, we conducted benchmarks across all three
+models on two different systems: Chignolin
+([1UAO](https://www.rcsb.org/structure/1UAO), 138 atoms) and Alpha-bungarotoxin
+([1ABT](https://www.rcsb.org/structure/1ABT), 1205 atoms), both run for 1 ns of
+MD simulation on a H100 NVIDIA GPU.
+All model implementations are our own, including the Torch + ASE benchmarks, and
 should not be considered representative of the performance of the code developed by the
-original authors of the methods. Further details can be found in our whitepaper (see below).
+original authors of the methods.
+Further details can be found in our white paper (see [below](#-citing-our-work)).
 
 **MACE (2,139,152 parameters):**
-| Systems   | JAX + JAX MD | JAX + ASE    | Torch + ASE  |
+| Systems   | JAX + JAX-MD | JAX + ASE    | Torch + ASE  |
 | --------- |-------------:|-------------:|-------------:|
-| 1UAO      | 6.3 ms/step  | 11.6 ms/step | TBC ms/step  |
-| 1ABT      | TBC ms/step  | TBC ms/step  | TBC ms/step  |
+| 1UAO      | 6.3 ms/step  | 11.6 ms/step | 44.2/step    |
+| 1ABT      | 66.8 ms/step | 99.5 ms/step | 157.2/step   |
 
 **ViSNet (1,137,922 parameters):**
-| Systems   | JAX + JAX MD | JAX + ASE    | Torch + ASE  |
+| Systems   | JAX + JAX-MD | JAX + ASE    | Torch + ASE  |
 | --------- |-------------:|-------------:|-------------:|
 | 1UAO      | 2.9 ms/step  | 6.2 ms/step  | 33.8 ms/step |
-| 1ABT      | 25.4 ms/step | TBC ms/step  | TBC ms/step  |
+| 1ABT      | 25.4 ms/step | 46.4 ms/step | 101.6 ms/step|
 
 **NequIP (1,327,792 parameters):**
-| Systems   | JAX + JAX MD | JAX + ASE    | Torch + ASE  |
+| Systems   | JAX + JAX-MD | JAX + ASE    | Torch + ASE  |
 | --------- |-------------:|-------------:|-------------:|
 | 1UAO      | 3.8 ms/step  | 8.5 ms/step  | 38.7 ms/step |
-| 1ABT      | TBC ms/step  | TBC ms/step  | TBC ms/step  |
+| 1ABT      | 67.0 ms/step | 105.7 ms/step| 117.0 ms/step|
 
 ## 🙏 Acknowledgments
 
 We would like to acknowledge beta testers for this library: Isabel Wilkinson,
 Nick Venanzi, Hassan Sirelkhatim, Leon Wehrhan, Sebastien Boyer, Massimo Bortone,
-Tom Barrett, and Alex Laterre.
+Scott Cameron, Louis Robinson, Tom Barrett, and Alex Laterre.
 
 ## 📚 Citing our work
 

@@ -1,4 +1,4 @@
-name: Open-source Tests and Linters 🧪
+name: Tests and Linters 🧪
 
 on:
   push:

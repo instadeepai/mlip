@@ -329,5 +329,5 @@ def test_best_params_saved_correctly(
     assert train_losses[0] < train_losses[1]
 
     # Materialise a leaf of the pytree to test for error issues
-    leaves, _ = jax.tree.flatten(training_loop.best_params)
+    leaves, _ = jax.tree.flatten(training_loop.best_model.params)
     leaves[0].block_until_ready()

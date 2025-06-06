@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mlip"
-version = "0.1.0"
+version = "0.1.1"
 description = "Machine Learning Interatomic Potentials in JAX"
 license = "LICENSE"
 authors = [
@@ -18,6 +18,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "License :: OSI Approved :: Apache Software License",
 ]
+
+[tool.poetry.urls]
+"Homepage" = "https://github.com/instadeepai/mlip/"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<=3.13"

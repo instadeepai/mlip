@@ -146,8 +146,8 @@ Further details can be found in our white paper (see [below](#-citing-our-work))
 **MACE (2,139,152 parameters):**
 | Systems   | JAX + JAX-MD | JAX + ASE    | Torch + ASE  |
 | --------- |-------------:|-------------:|-------------:|
-| 1UAO      | 6.3 ms/step  | 11.6 ms/step | 44.2/step    |
-| 1ABT      | 66.8 ms/step | 99.5 ms/step | 157.2/step   |
+| 1UAO      | 6.3 ms/step  | 11.6 ms/step | 44.2 ms/step |
+| 1ABT      | 66.8 ms/step | 99.5 ms/step | 157.2 ms/step|
 
 **ViSNet (1,137,922 parameters):**
 | Systems   | JAX + JAX-MD | JAX + ASE    | Torch + ASE  |
@@ -169,10 +169,11 @@ Scott Cameron, Louis Robinson, Tom Barrett, and Alex Laterre.
 
 ## 📚 Citing our work
 
-We kindly request to cite our white paper when using this library:
+We kindly request to cite [our white paper](https://arxiv.org/abs/2505.22397)
+when using this library:
 
 C. Brunken, O. Peltre, H. Chomet, L. Walewski, M. McAuliffe, V. Heyraud,
 S. Attias, M. Maarand, Y. Khanfir, E. Toledo, F. Falcioni, M. Bluntzer,
 S. Acosta-Gutiérrez and J. Tilly, *Machine Learning Interatomic Potentials:
 library for efficient training, model development and simulation of molecular systems*,
-available on the arXiv.
+arXiv, 2025, arXiv:2505.22397.

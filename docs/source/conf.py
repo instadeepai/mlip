@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "MLIP"
-copyright = "2024, InstaDeep"  # noqa: A001
+copyright = "2025, InstaDeep"  # noqa: A001
 author = "InstaDeep"
 
 # -- General configuration ---------------------------------------------------

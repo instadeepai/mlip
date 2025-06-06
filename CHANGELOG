@@ -1,5 +1,10 @@
 # Changelog
 
+## Release 0.1.1
+
+- Small amount of modifications to README and documentation
+- Adding link to white paper in README
+
 ## Release 0.1.0
 
 - Implemented model architectures: MACE, NequIP and ViSNet

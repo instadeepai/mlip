@@ -18,6 +18,10 @@ from mlip.training.optimizer import (
 )
 from mlip.training.optimizer_config import OptimizerConfig
 from mlip.training.training_io_handler import TrainingIOHandler, TrainingIOHandlerConfig
-from mlip.training.training_loggers import log_metrics_to_line, log_metrics_to_table
+from mlip.training.training_loggers import (
+    convert_mse_to_rmse_in_logs,
+    log_metrics_to_line,
+    log_metrics_to_table,
+)
 from mlip.training.training_loop import TrainingLoop
 from mlip.training.training_loop_config import TrainingLoopConfig

@@ -22,6 +22,7 @@ from jraph import GraphsTuple
 
 from mlip.models.predictor import ForceFieldPredictor
 from mlip.training.ema import EMAParameterTransformation
+from mlip.training.metrics_reweighting import reweight_metrics_by_number_of_graphs
 from mlip.training.training_state import TrainingState
 from mlip.typing import LossFunction, ModelParameters
 
@@ -33,6 +34,7 @@ def _training_step(
     model_loss_fun: Callable[[ModelParameters, GraphsTuple, int], Array],
     optimizer: optax.GradientTransformation,
     ema_fun: EMAParameterTransformation,
+    avg_n_graphs_per_batch: float,
     num_gradient_accumulation_steps: Optional[int],
     should_parallelize: bool,
 ) -> tuple[TrainingState, dict]:
@@ -61,6 +63,11 @@ def _training_step(
 
     # Fetch logging info from aux_info.
     metrics = aux_info
+
+    # Reweight metrics to account for different number of real graphs per batch
+    metrics = reweight_metrics_by_number_of_graphs(
+        metrics, graph, avg_n_graphs_per_batch
+    )
 
     # Add batch-level metrics to the dictionary.
     metrics["gradient_norm"] = optax.global_norm(grads)
@@ -96,6 +103,7 @@ def make_train_step(
     loss_fun: LossFunction,
     optimizer: optax.GradientTransformation,
     ema_fun: EMAParameterTransformation,
+    avg_n_graphs_per_batch: float,
     num_gradient_accumulation_steps: Optional[int] = 1,
     should_parallelize: bool = True,
 ) -> Callable:
@@ -109,6 +117,8 @@ def make_train_step(
         optimizer: An optimizer for updating model params based on computed gradients.
         ema_fun: A function for updating the exponential moving average (EMA) of
                  the model params.
+        avg_n_graphs_per_batch: Average number of graphs per batch used for
+                                reweighting of metrics.
         num_gradient_accumulation_steps: The number of gradient accumulation
                                          steps before a parameter update is performed.
                                          Defaults to 1, implying immediate updates.
@@ -130,6 +140,7 @@ def make_train_step(
         model_loss_fun=model_loss,
         optimizer=optimizer,
         ema_fun=ema_fun,
+        avg_n_graphs_per_batch=avg_n_graphs_per_batch,
         num_gradient_accumulation_steps=num_gradient_accumulation_steps,
         should_parallelize=should_parallelize,
     )

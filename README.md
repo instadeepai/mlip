@@ -56,7 +56,7 @@ more information.
 At time of release, the following install command is supported:
 
 ```bash
-pip install -U "jax[cuda12]"
+pip install -U "jax[cuda12]==0.4.33"
 ```
 
 Note that using the TPU version of *jaxlib* is, in principle, also supported by
@@ -169,7 +169,7 @@ Scott Cameron, Louis Robinson, Tom Barrett, and Alex Laterre.
 
 ## 📚 Citing our work
 
-We kindly request to cite [our white paper](https://arxiv.org/abs/2505.22397)
+We kindly request that you to cite [our white paper](https://arxiv.org/abs/2505.22397)
 when using this library:
 
 C. Brunken, O. Peltre, H. Chomet, L. Walewski, M. McAuliffe, V. Heyraud,

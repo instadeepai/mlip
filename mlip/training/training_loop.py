@@ -99,7 +99,7 @@ class TrainingLoop:
             else validation_dataset.subset(config.eval_num_graphs)
         )
         self.total_num_graphs, self.total_num_nodes = (
-            self._get_total_number_of_graphs_and_nodes_in_train_set()
+            self._get_total_number_of_graphs_and_nodes_in_dataset(self.train_dataset)
         )
 
         self.force_field = force_field
@@ -118,22 +118,34 @@ class TrainingLoop:
 
         self.io_handler.save_dataset_info(self.dataset_info)
 
-        loss_train = partial(loss, eval_metrics=False)
-        loss_eval = partial(loss, eval_metrics=True)
+        self._loss_train = partial(loss, eval_metrics=False)
+        self._loss_eval = partial(loss, eval_metrics=True)
 
         self._prepare_training_state_and_ema()
+        # Note: Because we shuffle the training data between epochs, the following
+        # value may slightly fluctuate during training, however, we assume
+        # it being fixed, which is a solid approximation for datasets of typical size.
+        _avg_n_graphs_train = self.total_num_graphs / len(self.train_dataset)
         self.training_step = make_train_step(
             force_field.predictor,
-            loss_train,
+            self._loss_train,
             self.optimizer,
             self.ema_fun,
+            _avg_n_graphs_train,
             config.num_gradient_accumulation_steps,
             should_parallelize,
         )
         self.metrics = None
+        _avg_n_graphs_validation = (
+            self._get_total_number_of_graphs_and_nodes_in_dataset(
+                self.validation_dataset
+            )[0]
+            / len(self.validation_dataset)
+        )
         self.eval_step = make_evaluation_step(
             force_field.predictor,
-            loss_eval,
+            self._loss_eval,
+            _avg_n_graphs_validation,
             should_parallelize,
         )
 
@@ -270,8 +282,21 @@ class TrainingLoop:
                           a PrefetchIterator.
         """
         devices = jax.devices() if self.should_parallelize else None
+
+        # The following part needs to be recomputed each time as different test
+        # sets could be passed in
+        avg_n_graphs = self._get_total_number_of_graphs_and_nodes_in_dataset(
+            test_dataset
+        )[0] / len(test_dataset)
+        test_eval_step = make_evaluation_step(
+            self.force_field.predictor,
+            self._loss_eval,
+            avg_n_graphs,
+            self.should_parallelize,
+        )
+
         run_evaluation(
-            self.eval_step,
+            test_eval_step,
             test_dataset,
             self._best_params,
             self.epoch_number,
@@ -370,17 +395,19 @@ class TrainingLoop:
             self._get_num_steps_from_training_state(),
         )
 
-    def _get_total_number_of_graphs_and_nodes_in_train_set(self) -> tuple[int, int]:
+    def _get_total_number_of_graphs_and_nodes_in_dataset(
+        self, dataset: GraphDataset | PrefetchIterator
+    ) -> tuple[int, int]:
         total_num_graphs = 0
         total_num_nodes = 0
 
         def _batch_generator():
-            if isinstance(self.train_dataset, PrefetchIterator):
-                for stacked_batch in self.train_dataset:
+            if isinstance(dataset, PrefetchIterator):
+                for stacked_batch in dataset:
                     for i in range(stacked_batch.n_node.shape[0]):
                         yield jax.tree.map(lambda x, idx=i: x[idx], stacked_batch)
             else:
-                for batch in self.train_dataset:
+                for batch in dataset:
                     yield batch
 
         for _batch in _batch_generator():

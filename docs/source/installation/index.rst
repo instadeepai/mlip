@@ -19,7 +19,7 @@ At time of release, the following install command is supported:
 
 .. code-block:: bash
 
-    pip install -U "jax[cuda12]"
+    pip install -U "jax[cuda12]==0.4.33"
 
 Note that using the TPU version of *jaxlib* is, in principle, also supported by
 this library. However, it has not been thoroughly tested and should therefore be

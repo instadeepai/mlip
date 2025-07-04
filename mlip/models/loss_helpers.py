@@ -52,52 +52,16 @@ def compute_mae_stress(delta: jnp.ndarray, mask) -> float:
     return _masked_mean_stress(jnp.abs(delta), mask)
 
 
-def compute_rel_mae(delta: jnp.ndarray, target_val: jnp.ndarray, mask) -> float:
-    target_norm = _masked_mean(jnp.abs(target_val), mask)
-    return _masked_mean(jnp.abs(delta), mask) / (target_norm + 1e-30)
+def compute_mse(delta: jnp.ndarray, mask) -> float:
+    return _masked_mean(jnp.square(delta), mask)
 
 
-def compute_rel_mae_f(delta: jnp.ndarray, target_val: jnp.ndarray, mask) -> float:
-    target_norm = _masked_mean_f(jnp.abs(target_val), mask)
-    return _masked_mean_f(jnp.abs(delta), mask) / (target_norm + 1e-30)
+def compute_mse_f(delta: jnp.ndarray, mask) -> float:
+    return _masked_mean_f(jnp.square(delta), mask)
 
 
-def compute_rel_mae_stress(delta: jnp.ndarray, target_val: jnp.ndarray, mask) -> float:
-    target_norm = _masked_mean_stress(jnp.abs(target_val), mask)
-    return _masked_mean_stress(jnp.abs(delta), mask) / (target_norm + 1e-30)
-
-
-def compute_rmse(delta: jnp.ndarray, mask) -> float:
-    return jnp.sqrt(_masked_mean(jnp.square(delta), mask))
-
-
-def compute_rmse_f(delta: jnp.ndarray, mask) -> float:
-    return jnp.sqrt(_masked_mean_f(jnp.square(delta), mask))
-
-
-def compute_rmse_stress(delta: jnp.ndarray, mask) -> float:
-    return jnp.sqrt(_masked_mean_stress(jnp.square(delta), mask))
-
-
-def compute_rel_rmse(delta: jnp.ndarray, target_val: jnp.ndarray, mask) -> float:
-    target_norm = jnp.sqrt(_masked_mean(jnp.square(target_val), mask))
-    return jnp.sqrt(_masked_mean(jnp.square(delta), mask)) / (target_norm + 1e-30)
-
-
-def compute_rel_rmse_f(delta: jnp.ndarray, target_val: jnp.ndarray, mask) -> float:
-    target_norm = jnp.sqrt(_masked_mean_f(jnp.square(target_val), mask))
-    return jnp.sqrt(_masked_mean_f(jnp.square(delta), mask)) / (target_norm + 1e-30)
-
-
-def compute_rel_rmse_stress(delta: jnp.ndarray, target_val: jnp.ndarray, mask) -> float:
-    target_norm = jnp.sqrt(_masked_mean_stress(jnp.square(target_val), mask))
-    return jnp.sqrt(_masked_mean_stress(jnp.square(delta), mask)) / (
-        target_norm + 1e-30
-    )
-
-
-def compute_q95(delta: jnp.ndarray) -> float:
-    return jnp.percentile(jnp.abs(delta), q=95)
+def compute_mse_stress(delta: jnp.ndarray, mask) -> float:
+    return _masked_mean_stress(jnp.square(delta), mask)
 
 
 def _sum_nodes_of_the_same_graph(
@@ -295,120 +259,66 @@ def compute_eval_metrics(
         stress_per_atom_list.append(ref_graph.globals.stress / jnp.sum(node_mask))
 
     metrics = {
-        "mae_e": None,
-        "rel_mae_e": None,
-        "mae_e_per_atom": None,
-        "rel_mae_e_per_atom": None,
-        "rmse_e": None,
-        "rel_rmse_e": None,
-        "rmse_e_per_atom": None,
-        "rel_rmse_e_per_atom": None,
-        "q95_e": None,
-        "mae_f": None,
-        "rel_mae_f": None,
-        "rmse_f": None,
-        "rel_rmse_f": None,
-        "q95_f": None,
-        "mae_stress": None,
-        "rel_mae_stress": None,
-        "mae_stress_per_atom": None,
-        "rel_mae_stress_per_atom": None,
-        "rmse_stress": None,
-        "rel_rmse_stress": None,
-        "rmse_stress_per_atom": None,
-        "rel_rmse_stress_per_atom": None,
-        "q95_stress": None,
+        "mae_e": jnp.nan,
+        "mae_e_per_atom": jnp.nan,
+        "mse_e": jnp.nan,
+        "mse_e_per_atom": jnp.nan,
+        "mae_f": jnp.nan,
+        "mse_f": jnp.nan,
+        "mae_stress": jnp.nan,
+        "mae_stress_per_atom": jnp.nan,
+        "mse_stress": jnp.nan,
+        "mse_stress_per_atom": jnp.nan,
     }
 
     if len(delta_es_list) > 0:
         delta_es = jnp.concatenate(delta_es_list, axis=0)
         delta_es_per_atom = jnp.concatenate(delta_es_per_atom_list, axis=0)
-        es = jnp.concatenate(es_list, axis=0)
-        es_per_atom = jnp.concatenate(es_per_atom_list, axis=0)
 
         metrics.update(
             {
                 # Mean absolute error
                 "mae_e": compute_mae(delta_es, graph_mask),
-                # Root-mean-square error
-                "rmse_e": compute_rmse(delta_es, graph_mask),
+                # Mean-square error
+                "mse_e": compute_mse(delta_es, graph_mask),
             }
         )
         if extended_metrics:
             metrics.update(
                 {
                     # Mean absolute error
-                    "rel_mae_e": compute_rel_mae(delta_es, es, graph_mask),
                     "mae_e_per_atom": compute_mae(delta_es_per_atom, graph_mask),
-                    "rel_mae_e_per_atom": compute_rel_mae(
-                        delta_es_per_atom, es_per_atom, graph_mask
-                    ),
-                    # Root-mean-square error
-                    "rel_rmse_e": compute_rel_rmse(delta_es, es, graph_mask),
-                    "rmse_e_per_atom": compute_rmse(delta_es_per_atom, graph_mask),
-                    "rel_rmse_e_per_atom": compute_rel_rmse(
-                        delta_es_per_atom, es_per_atom, graph_mask
-                    ),
-                    # Q_95
-                    "q95_e": compute_q95(delta_es),
+                    # Mean-square error
+                    "mse_e_per_atom": compute_mse(delta_es_per_atom, graph_mask),
                 }
             )
 
     if len(delta_fs_list) > 0:
         delta_fs = jnp.concatenate(delta_fs_list, axis=0)
-        fs = jnp.concatenate(fs_list, axis=0)
-
         metrics.update(
             {
                 # Mean absolute error
                 "mae_f": compute_mae_f(delta_fs, node_mask),
-                # Root-mean-square error
-                "rmse_f": compute_rmse_f(delta_fs, node_mask),
+                # Mean-square error
+                "mse_f": compute_mse_f(delta_fs, node_mask),
             }
         )
-        if extended_metrics:
-            metrics.update(
-                {
-                    # Mean absolute error
-                    "rel_mae_f": compute_rel_mae_f(delta_fs, fs, node_mask),
-                    # Root-mean-square error
-                    "rel_rmse_f": compute_rel_rmse_f(delta_fs, fs, node_mask),
-                    # Q_95
-                    "q95_f": compute_q95(delta_fs),
-                }
-            )
 
     if len(delta_stress_list) > 0 and extended_metrics:
         delta_stress = jnp.concatenate(delta_stress_list, axis=0)
         delta_stress_per_atom = jnp.concatenate(delta_stress_per_atom_list, axis=0)
-        stress = jnp.concatenate(stress_list, axis=0)
-        stress_per_atom = jnp.concatenate(stress_per_atom_list, axis=0)
         metrics.update(
             {
                 # Mean absolute error
                 "mae_stress": compute_mae_stress(delta_stress, graph_mask),
-                "rel_mae_stress": compute_rel_mae_stress(
-                    delta_stress, stress, graph_mask
-                ),
                 "mae_stress_per_atom": compute_mae_stress(
                     delta_stress_per_atom, graph_mask
                 ),
-                "rel_mae_stress_per_atom": compute_rel_mae_stress(
-                    delta_stress_per_atom, stress_per_atom, graph_mask
-                ),
-                # Root-mean-square error
-                "rmse_stress": compute_rmse_stress(delta_stress, graph_mask),
-                "rel_rmse_stress": compute_rel_rmse_stress(
-                    delta_stress, stress, graph_mask
-                ),
-                "rmse_stress_per_atom": compute_rmse_stress(
+                # Mean-square error
+                "mse_stress": compute_mse_stress(delta_stress, graph_mask),
+                "mse_stress_per_atom": compute_mse_stress(
                     delta_stress_per_atom, graph_mask
                 ),
-                "rel_rmse_stress_per_atom": compute_rel_rmse_stress(
-                    delta_stress_per_atom, stress_per_atom, graph_mask
-                ),
-                # Q_95
-                "q95_stress": compute_q95(delta_stress),
             }
         )
 

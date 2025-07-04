@@ -98,6 +98,40 @@ class WeightedEFSLoss(Loss, abc.ABC):
         epoch: int,
         eval_metrics: bool = False,
     ) -> tuple[float, dict[str, float]]:
+        """The call function that outputs the loss and metrics (auxiliary data).
+
+        The metrics returned by this class if `eval_metrics=False`:
+          - average loss per structure
+          - energy, forces, and stress weighting factors
+
+        The metrics returned by this class if `eval_metrics=True`:
+          - average loss per structure
+          - MAE and MAE per atom (for energies, forces, and stress)
+          - MSE and MSE per atom (for energies, forces, and stress)
+
+        **Important note 1:** we provide MSE instead of RMSE, because MSE and MAE
+        metrics allow for downstream reweighting by number of real graphs per batch
+        to obtain the correct metrics over the whole dataset. This reweighting
+        is necessary as not every batch has the same number of real
+        (not dummy) graphs and is therefore done as part of the training loop.
+        Feel free to take the square root of the final MSE metric before logging it.
+        The default loggers provided with this library also report RMSE instead of MSE
+        during training.
+
+        **Important note 2:** we use per-component errors for forces instead of
+        computing force error vectors per atom and then computing their norm.
+
+        Args:
+            prediction: The force field predictor's outputs.
+            ref_graph: The reference graph holding the ground truth data.
+            epoch: The epoch number.
+            eval_metrics: Switch deciding whether to include additional
+                          evaluation metrics to the returned dictionary.
+                          Default is `False`.
+
+        Returns:
+            The loss and the auxiliary metrics dictionary.
+        """
         # Get weights
         energy_weight = self.energy_weight_schedule(epoch)
         forces_weight = self.forces_weight_schedule(epoch)

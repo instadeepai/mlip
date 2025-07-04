@@ -82,11 +82,11 @@ Loss
 
 All losses must be implemented as derived classes of
 :py:class:`Loss <mlip.models.loss.Loss>`. We currently implement two losses, the
-Mean-Squared-Error loss (:py:class:`Loss <mlip.models.loss.MSELoss>`), and the
-Huber loss (:py:class:`Loss <mlip.models.loss.HuberLoss>`), which are both losses
+Mean-Squared-Error loss (:py:class:`MSELoss <mlip.models.loss.MSELoss>`), and the
+Huber loss (:py:class:`HuberLoss <mlip.models.loss.HuberLoss>`), which are both losses
 that are derived from a loss that computes errors for energies, forces, and stress,
 and weights them according to some weighting schedule that can depend on the epoch
-number (base class: :py:class:`Loss <mlip.models.loss.WeightedEFSLoss>`).
+number (base class: :py:class:`WeightedEFSLoss <mlip.models.loss.WeightedEFSLoss>`).
 
 If one wants to use the MSE loss for training, simply run this code to initialize it:
 
@@ -105,7 +105,16 @@ If one wants to use the MSE loss for training, simply run this code to initializ
 
 For our two implemented losses, we also allow for computation of more extended metrics
 by setting the `extended_metrics` argument to `True` in the loss constructor.
-By default, it is `False`.
+By default, it is `False`. See the documentation of
+the :py:class:`call method <mlip.models.loss.WeightedEFSLoss.__call__>` of the class
+:py:class:`WeightedEFSLoss <mlip.models.loss.WeightedEFSLoss>` for more information on
+the returned metrics.
+
+Furthermore, note that even though the loss class is supposed to provide these metrics
+averaged just over a given input batch, we reweight these metrics based on the number
+of real (not dummy) graphs per batch in the training loop, such that the
+resulting metrics that are logged during training are accurately averaged
+over the whole dataset.
 
 .. _training_optimizer:
 
@@ -119,9 +128,13 @@ however, this library also has a specialized pipeline that has been inspired by
 `this <https://github.com/ACEsuit/mace>`_ PyTorch MACE implementation.
 It is configurable via a
 :py:class:`OptimizerConfig <mlip.training.optimizer_config.OptimizerConfig>` object that
-has sensible defaults set for training MLIP models.
+has sensible defaults set for training MLIP models. However, we suggest to also check
+out `our white paper <https://arxiv.org/abs/2505.22397>`_ for recommendations for
+sensible ways to adapt the defaults for specific models, for instance, ViSNet and
+NequIP seem to be more prone to NaNs with the default learning rate and benefit from
+using a smaller one such as ``1e-4``.
 
-This default MLIP optimizer can be set up like this:
+The default MLIP optimizer can be set up like this:
 
 .. code-block:: python
 
@@ -205,6 +218,14 @@ which prints the training metrics to the console in a nice table format (using
 `Rich tables <https://rich.readthedocs.io/en/stable/tables.html>`_), or
 :py:func:`log_metrics_to_line() <mlip.training.training_loggers.log_metrics_to_line>`,
 which logs the metrics in a single line.
+
+These logging functions automatically convert any MSE metrics to RMSE for easier
+interpretation. Internally, we only keep track of MSE instead of RMSE because we must
+ensure that the square root is taken at the very end and not before any averaging
+across batches or devices happens. If one desires to do the same conversion in their
+custom logging function, see
+:py:func:`convert_mse_to_rmse_in_logs() <mlip.training.training_loggers.convert_mse_to_rmse_in_logs>`,
+which is a helper function we provide for this task.
 
 Note that it is possible to omit the `io_handler` argument in the
 :py:class:`TrainingLoop <mlip.training.training_loop.TrainingLoop>` class. In that case,

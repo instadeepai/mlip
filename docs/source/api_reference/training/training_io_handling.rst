@@ -30,3 +30,5 @@ IO handling during training
     .. autofunction:: log_metrics_to_table
 
     .. autofunction:: log_metrics_to_line
+
+    .. autofunction:: convert_mse_to_rmse_in_logs

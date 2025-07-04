@@ -21,6 +21,7 @@ jobs:
           pip install -U pip setuptools
           pip install poetry==${POETRY_VERSION}
           poetry install
+          poetry run pip install git+https://github.com/jax-md/jax-md.git
 
       - name: Sphinx build
         run: |

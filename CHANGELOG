@@ -1,5 +1,18 @@
 # Changelog
 
+## Release 0.1.2
+
+- Fixing the computation of metrics during training, by reweighting the metrics of
+  each batch to account for a varying number of real graphs per batch; this results
+  in the metrics being independent of the batching strategy and number of GPUs employed
+- In addition to the point above, fixing the computation of RMSE metrics by now
+  only computing MSE metrics in the loss and taking the square root at the very end
+  when logging
+- Deleting relative and 95-percentile metrics, as they are not straightforward to
+  compute on-the-fly with our dynamic batching strategy; we recommend to compute them
+  separately for a model checkpoint if necessary
+- Small amount of modifications to README and documentation
+
 ## Release 0.1.1
 
 - Small amount of modifications to README and documentation

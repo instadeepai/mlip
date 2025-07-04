@@ -129,13 +129,13 @@ def test_model_training_works_correctly_for_mace(
     training_loop.run()
 
     assert log_container == [
-        (LogCategory.EVAL_METRICS, 15, 0),
+        (LogCategory.EVAL_METRICS, 7, 0),
         (LogCategory.BEST_MODEL, 2, 0),
         (LogCategory.TRAIN_METRICS, 9, 1),
-        (LogCategory.EVAL_METRICS, 15, 1),
+        (LogCategory.EVAL_METRICS, 7, 1),
         (LogCategory.BEST_MODEL, 2, 1),
         (LogCategory.TRAIN_METRICS, 9, 2),
-        (LogCategory.EVAL_METRICS, 15, 2),
+        (LogCategory.EVAL_METRICS, 7, 2),
         (LogCategory.BEST_MODEL, 2, 2),
     ]
     assert train_losses[0] > train_losses[1]
@@ -166,6 +166,9 @@ def test_model_training_works_correctly_for_mace(
     assert result.stress is None
 
     assert training_loop.epoch_number == 2
+
+    # Make sure test set evaluation can be run without any exception raised
+    training_loop.test(valid_set)
 
 
 def test_model_training_works_correctly_for_visnet(
@@ -232,13 +235,13 @@ def test_model_training_works_correctly_for_visnet(
     training_loop.run()
 
     assert log_container == [
-        (LogCategory.EVAL_METRICS, 15, 0),
+        (LogCategory.EVAL_METRICS, 7, 0),
         (LogCategory.BEST_MODEL, 2, 0),
         (LogCategory.TRAIN_METRICS, 9, 1),
-        (LogCategory.EVAL_METRICS, 15, 1),
+        (LogCategory.EVAL_METRICS, 7, 1),
         (LogCategory.BEST_MODEL, 2, 1),
         (LogCategory.TRAIN_METRICS, 9, 2),
-        (LogCategory.EVAL_METRICS, 15, 2),
+        (LogCategory.EVAL_METRICS, 7, 2),
         (LogCategory.BEST_MODEL, 2, 2),
     ]
 
@@ -269,6 +272,9 @@ def test_model_training_works_correctly_for_visnet(
     assert result.forces.shape == (num_nodes + 1, 3)
     assert result.energy is not None
     assert result.stress is None
+
+    # Make sure test set evaluation can be run without any exception raised
+    training_loop.test(valid_set)
 
 
 def test_best_params_saved_correctly(

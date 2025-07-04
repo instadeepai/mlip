@@ -17,12 +17,14 @@ from typing import Callable, Optional, TypeAlias
 
 import flax
 import jax
+import jax.numpy as jnp
 import jraph
 import numpy as np
 
 from mlip.data.helpers.data_prefetching import PrefetchIterator
 from mlip.data.helpers.graph_dataset import GraphDataset
 from mlip.models.predictor import ForceFieldPredictor
+from mlip.training.metrics_reweighting import reweight_metrics_by_number_of_graphs
 from mlip.training.training_io_handler import LogCategory, TrainingIOHandler
 from mlip.typing import LossFunction, ModelParameters
 
@@ -38,10 +40,16 @@ def _evaluation_step(
     predictor: ForceFieldPredictor,
     eval_loss_fun: LossFunction,
     should_parallelize: bool,
+    avg_n_graphs_per_batch: float,
 ) -> dict[str, np.ndarray]:
 
     predictions = predictor.apply(params, graph)
     _, metrics = eval_loss_fun(predictions, graph, training_epoch)
+
+    # Reweight metrics to account for different number of real graphs per batch
+    metrics = reweight_metrics_by_number_of_graphs(
+        metrics, graph, avg_n_graphs_per_batch
+    )
 
     if should_parallelize:
         metrics = jax.lax.pmean(metrics, axis_name="device")
@@ -51,6 +59,7 @@ def _evaluation_step(
 def make_evaluation_step(
     predictor: ForceFieldPredictor,
     eval_loss_fun: LossFunction,
+    avg_n_graphs_per_batch: float,
     should_parallelize: bool = True,
 ) -> EvaluationStepFun:
     """Creates the evaluation step function.
@@ -58,6 +67,8 @@ def make_evaluation_step(
     Args:
         predictor: The predictor to use.
         eval_loss_fun: The loss function for the evaluation.
+        avg_n_graphs_per_batch: Average number of graphs per batch used for
+                                reweighting of metrics.
         should_parallelize: Whether to apply data parallelization across
                             multiple devices.
 
@@ -69,6 +80,7 @@ def make_evaluation_step(
         predictor=predictor,
         eval_loss_fun=eval_loss_fun,
         should_parallelize=should_parallelize,
+        avg_n_graphs_per_batch=avg_n_graphs_per_batch,
     )
 
     if should_parallelize:
@@ -116,10 +128,10 @@ def run_evaluation(
     to_log = {}
     for metric_name in metrics[0].keys():
         metrics_values = [m[metric_name] for m in metrics]
-        if not any(val is None for val in metrics_values):
+        if not any(jnp.isnan(val).any() for val in metrics_values):
             to_log[metric_name] = np.mean(metrics_values)
 
-    mean_eval_loss = float(to_log["loss"])
+    mean_eval_loss = float(to_log.get("loss", jnp.nan))
 
     if is_test_set:
         io_handler.log(LogCategory.TEST_METRICS, to_log, epoch_number)

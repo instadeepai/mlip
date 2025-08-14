@@ -16,10 +16,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Callable, Optional
 
 import e3nn_jax as e3nn
 import flax.linen as nn
+import jax
 import jax.numpy as jnp
 
 
@@ -28,6 +29,7 @@ class MessagePassingConvolution(nn.Module):
     target_irreps: e3nn.Irreps
     l_max: int
     activation: Callable
+    species_embedding_dim: int | None = None
 
     @nn.compact
     def __call__(
@@ -37,8 +39,13 @@ class MessagePassingConvolution(nn.Module):
         radial_embedding: jnp.ndarray,  # [n_edges, radial_embedding_dim]
         senders: jnp.ndarray,  # [n_edges, ]
         receivers: jnp.ndarray,  # [n_edges, ]
+        edge_species_feat: Optional[
+            jnp.ndarray
+        ] = None,  # [n_edges, species_embedding_dim * 3]
     ) -> e3nn.IrrepsArray:
         assert node_feats.ndim == 2
+        if self.species_embedding_dim is not None:
+            assert edge_species_feat is not None
 
         target_irreps = e3nn.Irreps(self.target_irreps)
 
@@ -53,6 +60,7 @@ class MessagePassingConvolution(nn.Module):
                 ),
             ]
         ).regroup()  # [n_edges, irreps]
+
         mix = e3nn.flax.MultiLayerPerceptron(
             3 * [64] + [messages.irreps.num_irreps],
             self.activation,
@@ -61,6 +69,19 @@ class MessagePassingConvolution(nn.Module):
         )(
             radial_embedding
         )  # [n_edges, num_irreps]
+
+        if self.species_embedding_dim is not None:
+            mix_species = e3nn.flax.MultiLayerPerceptron(
+                3 * [64] + [messages.irreps.num_irreps],
+                self.activation,
+                gradient_normalization=1.0,
+                output_activation=False,
+                with_bias=True,
+            )(
+                edge_species_feat
+            )  # [n_edges, num_irreps]
+            mix = jax.vmap(jnp.multiply)(mix.array, mix_species)
+
         messages = messages * mix  # [n_edges, irreps]
 
         zeros = e3nn.zeros(messages.irreps, node_feats.shape[:1], messages.dtype)

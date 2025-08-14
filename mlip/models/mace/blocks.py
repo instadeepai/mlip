@@ -20,6 +20,7 @@ from typing import Callable, Optional, Tuple
 
 import e3nn_jax as e3nn
 import flax.linen as nn
+import jax
 import jax.numpy as jnp
 
 from mlip.models.mace.message_passing import MessagePassingConvolution
@@ -64,6 +65,28 @@ class EquivariantProductBasisBlock(nn.Module):
     num_species: int
     symmetric_tensor_product_basis: bool = True
     off_diagonal: bool = False
+    gate_nodes: bool = False
+
+    def node_gating(
+        self, node_feats: e3nn.IrrepsArray, node_species: jnp.ndarray
+    ) -> e3nn.IrrepsArray:
+        node_scalars = node_feats.filter(e3nn.Irreps("0e")).array
+        w = self.param(
+            "species_wise_gate_weights",
+            nn.initializers.normal(stddev=1 / jnp.sqrt(node_scalars.shape[-1])),
+            (
+                self.num_species,
+                node_scalars.shape[-1],
+                node_feats.irreps.num_irreps,
+            ),
+        )[node_species]
+        b = self.param(
+            "species_wise_gate_bias",
+            nn.initializers.normal(),
+            (self.num_species, node_feats.irreps.num_irreps),
+        )[node_species]
+        node_feats = node_feats * (jax.vmap(jnp.matmul)(node_scalars, w) + b)
+        return node_feats
 
     @nn.compact
     def __call__(
@@ -82,6 +105,10 @@ class EquivariantProductBasisBlock(nn.Module):
             off_diagonal=self.off_diagonal,
         )(node_feats, node_species)
         node_feats = node_feats.axis_to_mul()
+
+        if self.gate_nodes:
+            node_feats = self.node_gating(node_feats, node_species)
+
         return e3nn.flax.Linear(target_irreps)(node_feats)
 
 
@@ -90,6 +117,7 @@ class InteractionBlock(nn.Module):
     avg_num_neighbors: float
     l_max: int
     activation: Callable
+    species_embedding_dim: int | None = None
 
     @nn.compact
     def __call__(
@@ -99,10 +127,15 @@ class InteractionBlock(nn.Module):
         radial_embeddings: jnp.ndarray,  # [n_edges, radial_embedding_dim]
         senders: jnp.ndarray,  # [n_edges, ]
         receivers: jnp.ndarray,  # [n_edges, ]
+        edge_species_feat: Optional[
+            jnp.ndarray
+        ] = None,  # [n_edges, species_embedding_dim * 3]
     ) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
         assert node_feats.ndim == 2
         assert edge_vectors.ndim == 2
         assert radial_embeddings.ndim == 2
+        if self.species_embedding_dim is not None:
+            assert edge_species_feat is not None
 
         target_irreps = e3nn.Irreps(self.target_irreps)
 
@@ -113,7 +146,15 @@ class InteractionBlock(nn.Module):
             target_irreps,
             self.l_max,
             self.activation,
-        )(edge_vectors, node_feats, radial_embeddings, senders, receivers)
+            species_embedding_dim=self.species_embedding_dim,
+        )(
+            edge_vectors,
+            node_feats,
+            radial_embeddings,
+            senders,
+            receivers,
+            edge_species_feat,
+        )
         node_feats = e3nn.flax.Linear(target_irreps, name="linear_down")(node_feats)
 
         assert node_feats.ndim == 2

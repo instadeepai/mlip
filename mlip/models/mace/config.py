@@ -72,12 +72,21 @@ class MaceConfig(BaseModel):
         num_species: The number of elements (atomic species descriptors) allowed.
                      If `None` (default), infer the value from the atomic energies
                      map in the dataset info.
+        gate_nodes: Whether to use a gating for the self-interaction.
+                    Default is `False`.
+                    See our white paper for a description of this option that is
+                    not present in the original MACE architecture.
+        species_embedding_dim: If this is not `None`, edge species embedding is used
+                               for the message passing with features of dimension
+                               `species_embedding_dim`. Default is `None`.
+                               See our white paper for a description of this option
+                               that is not present in the original MACE architecture.
     """
 
     num_layers: PositiveInt = 2
     num_channels: PositiveInt = 128
     l_max: NonNegativeInt = 3
-    node_symmetry: Optional[PositiveInt] = None
+    node_symmetry: Optional[NonNegativeInt] = None
     correlation: PositiveInt = 3
     readout_irreps: tuple[Irreps, ...] = ("16x0e", "0e")
     num_readout_heads: PositiveInt = 1
@@ -90,6 +99,8 @@ class MaceConfig(BaseModel):
     avg_num_neighbors: Optional[float] = None
     avg_r_min: Optional[float] = None
     num_species: Optional[int] = None
+    gate_nodes: bool = False
+    species_embedding_dim: Optional[PositiveInt] = None
 
     @model_validator(mode="after")
     def _validate_readout_irreps(self) -> Self:

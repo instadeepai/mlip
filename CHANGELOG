@@ -1,5 +1,13 @@
 # Changelog
 
+## Release 0.1.3
+
+- Adding two new options to the MACE implementation, a more complex species embedding
+  and a gating mechanism for node features. Making use of these options may improve
+  inference speed at similar accuracy.
+- Fixing a bug that caused overriding energy and forces predictions to be "None" when
+  stress is computed by a model.
+
 ## Release 0.1.2
 
 - Fixing the computation of metrics during training, by reweighting the metrics of

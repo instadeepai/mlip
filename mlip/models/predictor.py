@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import asdict
+from dataclasses import replace
 from typing import TypeAlias
 
 import e3nn_jax as e3nn
@@ -78,7 +78,7 @@ class ForceFieldPredictor(nn.Module):
         stress_results = self._compute_stress_results(
             graph, pseudo_stress, minus_forces
         )
-        return result.replace(**asdict(stress_results))
+        return replace(stress_results, energy=graph_energies, forces=-minus_forces)
 
     def _compute_graph_energies_and_grad_wrt_positions(
         self, graph: jraph.GraphsTuple

@@ -120,6 +120,8 @@ class Mace(MLIPNetwork):
             readout_mlp_irreps=readout_mlp_irreps,
             correlation=self.config.correlation,
             gate=parse_activation(self.config.activation),
+            gate_nodes=self.config.gate_nodes,
+            species_embedding_dim=self.config.species_embedding_dim,
         )
 
         mace_block = MaceBlock(output_irreps=output_irreps, **mace_block_kwargs)
@@ -172,6 +174,8 @@ class MaceBlock(nn.Module):
     node_embedding: nn.Module = LinearNodeEmbeddingBlock
     num_readout_heads: int = 1
     residual_connection_first_layer: bool = False
+    gate_nodes: bool = False
+    species_embedding_dim: int | None = None
 
     @nn.compact
     def __call__(
@@ -233,6 +237,28 @@ class MaceBlock(nn.Module):
 
         radial_embeddings = radial_embed(safe_norm(edge_vectors.array, axis=-1))
 
+        # Node and edge species features
+        if self.species_embedding_dim is not None:
+            node_species_feat = nn.Embed(
+                self.num_species, self.species_embedding_dim, name="species_embedding"
+            )(node_species)
+            vmap_multiply = jax.vmap(jnp.multiply)
+
+            edge_species_feat = vmap_multiply(
+                node_species_feat[senders], node_species_feat[receivers]
+            )
+
+            edge_species_feat = jnp.concat(
+                [
+                    node_species_feat[senders],
+                    node_species_feat[receivers],
+                    edge_species_feat,
+                ],
+                axis=-1,
+            )
+        else:
+            edge_species_feat = None
+
         # Interactions
         outputs = []
         for i in range(self.num_interactions):
@@ -257,6 +283,8 @@ class MaceBlock(nn.Module):
                 soft_normalization=self.soft_normalization,
                 name=f"layer_{i}",
                 num_readout_heads=self.num_readout_heads,
+                species_embedding_dim=self.species_embedding_dim,
+                gate_nodes=self.gate_nodes,
             )(
                 edge_vectors,
                 node_feats,
@@ -265,6 +293,7 @@ class MaceBlock(nn.Module):
                 senders,
                 receivers,
                 node_mask,
+                edge_species_feat,
             )
             outputs += [node_outputs]  # list of [n_nodes, num_heads, output_irreps]
 
@@ -294,6 +323,8 @@ class MaceLayer(nn.Module):
     output_irreps: e3nn.Irreps
     readout_mlp_irreps: e3nn.Irreps
     num_readout_heads: int = 1
+    species_embedding_dim: int | None = None
+    gate_nodes: bool = False
 
     @nn.compact
     def __call__(
@@ -305,6 +336,9 @@ class MaceLayer(nn.Module):
         senders: jnp.ndarray,  # [n_edges]
         receivers: jnp.ndarray,  # [n_edges]
         node_mask: Optional[jnp.ndarray] = None,  # [n_nodes] only used for profiling
+        edge_species_feat: Optional[
+            jnp.ndarray
+        ] = None,  # [n_edges, species_embedding_dim * 3]
     ):
         interaction_irreps = e3nn.Irreps(self.interaction_irreps)
         node_irreps = e3nn.Irreps(self.node_irreps)
@@ -341,12 +375,14 @@ class MaceLayer(nn.Module):
             avg_num_neighbors=self.avg_num_neighbors,
             l_max=self.l_max,
             activation=self.activation,
+            species_embedding_dim=self.species_embedding_dim,
         )(
             edge_vectors=edge_vectors,
             node_feats=node_feats,
             radial_embeddings=radial_embeddings,
             receivers=receivers,
             senders=senders,
+            edge_species_feat=edge_species_feat,
         )
 
         # selector tensor product (first layer only)
@@ -365,6 +401,7 @@ class MaceLayer(nn.Module):
                 num_species=self.num_species,
                 symmetric_tensor_product_basis=self.symmetric_tensor_product_basis,
                 off_diagonal=self.off_diagonal,
+                gate_nodes=self.gate_nodes,
             )(node_feats=node_feats, node_species=node_species)
         else:
             node_feats = EquivariantProductBasisBlock(
@@ -373,6 +410,7 @@ class MaceLayer(nn.Module):
                 num_species=self.num_species,
                 symmetric_tensor_product_basis=self.symmetric_tensor_product_basis,
                 off_diagonal=self.off_diagonal,
+                gate_nodes=self.gate_nodes,
             )(node_feats=node_feats, node_species=node_species)
 
         if self.soft_normalization is not None:

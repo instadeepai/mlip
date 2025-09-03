@@ -1,10 +1,10 @@
-[tool.poetry]
+[project]
 name = "mlip"
-version = "0.1.3"
+version = "0.1.4"
 description = "Machine Learning Interatomic Potentials in JAX"
-license = "LICENSE"
+license = "Apache-2.0"
 authors = [
-    "InstaDeep",
+    {name="InstaDeep", email="c.brunken@instadeep.com"}
 ]
 readme = "README.md"
 classifiers = [

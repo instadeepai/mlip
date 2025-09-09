@@ -14,18 +14,19 @@ jobs:
        image: python:3.10.12-slim-bullseye
     steps:
       - uses: actions/checkout@v4
+      - name: setup
+        run: |
+          apt-get update && apt-get install -y coreutils git curl
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
       - name: Install dependencies
         run: |
-          apt-get update && apt-get install -y coreutils git
-          POETRY_VERSION=1.8.4
-          pip install -U pip setuptools
-          pip install poetry==${POETRY_VERSION}
-          poetry install
-          poetry run pip install git+https://github.com/jax-md/jax-md.git
+          uv sync
+          uv pip install git+https://github.com/jax-md/jax-md.git
 
       - name: Sphinx build
         run: |
-          poetry run sphinx-build -b html docs/source _build
+          uv run sphinx-build -b html docs/source _build
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

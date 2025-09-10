@@ -1,10 +1,10 @@
-[tool.poetry]
+[project]
 name = "mlip"
-version = "0.1.3"
+version = "0.1.4"
 description = "Machine Learning Interatomic Potentials in JAX"
-license = "LICENSE"
+license = "Apache-2.0"
 authors = [
-    "InstaDeep",
+    {name="InstaDeep", email="c.brunken@instadeep.com"}
 ]
 readme = "README.md"
 classifiers = [
@@ -19,41 +19,42 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 
-[tool.poetry.urls]
-"Homepage" = "https://github.com/instadeepai/mlip/"
+requires-python = ">=3.10,<3.12"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<=3.13"
-numpy = "^1.26.0"
-jax = "0.4.33"
-jaxlib = "0.4.33"
-ase = "^3.22.1"
-orbax-checkpoint = "0.5.2"
-omegaconf = "^2.3.0"
-dm-haiku = "^0.0.12"
-dm-tree = "^0.1.8"
-e3nn-jax = "^0.20.7"
-flax = "^0.9.0"
-jraph = "*"
-orbax = "^0.1.9"
-roundmantissa = "^0.2.1"
-matscipy = "1.0.0"
-tdqm = "^0.0.1"
-pydantic = "^2.10.2"
-tqdm-loggable = "^0.2"
-h5py = "^3.12.1"
+dependencies = [
+    "numpy ~= 1.26.0",
+    "jax ~= 0.4.35",
+    "jaxlib ~= 0.4.34",
+    "ase ~= 3.22.1",
+    "orbax-checkpoint == 0.5.2",
+    "omegaconf ~= 2.3.0",
+    "dm-haiku ~= 0.0.12",
+    "dm-tree ~= 0.1.8",
+    "e3nn-jax ~= 0.20.7",
+    "flax ~= 0.9.0",
+    "jraph == 0.0.6.*",
+    "orbax ~= 0.1.9",
+    "roundmantissa ~= 0.2.1",
+    "matscipy == 1.0.0",
+    "pydantic ~= 2.10.2",
+    "h5py ~= 3.12.1",
+    "tqdm ~= 4.0",
+    "tqdm-loggable ~= 0.2"
+]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-pytest-cov = "^4.1.0"
-black = "24.2.0"
-pre-commit = "^4.0.1"
-sphinx = "^8.1.3"
-furo = "^2024.8.6"
+[dependency-groups]
+dev = [
+    "pytest ~= 7.4.0",
+    "pytest-cov ~= 4.1.0",
+    "black ~= 24.2.0",
+    "pre-commit ~= 4.0.1",
+    "sphinx ~= 8.1.3",
+    "furo ~= 2024.8.6"
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.isort]
 profile = "black"

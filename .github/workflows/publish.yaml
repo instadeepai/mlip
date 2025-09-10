@@ -17,14 +17,16 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: install poetry
+      - name: setup
         run: |
-          POETRY_VERSION=1.8.4
-          pip install -U pip setuptools
-          pip install poetry==${POETRY_VERSION}
+          apt-get update && apt-get install -y \
+          coreutils \
+          curl \
+
+      - name: install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: build and publish
         run: |
-          export POETRY_PYPI_TOKEN_PYPI=${{secrets.POETRY_PYPI_TOKEN}}
-          poetry build
-          poetry publish
+          uv build
+          uv publish --token ${{secrets.POETRY_PYPI_TOKEN}}

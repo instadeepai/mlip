@@ -16,22 +16,25 @@ jobs:
         run: |
           apt-get update && apt-get install -y \
           coreutils \
+          curl \
           git
           git config --system --add safe.directory $GITHUB_WORKSPACE
 
       - name: checkout code 📦
         uses: actions/checkout@v4
 
-      - name: install poetry
+      - name: install uv
         run: |
-          POETRY_VERSION=1.8.4
           pip install -U pip setuptools
-          pip install poetry==${POETRY_VERSION}
-          poetry install
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: setup env
+        run: uv sync --group dev
 
       - name: run linters 🖌️
         run: |
-          poetry run pre-commit run --all-files --verbose
+          git init
+          uv run pre-commit run --all-files --verbose
 
   tests:
     runs-on: ubuntu-latest
@@ -41,17 +44,26 @@ jobs:
       - name: checkout code 📂
         uses: actions/checkout@v4
 
-      - name: install poetry
+      - name: setup
         run: |
-          POETRY_VERSION=1.8.4
+          apt-get update && apt-get install -y \
+          coreutils \
+          curl \
+          git
+
+      - name: install uv
+        run: |
           pip install -U pip setuptools
-          pip install poetry==${POETRY_VERSION}
-          poetry install
-          poetry add git+https://github.com/jax-md/jax-md.git
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: setup env
+        run: |
+          uv sync --group dev
+          uv add git+https://github.com/jax-md/jax-md.git
 
       - name: run tests 🧪
         run: |
-          poetry run pytest --ignore tests/experiments --verbose \
+          uv run pytest --ignore tests/experiments --verbose \
                                             --cov-report xml:coverage.xml \
                                             --cov-report term-missing \
                                             --junitxml=pytest.xml \

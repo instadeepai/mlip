@@ -20,6 +20,7 @@ import jraph
 import numpy as np
 import pytest
 
+from mlip.data import DatasetInfo
 from mlip.data.chemical_system import ChemicalSystem
 from mlip.data.chemical_systems_readers.extxyz_reader import ExtxyzReader
 from mlip.data.configs import ChemicalSystemsReaderConfig, GraphDatasetBuilderConfig
@@ -29,6 +30,7 @@ from mlip.data.graph_dataset_builder import (
     GraphDatasetBuilder,
     PrefetchIterator,
 )
+from mlip.data.helpers import get_edge_relative_vectors
 from mlip.data.helpers.atomic_energies import compute_average_e0s_from_graphs
 from mlip.data.helpers.atomic_number_table import AtomicNumberTable
 from mlip.data.helpers.data_split import (
@@ -46,6 +48,8 @@ SMALL_ASPIRIN_UNSEEN_ATOMS_DATASET_PATH = (
     DATA_DIR / "small_aspirin_test_unseen_atoms.xyz"
 )
 SMALL_MP_DATASET_PATH = DATA_DIR / "small_materials_test.extxyz"
+
+CUTOFF_ANGSTROM = 6
 
 
 @pytest.mark.parametrize("train_num_to_load", [None, 3])
@@ -154,6 +158,43 @@ def test_graph_dataset_builder_works_correctly(use_formation_energies):
     splits = graph_dataset_builder.get_splits(prefetch=True, devices=jax.devices())
     for i in range(3):
         assert isinstance(splits[i], PrefetchIterator)
+
+
+def test_graph_dataset_builder_with_dataset_info():
+    # Create a `DatasetInfo` with more elements : {H, He, C, N, O} >= {H, C, O}
+    dataset_info = DatasetInfo(
+        atomic_energies_map=dict.fromkeys([1, 2, 6, 7, 8], 0.0),
+        cutoff_distance_angstrom=2.0,  # must match config else ValueError is raised
+    )
+    # Initialize reader / builder configs
+    reader_config = ChemicalSystemsReaderConfig(
+        train_dataset_paths=[str(SMALL_ASPIRIN_DATASET_PATH.resolve())],
+        valid_dataset_paths=None,
+        test_dataset_paths=None,
+        train_num_to_load=3,
+        valid_num_to_load=None,
+        test_num_to_load=None,
+    )
+    builder_config = GraphDatasetBuilderConfig(
+        graph_cutoff_angstrom=2.0,
+        use_formation_energies=False,
+        max_n_node=30,
+        max_n_edge=90,
+        batch_size=5,
+        num_batch_prefetch=1,
+        batch_prefetch_num_devices=1,
+    )
+    reader = ExtxyzReader(config=reader_config)
+    # Pass `DatasetInfo` from the outside.
+    graph_dataset_builder = GraphDatasetBuilder(reader, builder_config, dataset_info)
+    graph_dataset_builder.prepare_datasets()
+    dataset, _, _ = graph_dataset_builder.get_splits()
+    # Check that species lie in {0, 2, 4} :
+    #   - aspirin only contains H, C, O
+    #   - He and N not encountered
+    for graph in dataset:
+        species = graph.nodes.species[: sum(graph.n_node[:-1])]
+        assert set(species) == {0, 2, 4}
 
 
 def test_atomic_energies_calculation_works():
@@ -275,6 +316,38 @@ def test_data_is_correctly_split_randomly_by_group():
     assert test_set == expected_test_set_with_given_settings
 
 
+def test_data_is_correctly_split_by_group():
+    num_conformers = 7
+    data = [
+        (f"abc_{frag_idx}_md_{i}", i * 5 + frag_idx)
+        for i in range(num_conformers)
+        for frag_idx in range(10)
+    ]
+
+    group_ids_by_split = (
+        {f"abc_{i}" for i in range(6)},  # train
+        {f"abc_{i}" for i in range(6, 8)},  # val
+        {f"abc_{i}" for i in range(8, 10)},  # test
+    )
+
+    def _group_id_fun(data_point: tuple[str, int]) -> str:
+        return "_".join(data_point[0].split("_")[:2])
+
+    train_set, valid_set, test_set = split_data_by_group(
+        data,
+        get_group_id_fun=_group_id_fun,
+        group_ids_by_split=group_ids_by_split,
+    )
+
+    assert len(train_set) + len(valid_set) + len(test_set) == len(data)
+    assert len(train_set) == 6 * num_conformers
+    assert len(valid_set) == 2 * num_conformers
+    assert len(test_set) == 2 * num_conformers
+    assert ("abc_5_md_0", 5) in train_set
+    assert ("abc_6_md_0", 6) in valid_set
+    assert ("abc_8_md_0", 8) in test_set
+
+
 def test_correct_loading_of_stress():
     """Test loading of subset of MP dataset"""
     reader_config = ChemicalSystemsReaderConfig(
@@ -316,33 +389,50 @@ def test_correct_loading_of_stress():
     )
 
 
-def test_data_is_correctly_split_by_group():
-    num_conformers = 7
-    data = [
-        (f"abc_{frag_idx}_md_{i}", i * 5 + frag_idx)
-        for i in range(num_conformers)
-        for frag_idx in range(10)
-    ]
+def test_materials_shifts_and_edges():
+    """Check that MP_trj structures are loaded with consistent edge vectors.
 
-    group_ids_by_split = (
-        {f"abc_{i}" for i in range(6)},  # train
-        {f"abc_{i}" for i in range(6, 8)},  # val
-        {f"abc_{i}" for i in range(8, 10)},  # test
+    If edge lengths overflow cutoff, then there is an inconsistent processing
+    of "shifts" in Z^n. For instance, replicas of the sender node may not be
+    placed within closest cell of the receiver node (e.g. sign error on shifts).
+
+    See also unit tests on `get_edge_relative_vectors` in tests/utils.
+    """
+    reader_config = ChemicalSystemsReaderConfig(
+        train_dataset_paths=[str(SMALL_MP_DATASET_PATH.resolve())],
+        valid_dataset_paths=None,
+        test_dataset_paths=None,
+        train_num_to_load=None,
+        valid_num_to_load=None,
+        test_num_to_load=None,
+    )
+    reader = ExtxyzReader(config=reader_config)
+    train_systems, valid_systems, test_systems = reader.load()
+
+    dset_config = GraphDatasetBuilder.Config(
+        graph_cutoff_angstrom=CUTOFF_ANGSTROM,
+        batch_size=4,
     )
 
-    def _group_id_fun(data_point: tuple[str, int]) -> str:
-        return "_".join(data_point[0].split("_")[:2])
-
-    train_set, valid_set, test_set = split_data_by_group(
-        data,
-        get_group_id_fun=_group_id_fun,
-        group_ids_by_split=group_ids_by_split,
+    dset_builder = GraphDatasetBuilder(
+        reader=reader,
+        dataset_config=dset_config,
     )
 
-    assert len(train_set) + len(valid_set) + len(test_set) == len(data)
-    assert len(train_set) == 6 * num_conformers
-    assert len(valid_set) == 2 * num_conformers
-    assert len(test_set) == 2 * num_conformers
-    assert ("abc_5_md_0", 5) in train_set
-    assert ("abc_6_md_0", 6) in valid_set
-    assert ("abc_8_md_0", 8) in test_set
+    dset_builder.prepare_datasets()
+    dset, *_ = dset_builder.get_splits()
+
+    graph = next(iter(dset))
+
+    vectors = get_edge_relative_vectors(
+        graph.nodes.positions,
+        graph.senders,
+        graph.receivers,
+        graph.edges.shifts,
+        graph.globals.cell,
+        graph.n_edge,
+    )
+
+    assert vectors.shape[-1] == 3
+    distances = np.sqrt(np.sum(vectors * vectors, axis=-1))
+    assert max(distances) < CUTOFF_ANGSTROM

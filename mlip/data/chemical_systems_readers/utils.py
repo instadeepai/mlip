@@ -56,6 +56,7 @@ def filter_systems_with_unseen_atoms_and_assign_atomic_species(
     train_systems: ChemicalSystems,
     valid_systems: ChemicalSystems,
     test_systems: ChemicalSystems,
+    z_table: AtomicNumberTable | None = None,
 ) -> ChemicalSystemsBySplit:
     """Remove systems with atoms not present in the training set
     and assign atomic species based on the train systems.
@@ -67,15 +68,20 @@ def filter_systems_with_unseen_atoms_and_assign_atomic_species(
                        of a list of ChemicalSystems
         test_systems: Loaded test dataset in the format
                       of a list of ChemicalSystems
+        z_table: Optional conversion table from atomic numbers to specie
+                 indices. Pass this argument explicitly for compatibility
+                 with a trained model, otherwise pass `None` to define the
+                 conversion based on training set elements.
 
     Returns:
         The modified/filtered output as a tuple of train, validation and test
         datasets as a list of ``ChemicalSystem`` objects.
     """
     # Filter systems then assign atomic species
-    z_table = AtomicNumberTable(
-        sorted(set(np.concatenate([ts.atomic_numbers for ts in train_systems])))
-    )
+    if z_table is None:
+        z_table = AtomicNumberTable(
+            sorted(set(np.concatenate([ts.atomic_numbers for ts in train_systems])))
+        )
     valid_systems = _filter_systems_with_unseen_atoms(valid_systems, z_table)
     test_systems = _filter_systems_with_unseen_atoms(test_systems, z_table)
     _update_atomic_species(train_systems, z_table)

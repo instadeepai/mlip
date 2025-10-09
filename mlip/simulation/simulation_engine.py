@@ -37,14 +37,21 @@ class SimulationEngine(abc.ABC):
         force_field: ForceField,
         config: SimulationConfig,
     ) -> None:
-        """Constructor that initializes the simulation state and an empty list of loggers.
-        Engine-specific initialization is then delegated to ``._initialize()``
+        """Constructor that initializes the simulation state and
+        an empty list of loggers. Engine-specific initialization is then
+        delegated to ``._initialize()``
 
         Args:
             atoms: The atoms of the system to simulate.
             force_field: The force field to use in the simulation.
             config: The configuration/settings of the simulation.
+
+        Raises:
+            ValueError: if input system has only one atom.
         """
+        if len(atoms) == 1:
+            raise ValueError("Single atom systems are not supported yet.")
+
         self.state = SimulationState()
         self.loggers: list[Callable[[SimulationState], None]] = []
         self._initialize(atoms, force_field, config)

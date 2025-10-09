@@ -160,7 +160,13 @@ def run_batched_inference(
         A list of predictions for each structure. These dataclasses will hold a float
         for energy, a numpy array for forces of shape `(num_atoms, 3)`, and optionally
         one for stress of shape `(3, 3)`.
+
+    Raises:
+        ValueError: if any of the input systems has only one atom.
     """
+    if any(len(struct) == 1 for struct in structures):
+        raise ValueError("Single atom systems are not supported yet.")
+
     graphs = _prepare_graphs(
         structures, force_field.allowed_atomic_numbers, force_field.cutoff_distance
     )

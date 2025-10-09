@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y git wget
 
-RUN pip install mlip "jax[cuda12]==0.4.33" huggingface_hub git+https://github.com/jax-md/jax-md.git notebook
+RUN pip install mlip "jax[cuda12]==0.6.2" huggingface_hub git+https://github.com/jax-md/jax-md.git notebook
 
 RUN wget https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/simulation_tutorial.ipynb \
          https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/model_training_tutorial.ipynb \

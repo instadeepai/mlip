@@ -13,5 +13,7 @@
 # limitations under the License.
 
 from mlip.data.helpers.atomic_number_table import AtomicNumberTable
+from mlip.data.helpers.edge_vectors import get_edge_relative_vectors
 from mlip.data.helpers.graph_creation import create_graph_from_chemical_system
 from mlip.data.helpers.graph_dataset import GraphDataset
+from mlip.data.helpers.neighborhood import get_neighborhood

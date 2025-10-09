@@ -1,6 +1,6 @@
 default_stages: [ "pre-commit", "commit-msg", "pre-push" ]
 default_language_version:
-  python: python3.10
+  python: python3.12
 
 repos:
   - repo: https://github.com/timothycrosley/isort
@@ -16,7 +16,7 @@ repos:
         exclude: notebooks/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
         name: "End of file fixer"
@@ -34,7 +34,7 @@ repos:
         name: "Trailing whitespace fixer"
 
   - repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
+    rev: 7.3.0
     hooks:
       - id: flake8
         # E203 - ":" with whitespace before it
@@ -60,4 +60,4 @@ repos:
       - id: conventional-pre-commit
         name: "Commit linter"
         stages: [ commit-msg ]
-        args: [ ci, build, docs, feat, fix, perf, refactor, style, test, EXP, revert, chore, config, release]
+        args: [ ci, build, docs, feat, fix, perf, refactor, style, test, EXP, revert, chore, config, release, cleanup]

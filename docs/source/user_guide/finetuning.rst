@@ -7,18 +7,29 @@ Model fine-tuning
 
    Currently, fine-tuning is only available for MACE models.
 
+.. warning::
+
+   If the downstream dataset contains fewer elements than the training set, you
+   might run into silent inconsistencies where some atomic numbers are mapped to
+   the wrong specie indices.
+
+   **Starting from mlip 0.1.4**, you can (and should) pass the `.dataset_info`
+   of a trained `ForceField` to `GraphDatasetBuilder` when preparing data for
+   downstream tasks.
+
+In the following, we describe how to fine-tune an MLIP model with this library.
 A common use case is fine-tuning a pre-trained MLIP model
 on additional data to improve its accuracy for specific types of chemical systems.
 
-In the following, we describe how to fine-tune an MLIP model with this library. We
-recall that an MLIP model can be trained using multiple read-out heads. Note that
+
+We recall that an MLIP model can be trained using multiple read-out heads. Note that
 currently, this is just implemented for the MACE architecture. The number of read-out
 heads can be set via ``num_readout_heads`` in
 :py:func:`MaceConfig <mlip.models.mace.config.MaceConfig>`.
 By default, one trains a model with only one read-out head. However, it does
 not matter for this fine-tuning step whether a model already has *N* read-out heads,
 it can be fine-tuned by adding more heads and optimizing their associated weights only.
-Note that the final energy prediction of a model is obtained by summing the outputs
+The final energy prediction of a model is obtained by summing the outputs
 of the *N* read-out heads.
 
 To fine-tune a given model, set up the new model with at least one more read-out head
@@ -95,8 +106,7 @@ the transferred parameters works like this:
 
     force_field = ForceField(initial_force_field.predictor, transferred_params)
 
-
-**To summarize, there are only three additional steps that are**
+**To summarize, there are only four additional steps that are**
 **required for fine-tuning in contrast to a regular model training:**
 
 * Loading the original pre-trained model parameters *and* setting up a new model that
@@ -105,6 +115,9 @@ the transferred parameters works like this:
   :py:func:`transfer_params() <mlip.models.params_transfer.transfer_params>`.
 * Mask the optimizer using the function
   :py:func:`mask_optimizer_for_finetuning() <mlip.training.finetuning_utils.mask_optimizer_for_finetuning>`.
+* Make sure the `dataset_info` object is used consistently across pretrained
+  :py:func:`ForceField <mlip.models.force_field.ForceField>` and
+  :py:func:`GraphDatasetBuilder <mlip.data.graph_dataset_builder.GraphDatasetBuilder>`.
 
 **Additional note:** When fine-tuning on datasets that are quite different to the
 original dataset which the pre-trained model was trained on, we recommend to add a subset

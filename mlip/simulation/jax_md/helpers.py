@@ -16,6 +16,7 @@ from typing import Callable
 
 import ase
 import jax
+import jax.numpy as jnp
 import jax_md
 import jraph
 import numpy as np
@@ -157,7 +158,7 @@ def init_neighbor_lists(
     """
     neighbor_fun = jax_md.partition.neighbor_list(
         displacement_fun,
-        box=None,
+        box=jnp.nan,
         r_cutoff=cutoff_distance_angstrom,
         disable_cell_list=False,
         format=jax_md.partition.NeighborListFormat.Sparse,

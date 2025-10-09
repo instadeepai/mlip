@@ -95,7 +95,7 @@ def get_neighborhood(
 
     # See docstring of functions get_edge_relative_vectors() and
     # get_edge_vectors() on how senders and receivers are used
-    receivers, senders, senders_unit_shifts = _safe_matscipy_neighbour_list(
+    senders, receivers, senders_unit_shifts = _safe_matscipy_neighbour_list(
         quantities="ijS",
         pbc=pbc,
         cell=cell,

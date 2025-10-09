@@ -22,7 +22,10 @@ import pytest
 from mlip.inference import run_batched_inference
 
 
-def test_batched_inference_works_correctly(setup_system_and_mace_model, caplog):
+@pytest.mark.parametrize("use_single_structure", [True, False])
+def test_batched_inference_works_correctly(
+    setup_system_and_mace_model, caplog, use_single_structure
+):
     atoms, _, _, mace_ff = setup_system_and_mace_model
     caplog.set_level(logging.INFO)
 
@@ -39,31 +42,36 @@ def test_batched_inference_works_correctly(setup_system_and_mace_model, caplog):
         )
     )
 
-    result = run_batched_inference(structures, mace_ff, batch_size=3)
+    if use_single_structure:
+        result = run_batched_inference(structures[:1], mace_ff, batch_size=1)
+        assert len(result) == 1
+    else:
+        result = run_batched_inference(structures, mace_ff, batch_size=3)
 
-    assert len(result) == num_structures
-    assert isinstance(result[0].energy, float)
+        assert len(result) == num_structures
+        assert isinstance(result[0].energy, float)
+        assert result[-1].forces.shape == (len(atoms) - 1, 3)
+
+        assert result[-1].energy == pytest.approx(-0.06119524, abs=1e-3)
+        assert result[-1].forces[0][0] == pytest.approx(4.61012e-3, abs=1e-3)
+
+        # First 6 energies should be the same
+        for i in range(1, num_structures - 1):
+            assert result[i].energy == pytest.approx(result[0].energy)
+
+        # First 6 forces should be the same
+        for i in range(1, num_structures - 1):
+            assert np.allclose(result[i].forces, result[0].forces)
+
+        # Asserting correct values in logs
+        assert f"on {num_structures} structure(s) in 3 batches" in caplog.text
+        for i in [1, 2, 3]:
+            assert f"Batch {i} completed." in caplog.text
+
+    # These can be tested in both scenarios
     assert result[0].forces.shape == (len(atoms), 3)
-    assert result[-1].forces.shape == (len(atoms) - 1, 3)
     assert result[0].stress is None
-    assert result[0].stress_cell is None
-    assert result[0].stress_forces is None
+    assert result[0].stress_virial is None
     assert result[0].pressure is None
-
     assert result[0].energy == pytest.approx(-0.11254195, abs=1e-3)
-    assert result[-1].energy == pytest.approx(-0.06119524, abs=1e-3)
     assert result[0].forces[0][0] == pytest.approx(0.04921325, abs=1e-3)
-    assert result[-1].forces[0][0] == pytest.approx(4.61012e-3, abs=1e-3)
-
-    # First 6 energies should be the same
-    for i in range(1, num_structures - 1):
-        assert result[i].energy == pytest.approx(result[0].energy)
-
-    # First 6 forces should be the same
-    for i in range(1, num_structures - 1):
-        assert np.allclose(result[i].forces, result[0].forces)
-
-    # Asserting correct values in logs
-    assert f"on {num_structures} structure(s) in 3 batches" in caplog.text
-    for i in [1, 2, 3]:
-        assert f"Batch {i} completed." in caplog.text

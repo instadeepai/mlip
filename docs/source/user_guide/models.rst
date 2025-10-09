@@ -103,6 +103,39 @@ subgraph like this:
     forces_i = prediction.forces[num_nodes_before_i : num_nodes_before_i + graph.n_node[i]]
 
 
+**Important caveat:**
+
+A :py:class:`ForceField <mlip.models.force_field.ForceField>` can only process
+graphs (of type `jraph.GraphsTuple`) that have at least two subgraphs in them.
+Calling the force field on a graph that is not formally a batch will result in a
+`ValueError`. This means that if you are working with these graph objects directly,
+make sure a single graph of interest is always batched with a minimal dummy graph.
+We recommend to use the function
+:py:func:`create_graph_from_chemical_system() <mlip.data.helpers.graph_creation.create_graph_from_chemical_system>`
+to prepare graphs as this allows to pass the argument
+`batch_it_with_minimal_dummy=True` for convenience. An example is shown below:
+
+.. code-block:: python
+
+    import numpy as np
+    from mlip.data import ChemicalSystem
+    from mlip.data.helpers import create_graph_from_chemical_system
+
+    # Example H2O molecule:
+    #   - H (Z=1) has specie index 0
+    #   - O (Z=8) has specie index 3 (H, C, N come first)
+    system = ChemicalSystem(
+        atomic_numbers = np.array([1, 8, 1]),
+        atomic_species = np.array([0, 3, 0]),
+        positions = np.array([[-.5, .0, .0], [.0, .2, .0], [.5, .0, .0]]),
+    )
+
+    graph = create_graph_from_chemical_system(
+        chemical_system=system,
+        distance_cutoff_angstrom=5,
+        batch_it_with_minimal_dummy=True,
+    )
+
 .. _load_zip_model:
 
 Load a model from a zip archive

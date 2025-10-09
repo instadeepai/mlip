@@ -16,6 +16,7 @@ import jax
 import jraph
 import numpy as np
 
+from mlip.data.helpers.dynamically_batch import dynamically_batch
 from mlip.typing import GraphEdges, GraphGlobals, GraphNodes
 
 
@@ -25,7 +26,7 @@ def get_dummy_graph_for_model_init() -> jraph.GraphsTuple:
     Returns:
         The dummy graph.
     """
-    return jraph.GraphsTuple(
+    graph = jraph.GraphsTuple(
         nodes=GraphNodes(
             positions=np.zeros((1, 3)),
             forces=np.zeros((1, 3)),
@@ -45,4 +46,14 @@ def get_dummy_graph_for_model_init() -> jraph.GraphsTuple:
         senders=np.array([0]),
         n_edge=np.array([1]),
         n_node=np.array([1]),
+    )
+
+    # Batch with minimal dummy
+    return next(
+        dynamically_batch(
+            [graph],
+            n_node=graph.nodes.positions.shape[0] + 1,
+            n_edge=graph.senders.shape[0] + 1,
+            n_graph=2,
+        )
     )

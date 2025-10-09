@@ -26,6 +26,9 @@ from mlip.data.chemical_systems_readers import CombinedReader
 from mlip.data.chemical_systems_readers.chemical_systems_reader import (
     ChemicalSystemsReader,
 )
+from mlip.data.chemical_systems_readers.utils import (
+    filter_systems_with_unseen_atoms_and_assign_atomic_species,
+)
 from mlip.data.configs import GraphDatasetBuilderConfig
 from mlip.data.dataset_info import DatasetInfo, compute_dataset_info_from_graphs
 from mlip.data.helpers.atomic_number_table import AtomicNumberTable
@@ -72,6 +75,7 @@ class GraphDatasetBuilder:
         self,
         reader: ChemicalSystemsReader | CombinedReader,
         dataset_config: GraphDatasetBuilderConfig,
+        dataset_info: DatasetInfo | None = None,
     ):
         """Constructor.
 
@@ -80,11 +84,35 @@ class GraphDatasetBuilder:
                          :class:`~mlip.data.chemical_system.ChemicalSystem`
                          dataclasses
             dataset_config: The pydantic config.
+            dataset_info: Leave `None` to create initial training datasets.
+                          Otherwise, pass the `.dataset_info` of a trained
+                          `ForceField` for downstream tasks like batched
+                          inference, finetuning, or distillation.
+
+        Note:
+            Evaluating a trained model on new data can lead to inconsistent results if:
+
+            * a wrong `AtomicNumberTable` is used to map atomic numbers to specie
+              indices,
+            * a different `graph_cutoff_angstrom` is used to generate the graphs
+              (to a lesser extent).
+
+            Therefore, it is important to pass the `dataset_info` of a trained
+            model to prepare a dataset of batched graphs in downstream tasks.
         """
         self._reader = reader
         self._config = dataset_config
-        self._dataset_info: Optional[DatasetInfo] = None
+        self._dataset_info: Optional[DatasetInfo] = dataset_info
         self._datasets: Optional[dict[str, Optional[GraphDataset]]] = None
+        # Sanity check when DatasetInfo is passed from the outside
+        cutoff = self._config.graph_cutoff_angstrom
+        if dataset_info and cutoff != dataset_info.cutoff_distance_angstrom:
+            raise ValueError(
+                "GraphDatasetBuilder got inconsistent cutoff distances: "
+                "pass `None` as dataset_info to create a fresh dataset, or fix "
+                "dataset_config if you want to reuse the atomic number table "
+                "of a trained model."
+            )
 
     def prepare_datasets(self) -> None:
         """Prepares the datasets.
@@ -93,8 +121,21 @@ class GraphDatasetBuilder:
         systems reader, and then producing the graph datasets and the
         dataset info object.
         """
-        train_systems, valid_systems, test_systems = self._reader.load()
-        z_table = self._construct_z_table(train_systems)
+        if self._dataset_info is None:
+            # Assign atomic species from observed set of elements
+            train_systems, valid_systems, test_systems = self._reader.load()
+            z_table = self._construct_z_table(train_systems)
+
+        else:
+            # Assign atomic species from prescribed z_table
+            z_table = self._retrieve_z_table(self._dataset_info)
+            post_process_fun = functools.partial(
+                filter_systems_with_unseen_atoms_and_assign_atomic_species,
+                z_table=z_table,
+            )
+            train_systems, valid_systems, test_systems = self._reader.load(
+                post_process_fun
+            )
 
         train_graph_dataset, valid_graph_dataset, test_graph_dataset = (
             self._create_graph_datasets_from_chemical_systems(
@@ -110,13 +151,14 @@ class GraphDatasetBuilder:
         )
         logger.debug("Number of graphs in test set: %s", len(test_graph_dataset.graphs))
 
-        self._dataset_info = compute_dataset_info_from_graphs(
-            train_graph_dataset.graphs,
-            self._config.graph_cutoff_angstrom,
-            z_table,
-            self._config.avg_num_neighbors,
-            self._config.avg_r_min_angstrom,
-        )
+        if self._dataset_info is None:
+            self._dataset_info = compute_dataset_info_from_graphs(
+                train_graph_dataset.graphs,
+                self._config.graph_cutoff_angstrom,
+                z_table,
+                self._config.avg_num_neighbors,
+                self._config.avg_r_min_angstrom,
+            )
 
         self._datasets = {
             "train": train_graph_dataset,
@@ -248,7 +290,13 @@ class GraphDatasetBuilder:
         )
 
     @staticmethod
+    def _retrieve_z_table(dataset_info: DatasetInfo) -> AtomicNumberTable:
+        """Reconstruct the `AtomicNumberTable` of the given `dataset_info`."""
+        return AtomicNumberTable(sorted(dataset_info.atomic_energies_map.keys()))
+
+    @staticmethod
     def _construct_z_table(train_systems: list[ChemicalSystem]) -> AtomicNumberTable:
+        """Construct a fresh `AtomicNumberTable` from list of train systems."""
         return AtomicNumberTable(
             sorted(
                 set(np.concatenate([system.atomic_numbers for system in train_systems]))

@@ -1,12 +1,37 @@
 # Changelog
 
+## Release 0.1.4
+
+- Removing constraints on some dependencies, such as numpy, jax, and flax. The mlip
+  library now allows for more flexibility in dependency versions for downstream
+  projects. This includes support for the newest jax versions 0.6.x and 0.7.x.
+- Fixing simulation tutorial notebook by pinning versions of visualization helper
+  libraries.
+- Adding the option to pass the `dataset_info` of a trained model to
+  `GraphDatasetBuilder`, which is important for downstream tasks. Failure to do so
+  might lead to silent inconsistencies in the mapping from atomic numbers to specie
+  indices, especially when the downstream data has fewer elements than the training
+  set (see e.g. the fine-tuning tutorial).
+- Fixing the `stress` predictions, with new formulas for the virial stress
+  and 0 Kelvin pressure term. These features should still be seen as beta for now
+  as we proceed to test them further (see docstrings for more details).
+
 ## Release 0.1.3
 
-- Adding two new options to the MACE implementation, a more complex species embedding
-  and a gating mechanism for node features. Making use of these options may improve
+- Adding two new options to our MACE implementation (see `MaceConfig`, these features
+  should be considered in beta state for now):
+    + `gate_nodes: bool` to apply a scalar node gating after the power expansion
+      layer,
+    + `species_embedding_dim: int | None` to optionally encode pairwise node
+       species of edges in the convolution block.
+
+  Making use of these options may improve
   inference speed at similar accuracy.
-- Fixing a bug that caused overriding energy and forces predictions to be "None" when
-  stress is computed by a model.
+
+- Fixing a bug where stress predictions would override energy and force predictions
+  to `None` when `predict_stress = True`. Note that stress computations
+  should not be considered reliable for now, and will be fixed in an upcoming
+  release.
 
 ## Release 0.1.2
 

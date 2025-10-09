@@ -59,10 +59,16 @@ class ForceFieldPredictor(nn.Module):
             graph: The input graph.
 
         Returns:
-            The properties as a ``Prediction`` object that may include "energy",
-            "forces", "stress", "stress_cell", "stress_forces", and "pressure".
-            Only the first two exist if ``predict_stress=False`` is set for this module.
+            The properties as a `Prediction` object that includes "energy"
+            and "forces". It may also include "stress", "stress_virial" and
+            "pressure" when `predict_stress=True`.
         """
+        if graph.n_node.shape[0] == 1:
+            raise ValueError(
+                "Graph must be batched with at least one dummy graph. "
+                "See models tutorial in documentation for details."
+            )
+
         graph_energies, minus_forces, pseudo_stress = (
             self._compute_graph_energies_and_grad_wrt_positions(graph)
         )
@@ -83,9 +89,12 @@ class ForceFieldPredictor(nn.Module):
     def _compute_graph_energies_and_grad_wrt_positions(
         self, graph: jraph.GraphsTuple
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        # Note: strains are invariant vector fields tangent to cell
+        strains = jnp.zeros_like(graph.globals.cell)
+        # Differentiate wrt positions and strains (not cell)
         (gradients, pseudo_stress), node_energies = jax.grad(
             self._compute_energy, (0, 1), has_aux=True
-        )(graph.nodes.positions, graph.globals.cell, graph)
+        )(graph.nodes.positions, strains, graph)
 
         graph_energies = e3nn.scatter_sum(
             node_energies, nel=graph.n_node
@@ -106,37 +115,43 @@ class ForceFieldPredictor(nn.Module):
         det = jnp.linalg.det(graph.globals.cell)[:, None, None]  # [n_graphs, 1, 1]
         det = jnp.where(det > 0.0, det, 1.0)  # dummy graphs have det = 0
 
+        # This stress definition should agree with the CHGNet paper and
+        # the MPtrj dataset [https://arxiv.org/pdf/2302.14231, eq. (6)]
+        stress = 1 / det * pseudo_stress
+
         # IMPORTANT NOTE:
         # These stress-related computations have not been thoroughly tested yet,
         # see them as an experimental feature for now.
-        stress_cell = (
-            jnp.transpose(pseudo_stress, (0, 2, 1)) @ graph.globals.cell
-        )  # [n_graphs, 3, 3]
-        stress_forces = e3nn.scatter_sum(
-            jnp.einsum("iu,iv->iuv", minus_forces, graph.nodes.positions),
+
+        # This should agree with the Virial stress at 0K (zero velocities),
+        # see [https://en.wikipedia.org/wiki/Virial_stress]
+        stress_virial = e3nn.scatter_sum(
+            jnp.einsum("iu,iv->iuv", graph.nodes.positions, minus_forces),
             nel=graph.n_node,
-        )  # [n_graphs, 3, 3]
-        viriel = stress_cell + stress_forces
-        stress = -1.0 / det * viriel
-        pressure = jnp.trace(stress, axis1=1, axis2=2)  # [n_graphs,]
+        )
+        stress_virial = 1 / det * stress_virial
+
+        # This should provide an estimator of 0K pressure,
+        # see [https://doi.org/10.1063/1.2363381, eq. (2)]
+        pressure = 1 / 3 * jnp.trace(stress_virial, axis1=1, axis2=2)
 
         return Prediction(
             stress=stress,  # [n_graphs, 3, 3] stress tensor [eV / A^3]
-            stress_cell=(
-                -1.0 / det * stress_cell
-            ),  # [n_graphs, 3, 3] stress tensor [eV / A^3]
-            stress_forces=(
-                -1.0 / det * stress_forces
-            ),  # [n_graphs, 3, 3] stress tensor [eV / A^3]
+            stress_virial=stress_virial,  # [n_graphs, 3, 3] Virial stress [eV / A^3]
             pressure=pressure,  # [n_graphs,] pressure [eV / A^3]
         )
 
     def _compute_energy(
         self,
         positions: np.ndarray,
-        cell: np.ndarray,
+        strains: np.ndarray,
         graph: jraph.GraphsTuple,
     ) -> tuple[float, np.ndarray]:
+        """Energy as a function of (positions, strains) for autodiff."""
+        # Note: downstream, `vectors` captures all dependencies wrt
+        #       positions and strains. In the JAX-MD simulation case,
+        #       since stress is not needed, only the cell is closed upon
+        #       by `displ_fun`.
         if graph.edges.shifts is None:
             assert graph.edges.displ_fun is not None
             vectors = graph.edges.displ_fun(
@@ -144,11 +159,13 @@ class ForceFieldPredictor(nn.Module):
             )
         else:
             vectors = get_edge_relative_vectors(
+                # dependency wrt positions here
                 positions=positions,
                 senders=graph.senders,
                 receivers=graph.receivers,
                 shifts=graph.edges.shifts,
-                cell=cell,
+                # infinitesimal lattice deformation here
+                cell=graph.globals.cell + graph.globals.cell @ strains,
                 n_edge=graph.n_edge,
             )
 

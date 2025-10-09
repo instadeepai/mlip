@@ -45,8 +45,8 @@ DEFAULT_WEIGHT = 1.0
 
 
 class ExtxyzReader(ChemicalSystemsReader):
-    """Implementation of a chemical systems reader that loads data from extxyz format via
-    the ``ase`` library."""
+    """Implementation of a chemical systems reader that loads data from extxyz format
+    via the ``ase`` library."""
 
     def load(
         self,

@@ -150,6 +150,38 @@ def test_matscipy_linalg_error_is_handled_automatically_in_pbc_false_case():
 
     senders, receivers, shifts = get_neighborhood(positions, cutoff=5.0)
 
-    assert senders.tolist() == [1, 0]
-    assert receivers.tolist() == [0, 1]
+    assert senders.tolist() == [0, 1]
+    assert receivers.tolist() == [1, 0]
     assert shifts.tolist() == [[0, 0, 0], [0, 0, 0]]
+
+
+def test_no_pbc_graph_does_not_have_shifts(setup_system_and_mace_model):
+    # With these positions and the default cell that matscipy computes, there would
+    # be a linear algebra error from numpy if we wouldn't explicitly handle it.
+    atoms, _, _, model_ff = setup_system_and_mace_model
+    graph_cutoff_angstrom = model_ff.cutoff_distance
+    positions = atoms.positions
+
+    senders, receivers, shifts = get_neighborhood(
+        positions,
+        graph_cutoff_angstrom,
+        pbc=None,
+        cell=None,
+    )
+
+    diffs = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
+    distances = np.sqrt(np.sum(diffs**2, axis=-1))
+    expected_receivers, expected_senders = np.where(
+        (0 < distances) & (distances < graph_cutoff_angstrom)
+    )
+
+    assert np.all(shifts == 0.0)
+    assert len(senders) == 68
+
+    expected_edges = []
+    for s, r in zip(list(expected_senders), list(expected_receivers)):
+        expected_edges.append((s, r))
+    edges = []
+    for s, r in zip(list(senders), list(receivers)):
+        edges.append((s, r))
+    assert sorted(expected_edges) == sorted(edges)

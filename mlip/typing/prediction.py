@@ -29,16 +29,20 @@ class Prediction:
                 Can be just a single float or array of shape ``(n_graphs,)``.
         forces: The forces. Will be of shape ``(n_nodes, 3)``.
         stress: The stress tensor. Will be of shape ``(n_graphs, 3, 3)``.
-        stress_cell: The cell stress. Will be of shape ``(n_graphs, 3, 3)``.
-        stress_forces: The forces stress. Will be of shape ``(n_graphs, 3, 3)``.
-        pressure: The pressure. Will be of shape ``(n_graphs,)``.
+        stress_virial: The Virial stress. Will be of shape ``(n_graphs, 3, 3)``.
+        pressure: The microsopic 0K pressure term. Will be of shape ``(n_graphs,)``.
+
+    Note:
+        For more information on Virial stress and pressure computations, see
+        `de Miguel and Jackson, 2006 <https://doi.org/10.1063%2F1.2363381>`_.
+        These features have not been thoroughly tested and should be viewed
+        as experimental for now.
     """
 
     energy: float | np.ndarray | None = None
     forces: np.ndarray | None = None
 
     stress: np.ndarray | None = None
-    stress_cell: np.ndarray | None = None
-    stress_forces: np.ndarray | None = None
+    stress_virial: np.ndarray | None = None
 
     pressure: np.ndarray | None = None

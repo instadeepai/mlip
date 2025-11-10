@@ -71,7 +71,6 @@ def test_batched_inference_works_correctly(
     # These can be tested in both scenarios
     assert result[0].forces.shape == (len(atoms), 3)
     assert result[0].stress is None
-    assert result[0].stress_virial is None
     assert result[0].pressure is None
     assert result[0].energy == pytest.approx(-0.11254195, abs=1e-3)
     assert result[0].forces[0][0] == pytest.approx(0.04921325, abs=1e-3)

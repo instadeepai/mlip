@@ -1,5 +1,9 @@
 # 🪩 MLIP: Machine Learning Interatomic Potentials 🚀
 
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Python 3.11](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/release/python-3110/)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Tests and Linters 🧪](https://github.com/instadeepai/mlip/actions/workflows/tests_and_linters.yaml/badge.svg?branch=main)](https://github.com/instadeepai/mlip/actions/workflows/tests_and_linters.yaml)
 ![badge](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/mlipbot/b6e4bf384215e60775699a83c3c00aef/raw/pytest-coverage-comment.json)
 
 ## 👀 Overview
@@ -12,6 +16,7 @@ the following functionality:
 - Training and fine-tuning MLIP models
 - Batched inference with trained MLIP models
 - MD simulations with MLIP models using multiple simulation backends (for now: JAX-MD and ASE)
+- Batched MD simulations and energy minimizations with the JAX-MD simulation backend.
 - Energy minimizations with MLIP models using the same simulation backends as for MD.
 
 The purpose of the library is to provide users with a toolbox
@@ -49,29 +54,18 @@ pip install mlip
 
 However, this command **only installs the regular CPU version** of JAX.
 We recommend that the library is run on GPU.
-This requires also installing the necessary versions
-of [jaxlib](https://pypi.org/project/jaxlib/) which can also be installed via pip. See
-the [installation guide of JAX](https://docs.jax.dev/en/latest/installation.html) for
-more information.
-At time of release, the following install command is supported:
+Use this command instead to install the GPU-compatible version:
 
 ```bash
-pip install -U "jax[cuda12]"
+pip install mlip[cuda]
 ```
 
-Note that using the TPU version of *jaxlib* is, in principle, also supported by
-this library. However, it has not been thoroughly tested and should therefore be
-considered an experimental feature.
+**This command installs the CUDA 12 version of JAX.** For different versions, please
+install *mlip* without the `cuda` flag and install the desired JAX version via pip.
 
-Also, some tasks in *mlip* will
-require [JAX-MD](https://github.com/jax-md/jax-md>) as a dependency. As the newest
-version of JAX-MD is not available on PyPI yet, this dependency will not
-be shipped with *mlip* automatically and instead must be installed
-directly from the GitHub repository, like this:
-
-```bash
-pip install git+https://github.com/jax-md/jax-md.git
-```
+Note that using the TPU version of JAX is, in principle, also supported by
+this library. You need to install it separately via pip. However, it has not been
+thoroughly tested and should therefore be considered an experimental feature.
 
 ## ⚡ Examples
 

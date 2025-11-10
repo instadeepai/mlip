@@ -15,6 +15,7 @@ in JAX. It contains the following features:
 * Batched inference with trained MLIP models
 * MD simulations with MLIP models using multiple simulation backends
 * Energy minimizations with MLIP models using multiple simulation backends
+* Batched MD simulations and energy minimizations with the JAX-MD simulation backend
 * Fine-tuning of pre-trained MLIP models
 
 As a first step, we recommend that you check out our page on :ref:`installation`

@@ -25,6 +25,9 @@ class SimulationState:
     This object is populated during a simulation and is processed by the
     loggers of a simulation.
 
+    When running batched simulations, some of the fields may be of type
+    `list[numpy.ndarray]` instead of just `numpy.ndarray`.
+
     Attributes:
         atomic_numbers: The atomic numbers of the system.
         positions: The positions along the trajectory. Has shape M x N x 3, with M
@@ -41,11 +44,11 @@ class SimulationState:
                               (not including logging times).
     """
 
-    atomic_numbers: Optional[np.ndarray] = None
-    positions: Optional[np.ndarray] = None
-    forces: Optional[np.ndarray] = None
-    velocities: Optional[np.ndarray] = None
-    temperature: Optional[np.ndarray] = None
-    kinetic_energy: Optional[np.ndarray] = None
+    atomic_numbers: Optional[np.ndarray | list[np.ndarray]] = None
+    positions: Optional[np.ndarray | list[np.ndarray]] = None
+    forces: Optional[np.ndarray | list[np.ndarray]] = None
+    velocities: Optional[np.ndarray | list[np.ndarray]] = None
+    temperature: Optional[np.ndarray | list[np.ndarray]] = None
+    kinetic_energy: Optional[np.ndarray | list[np.ndarray]] = None
     step: int = 0
     compute_time_seconds: float = 0.0

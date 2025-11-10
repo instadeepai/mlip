@@ -1,106 +1,73 @@
-import flax.linen as nn
 import jax.numpy as jnp
 import jraph
 import numpy as np
-import pydantic
 import pytest
 
-from mlip.data import ChemicalSystem, DatasetInfo
+from mlip.data import ChemicalSystem
 from mlip.data.helpers import create_graph_from_chemical_system
 from mlip.models import ForceField
-from mlip.models.mlip_network import MLIPNetwork
-from mlip.typing import GraphNodes
 
 
-class QuadraticMLIP(MLIPNetwork):
-    """A dummy MLIPNetwork class.
-
-    Might be reused for numerical checks in Hessian predictors.
-    """
-
-    class Config(pydantic.BaseModel):
-        stiffness: list[float]
-        length: list[float]
-
-    config: Config
-    dataset_info: DatasetInfo
-
-    @nn.compact
-    def __call__(self, vectors, species, senders, receivers):
-        stiffness = jnp.array(self.config.stiffness)
-        length = jnp.array(self.config.length)
-        specie = species[senders]
-        rij = jnp.sqrt(jnp.sum(vectors * vectors, axis=-1))
-        spring_terms = 0.5 * stiffness[specie] * (rij - length[specie]) ** 2
-        node_energies = jnp.zeros(species.shape[0])
-        node_energies = node_energies.at[receivers].add(spring_terms)
-        return node_energies
-
-
-@pytest.fixture
-def salt_graph() -> tuple[jraph.GraphsTuple, DatasetInfo]:
-    # NaCl CFC lattice
+def _salt_graph_from_positions(
+    positions: np.ndarray, cell_length: float = 1.0
+) -> jraph.GraphsTuple:
+    """Mimic the salt_graph fixture with custom positions and cell."""
     salt = ChemicalSystem(
         atomic_numbers=np.array([11, 17]),
         atomic_species=np.array([0, 1]),
-        positions=np.array([[0.0, 0.0, 0.0], [0.6, 0.5, 0.5]]),
-        cell=np.array([[1.0, 0.1, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+        positions=positions,
+        cell=cell_length * np.eye(3),
         pbc=(True, True, True),
     )
-
-    # slightly smaller than lattice width
-    cutoff = 0.95
-
-    graph = create_graph_from_chemical_system(
-        salt,
-        cutoff,
-        batch_it_with_minimal_dummy=True,
-    )
-
-    return graph, DatasetInfo(
-        atomic_energies_map={11: 0.0, 17: 0.0},
-        cutoff_distance_angstrom=cutoff,
+    return create_graph_from_chemical_system(
+        salt, 0.95, batch_it_with_minimal_dummy=True
     )
 
 
-def test_pressure_is_positive(salt_graph):
-    """Assert p > 0."""
-    graph, dataset_info = salt_graph
-    cfg = QuadraticMLIP.Config(
-        stiffness=[2.0, 2.0],
-        length=[0.87, 0.87],
-    )
-    predictor = ForceField.from_mlip_network(
-        QuadraticMLIP(cfg, dataset_info),
-        seed=2,
-        predict_stress=True,
-    )
-    prediction = predictor(graph)
-    assert np.all(prediction.pressure[:-1] > 0)
+@pytest.mark.parametrize(
+    "distance,is_positive,is_zero",
+    [(0.8, True, False), (0.9, False, False), (0.87, False, True)],
+)
+def test_potential_pressure_sign(
+    quadratic_mlip, distance: float, is_positive: bool, is_zero: bool
+):
+    """Assert sign of the potential pressure is consistent with atomic distances.
+
+    Energy minimum of `quadratic_mlip` is at distance = 0.87.
+    We use a cell length of 2.0 to prevent the atoms from "seeing themselves",
+    such that we can easily infer the expected sign of the potential pressure.
+    """
+    mlip_network = quadratic_mlip
+    predictor = ForceField.from_mlip_network(mlip_network, seed=2, predict_stress=True)
+
+    positions = np.array([[0.0, 0.0, 0.0], [distance, 0.0, 0.0]])
+    graph = _salt_graph_from_positions(positions, cell_length=2.0)
+    prediction = predictor(graph).pressure
+    assert (prediction[0] > 0) == is_positive
+    assert (prediction[0] == 0) == is_zero
 
 
-def test_virial_is_origin_independent(salt_graph):
-    graph_1, dataset_info = salt_graph
-    cfg = QuadraticMLIP.Config(
-        stiffness=[2.0, 2.0],
-        length=[0.87, 0.87],
-    )
-    predictor = ForceField.from_mlip_network(
-        QuadraticMLIP(cfg, dataset_info),
-        seed=2,
-        predict_stress=True,
-    )
-    virial_1 = predictor(graph_1).stress_virial
+def test_stress_is_translation_invariant(quadratic_mlip):
+    """Assert stress is invariant under translation over the cell boundary."""
+    mlip_network = quadratic_mlip
+    predictor = ForceField.from_mlip_network(mlip_network, seed=2, predict_stress=True)
 
-    # Translate structure
-    translation = np.array([0.2, 0.3, 0.1])
-    graph_2 = graph_1._replace(
-        nodes=GraphNodes(
-            positions=graph_1.nodes.positions + translation,
-            species=graph_1.nodes.species,
-        )
-    )
-    virial_2 = predictor(graph_2).stress_virial
+    base_positions = np.array([[0.0, 0.0, 0.0], [0.6, 0.5, 0.5]])
+    base_graph = _salt_graph_from_positions(base_positions)
 
-    # Virial stress independent of origin
-    assert jnp.allclose(virial_1[0], virial_2[0], atol=1e-5, rtol=1e-5)
+    # Translate system such that 2nd node is translated over the boundary and wrapped.
+    translation = np.array([0.8, 0.0, 0.0])
+    translated_graph = _salt_graph_from_positions((base_positions + translation) % 1.0)
+
+    pred_base = predictor(base_graph).stress
+    pred_translated = predictor(translated_graph).stress
+    assert jnp.allclose(pred_base[0], pred_translated[0], atol=1e-5, rtol=1e-5)
+
+
+def test_stress_is_symmetric(salt_graph, quadratic_mlip):
+    """Assert stress tensor is symmetric."""
+    graph = salt_graph
+    mlip_network = quadratic_mlip
+    predictor = ForceField.from_mlip_network(mlip_network, seed=2, predict_stress=True)
+    stress = predictor(graph).stress
+    assert jnp.allclose(stress[0], stress[0].transpose(), atol=1e-5, rtol=1e-5)

@@ -82,11 +82,20 @@ class for more details. Most importantly, the `simulation_type` needs to be set 
 `SimulationType.MINIMIZATION` (see
 :py:class:`SimulationType <mlip.simulation.enums.SimulationType>`).
 
+.. note::
+
+    The default timestep of 1.0 fs that is common for MD simulations may not be optimal
+    for energy minimizations. We recommend to set this value to 0.1 fs when using the
+    `SimulationType.MINIMIZATION` mode with the JAX-MD backend.
+
 **Algorithms**: For MD, the NVT-Langevin algorithm is used
 (see `here <https://jax-md.readthedocs.io/en/main/jax_md.simulate.html#jax_md.simulate.nvt_langevin>`_).
 For energy minimization, the FIRE algorithm is used
 (see `here <https://jax-md.readthedocs.io/en/main/jax_md.minimize.html#jax_md.minimize.fire_descent>`_).
 We plan to provide more options in future versions of the library.
+
+Furthermore, for MD simulations, we support running them in a **batched manner**.
+See :ref:`this <batched_simulations>` section below for more information.
 
 .. note::
 
@@ -202,6 +211,45 @@ allows to attach custom loggers to a simulation:
 The logger must be attached before starting the simulation.
 In ASE, this logging function will be called depending on the logging interval set,
 and in JAX-MD, it will be called after every episode.
+
+.. _batched_simulations:
+
+Batched simulations with JAX-MD
+-------------------------------
+
+For MD simulations or energy minimizations with JAX-MD, we support running them in a
+batched manner for multiple systems. The API for this is straightforward,
+instead of passing a single `ase.Atoms` object to the engine, we pass a list of them.
+After the simulation, the simulation state will contain lists of properties,
+for example, a list of position arrays (i.e., the trajectories) instead of a single
+position array. Note that it is also supported that the input molecules have
+varying sizes. See example code below:
+
+.. code-block:: python
+
+    from ase.io import read as ase_read
+    from mlip.simulation.jax_md import JaxMDSimulationEngine
+
+    systems = []
+    for path in ["/path/to/mol_1", "/path/to/mol_2", "/path/to/mol_3"]:
+        atoms = ase_read(path)
+        systems.append(atoms)
+
+    force_field, md_config = _get_from_somewhere()  # placeholder
+    md_engine = JaxMDSimulationEngine(systems, force_field, md_config)
+    md_engine.run()
+
+    # Fetch results:
+    # Get trajectory and temperatures for "/path/to/mol_2" (indexing starts at 0)
+    md_state = md_engine.state
+    print(md_state.positions[1])
+    print(md_state.temperature[1])
+
+    # Compute time, for example, is not a list
+    print(md_state.compute_time_seconds)
+
+The example above works for both energy minimizations and MD simulations in the same
+way.
 
 .. _batched_inference:
 

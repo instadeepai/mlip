@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import time
 from typing import Callable, Optional
 
 import ase
@@ -186,6 +187,7 @@ def run_batched_inference(
     stress = []
 
     for batch_idx, batch in enumerate(graph_dataset):
+        start_time = time.perf_counter()
         energies_batch, forces_batch, stress_batch = _run_inference_on_a_single_batch(
             jitted_force_field_fun, batch
         )
@@ -193,7 +195,12 @@ def run_batched_inference(
         forces.extend(forces_batch)
         stress.extend(stress_batch)
 
-        logger.info("Batch %s completed.", batch_idx + 1)
+        end_time = time.perf_counter()
+        logger.info(
+            "Batch %s completed. Took %.3f seconds.",
+            batch_idx + 1,
+            end_time - start_time,
+        )
 
     if len(stress) == 0:
         stress = [None] * len(energies)

@@ -15,13 +15,19 @@
 import pickle
 from pathlib import Path
 
+import flax.linen as nn
 import jax
+import jax.numpy as jnp
+import jraph
 import numpy as np
+import pydantic
 import pytest
 from ase.io import read as ase_read_atoms
 
-from mlip.data.dataset_info import DatasetInfo
+from mlip.data import ChemicalSystem, DatasetInfo
+from mlip.data.helpers import create_graph_from_chemical_system
 from mlip.models import ForceField, Mace, Nequip, Visnet
+from mlip.models.mlip_network import MLIPNetwork
 from mlip.simulation.utils import create_graph_from_atoms
 
 CUTOFF_ANGSTROM = 3.0
@@ -174,3 +180,67 @@ def setup_system_and_nequip_model(setup_system):
     nequip_apply_fun = jax.jit(nequip_ff.predictor.apply)
 
     return atoms, graph, nequip_apply_fun, nequip_ff
+
+
+@pytest.fixture(scope="session")
+def salt_graph() -> jraph.GraphsTuple:
+    # NaCl CFC lattice
+    salt = ChemicalSystem(
+        atomic_numbers=np.array([11, 17]),
+        atomic_species=np.array([0, 1]),
+        positions=np.array([[0.0, 0.0, 0.0], [0.6, 0.5, 0.5]]),
+        cell=np.array([[1.0, 0.1, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+        pbc=(True, True, True),
+    )
+
+    # slightly smaller than lattice width
+    cutoff = 0.95
+
+    graph = create_graph_from_chemical_system(
+        salt,
+        cutoff,
+        batch_it_with_minimal_dummy=True,
+    )
+
+    return graph
+
+
+class QuadraticMLIP(MLIPNetwork):
+    """A simple energy model with quadratic interaction potentials.
+
+    Should be reused to isolate tests on `ForceFieldPredictor` variants
+    from our larger `MLIPNetwork` architectures.
+
+    Its simple form also allows for numerical checks, e.g. on Hessian predictions.
+    """
+
+    class Config(pydantic.BaseModel):
+        stiffness: list[float]
+        length: list[float]
+
+    config: Config
+    dataset_info: DatasetInfo
+
+    @nn.compact
+    def __call__(self, vectors, species, senders, receivers):
+        stiffness = jnp.array(self.config.stiffness)
+        length = jnp.array(self.config.length)
+        specie = species[senders]
+        rij = jnp.sqrt(jnp.sum(vectors * vectors, axis=-1))
+        spring_terms = 0.5 * stiffness[specie] * (rij - length[specie]) ** 2
+        node_energies = jnp.zeros(species.shape[0])
+        node_energies = node_energies.at[receivers].add(spring_terms)
+        return node_energies
+
+
+@pytest.fixture(scope="session")
+def quadratic_mlip() -> MLIPNetwork:
+    dataset_info = DatasetInfo(
+        atomic_energies_map={11: 0.0, 17: 0.0},
+        cutoff_distance_angstrom=0.95,
+    )
+    cfg = QuadraticMLIP.Config(
+        stiffness=[2.0, 2.0],
+        length=[0.87, 0.87],
+    )
+    return QuadraticMLIP(cfg, dataset_info)

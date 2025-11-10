@@ -51,7 +51,8 @@ class JaxMDSimulationConfig(SimulationConfig):
                       divisible by 1000 if greater than 1000 otherwise divisible by 10.
         timestep_fs: The simulation timestep in femtoseconds. This is also used as the
                      initial timestep in the FIRE minimization algorithm. The default is
-                     1.0.
+                     1.0. **Important Note:** We recommend to set this value to 0.1 when
+                     running energy minimizations instead of MD simulations.
         temperature_kelvin: The temperature in Kelvin, set to 300 by default. Must be
                             set to ``None`` for energy minimizations.
         temperature_schedule_config: The temperature schedule config to use for the

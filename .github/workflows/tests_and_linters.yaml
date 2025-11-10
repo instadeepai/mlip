@@ -22,16 +22,16 @@ jobs:
       - name: checkout code 📦
         uses: actions/checkout@v4
 
-      - name: install poetry
-        run: |
-          POETRY_VERSION=1.8.4
-          pip install -U pip setuptools
-          pip install poetry==${POETRY_VERSION}
-          poetry install
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: setup env
+        run: uv sync --only-dev
 
       - name: run linters 🖌️
         run: |
-          poetry run pre-commit run --all-files --verbose
+          git init
+          uv run --no-sync pre-commit run --all-files --verbose
 
   tests:
     runs-on: ubuntu-latest
@@ -41,21 +41,25 @@ jobs:
       - name: checkout code 📂
         uses: actions/checkout@v4
 
-      - name: install poetry
+      - name: setup
         run: |
-          POETRY_VERSION=1.8.4
-          pip install -U pip setuptools
-          pip install poetry==${POETRY_VERSION}
-          poetry install
-          poetry add git+https://github.com/jax-md/jax-md.git
+          apt-get update && apt-get install -y \
+          coreutils \
+          git
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: setup env
+        run: uv sync
 
       - name: run tests 🧪
         run: |
-          poetry run pytest --ignore tests/experiments --verbose \
-                                            --cov-report xml:coverage.xml \
-                                            --cov-report term-missing \
-                                            --junitxml=pytest.xml \
-                                            --cov=mlip tests/
+          uv run --no-sync pytest --ignore tests/experiments --verbose \
+                                  --cov-report xml:coverage.xml \
+                                  --cov-report term-missing \
+                                  --junitxml=pytest.xml \
+                                  --cov=mlip tests/
 
       - name: pytest coverage comment
         id: coverageComment

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+from typing import Any, Callable, TypeAlias
 
 import ase
 import jax
@@ -21,10 +21,16 @@ import jax_md
 import jraph
 import numpy as np
 from ase.units import Ang, J, eV, fs, kB, kcal, kg, m, mol, s
+from jax.tree_util import tree_map
 
 from mlip.simulation.configs.jax_md_config import JaxMDSimulationConfig
 from mlip.simulation.enums import SimulationType
-from mlip.simulation.jax_md.states import SystemState
+from mlip.simulation.jax_md.jaxmd_utils import batched_nvt_langevin
+from mlip.simulation.jax_md.states import EpisodeLog, SystemState
+from mlip.utils.jax_utils import TupleLeaf
+
+NeighborList: TypeAlias = jax_md.partition.NeighborList
+NeighborListFns: TypeAlias = jax_md.partition.NeighborListFns
 
 DUMMY_ARRAY = np.array([[0.0, 0.0, 0.0]])
 DUMMY_CELL = np.array([[[0.0, 0.0, 0.0]] * 3])
@@ -42,27 +48,115 @@ MINIMIZATION_PARAMETER_ALPHA_START = 0.1
 MINIMIZATION_PARAMETER_F_ALPHA = 0.99
 
 
-def batch_graph_with_one_dummy(
-    system_state: SystemState,
-    positions: np.ndarray,
-    graph: jraph.GraphsTuple,
-) -> jraph.GraphsTuple:
-    """Creates a batch of graphs out of a graph by adding one simple dummy graph.
+def is_neighbor_list(obj: Any) -> bool:
+    """Whether an object is a JAX-MD neighbor list object."""
+    return isinstance(obj, jax_md.partition.NeighborList)
 
-    The dummy graph has just one node and one edge. Also, the positions of the input
-    graph are updated with the given positions and the edges are also updated given
-    the edges contained in the given system state.
+
+def is_neighbor_fun(obj: Any) -> bool:
+    """Whether an object is a JAX-MD neighbor function object."""
+    return isinstance(obj, jax_md.partition.NeighborListFns)
+
+
+def is_system_state(obj: Any) -> bool:
+    """Whether an object is a `SystemState` object."""
+    return isinstance(obj, SystemState)
+
+
+def is_episode_log(obj: Any) -> bool:
+    """Whether an object is a `EpisodeLog` object."""
+    return isinstance(obj, EpisodeLog)
+
+
+def _get_dummy_edge_mask_for_batched_graph(
+    receivers: list[jax.Array], subgraph_sizes: jax.Array
+) -> jax.Array:
+    """The logic of this function is as follows:
+
+    Each receiver edge array has values of length of that subgraph in those places
+    where we have a dummy edge. That is how JAX-MD does the padding. This is safe,
+    because that index does not even exist in the system of course. This would work
+    for the senders array in the same way, but getting the mask from one of the two
+    is enough.
+    """
+    sizes_without_dummy = jnp.delete(subgraph_sizes, -1)
+    sizes_as_list = list(jnp.split(sizes_without_dummy, sizes_without_dummy.shape[0]))
+    dummy_edge_mask = tree_map(lambda r, n: r == n, receivers, sizes_as_list)
+    dummy_edge_mask = jax.lax.concatenate(
+        dummy_edge_mask + [jnp.array([True])], dimension=0
+    )
+    return dummy_edge_mask
+
+
+def update_graph_in_simulation_step(
+    system_state: SystemState | list[SystemState],
+    positions: np.ndarray | list[np.ndarray],
+    graph: jraph.GraphsTuple,
+    is_batched: bool,
+) -> jraph.GraphsTuple:
+    """Updates a graph in a simulation step.
+
+    1) Creates a batch of graphs out of a graph by adding one simple dummy graph. The
+       dummy graph has just one node and one edge.
+
+    2) The positions of the input graph are updated with the given positions
+       and the edges are also updated given the edges contained in the given
+       system state.
 
     Args:
         system_state: The system state during the simulation.
+                      Might be a list if batched simulation.
         positions: The current positions of the system.
+                   Might be a list if batched simulation.
         graph: The graph of the system.
+        is_batched: Whether this function already receives multiple systems, because
+                    the simulation is a batched one.
 
     Returns:
         The updated and batched graph.
     """
-    neighbors = system_state.neighbors.update(positions)
-    senders, receivers = neighbors.idx[1, :], neighbors.idx[0, :]
+    neighbors = tree_map(
+        lambda state, pos: state.neighbors.update(pos),
+        system_state,
+        positions,
+        is_leaf=is_system_state,
+    )
+    senders = tree_map(lambda n: n.idx[1, :], neighbors, is_leaf=is_neighbor_list)
+    receivers = tree_map(lambda n: n.idx[0, :], neighbors, is_leaf=is_neighbor_list)
+
+    # If we have batched simulations, we don't need to do the batching part of this
+    # function, which simplifies some of the replace operations
+    if is_batched:
+        new_positions = jax.lax.concatenate(positions + [DUMMY_ARRAY], dimension=0)
+        node_cumsum = jax.lax.concatenate(
+            [np.array([0]), jnp.delete(jnp.cumsum(graph.n_node), -1)], dimension=0
+        )
+        offset = jnp.repeat(node_cumsum, graph.n_edge)
+        new_receivers = (
+            jax.lax.concatenate(receivers + [np.array([0])], dimension=0) + offset
+        )
+        new_senders = (
+            jax.lax.concatenate(senders + [np.array([0])], dimension=0) + offset
+        )
+        # Some models need all dummy edges to point to dummy nodes.
+        # The following lines make sure this is the case.
+        dummy_edge_mask = _get_dummy_edge_mask_for_batched_graph(
+            receivers, graph.n_node
+        )
+        dummy_edge_value = new_receivers[-1]
+        new_receivers = jnp.where(dummy_edge_mask, dummy_edge_value, new_receivers)
+        new_senders = jnp.where(dummy_edge_mask, dummy_edge_value, new_senders)
+        # These conversions needed for integer types:
+        new_species = jnp.asarray(graph.nodes.species)
+        new_n_node = jnp.asarray(graph.n_node)
+        new_n_edge = jnp.asarray(graph.n_edge)
+        return graph._replace(
+            senders=new_senders,
+            receivers=new_receivers,
+            n_node=new_n_node,
+            n_edge=new_n_edge,
+            nodes=graph.nodes._replace(positions=new_positions, species=new_species),
+        )
 
     new_positions = jax.lax.concatenate([positions, DUMMY_ARRAY], dimension=0)
     new_species = jax.lax.concatenate([graph.nodes.species, np.array([0])], dimension=0)
@@ -116,7 +210,7 @@ def init_simulation_algorithm(
         the simulation.
     """
     if sim_config.simulation_type == SimulationType.MD:
-        return jax_md.simulate.nvt_langevin(
+        return batched_nvt_langevin(
             model_calculate_fun,
             shift_fun,
             kT=sim_config.temperature_kelvin * TEMPERATURE_CONVERSION_FACTOR,
@@ -139,11 +233,14 @@ def init_simulation_algorithm(
 
 def init_neighbor_lists(
     displacement_fun: Callable,
-    positions: np.ndarray,
+    positions: np.ndarray | list[np.ndarray],
     cutoff_distance_angstrom: float,
     edge_capacity_multiplier: float,
-) -> tuple[jax_md.partition.NeighborList, jax_md.partition.NeighborListFns]:
+) -> tuple[NeighborList | list[NeighborList], NeighborListFns | list[NeighborListFns]]:
     """Initialize the neighbor lists objects for JAX-MD.
+
+    Uses tree_map so that it works for single system or multiple systems for
+    batched simulations.
 
     Args:
         displacement_fun: The displacement function.
@@ -156,15 +253,23 @@ def init_neighbor_lists(
         A tuple of the neighbor list object and the neighbor lists function object
         that JAX-MD needs for a simulation.
     """
-    neighbor_fun = jax_md.partition.neighbor_list(
-        displacement_fun,
-        box=jnp.nan,
-        r_cutoff=cutoff_distance_angstrom,
-        disable_cell_list=False,
-        format=jax_md.partition.NeighborListFormat.Sparse,
-        capacity_multiplier=edge_capacity_multiplier,
-    )
-    neighbors = neighbor_fun.allocate(positions)
+
+    def _init_impl(pos):
+        _neighbor_fun = jax_md.partition.neighbor_list(
+            displacement_or_metric=displacement_fun,
+            box=jnp.nan,
+            r_cutoff=cutoff_distance_angstrom,
+            disable_cell_list=False,
+            format=jax_md.partition.NeighborListFormat.Sparse,
+            capacity_multiplier=edge_capacity_multiplier,
+        )
+        _neighbors = _neighbor_fun.allocate(pos)
+        return TupleLeaf([_neighbors, _neighbor_fun])
+
+    init_result = tree_map(_init_impl, positions)
+    neighbors = tree_map(lambda x: x[0], init_result)
+    neighbor_fun = tree_map(lambda x: x[1], init_result)
+
     return neighbors, neighbor_fun
 
 

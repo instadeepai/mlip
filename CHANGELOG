@@ -1,5 +1,24 @@
 # Changelog
 
+## Release 0.1.5
+
+- Adding batched simulations feature for MD simulations and energy minimizations
+  with the JAX-MD backend.
+- Removing now useless `stress_virial` prediction.
+- Fixing correctness of `stress` and 0K `pressure` predictions. In 0.1.4,
+  the stress computation actually involved a derivative with respect to
+  cell but with fixed positions. Now, the strain also acts on positions within
+  the unit cell, thus deforming the material homogeneously. This rigorously
+  translation-invariant stress exempts from any Virial term correction of
+  cell boundary effects. See for instance
+  [Thompson, Plimpton and Mattson 2009, eq (2)](https://doi.org/10.1063/1.3245303).
+- Migrating from poetry to uv for dependency and package management.
+- Improving inefficient logging strategy in ASE simulation backend.
+- Clarifying in the documentation that we recommend a smaller value for the timestep
+  when running energy minimizations with the JAX-MD simulation backend.
+- Removing need for separate install command for JAX-MD dependency.
+- Adding easier install method for GPU-compatible JAX.
+
 ## Release 0.1.4
 
 - Removing constraints on some dependencies, such as numpy, jax, and flax. The mlip

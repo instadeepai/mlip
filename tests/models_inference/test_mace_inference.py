@@ -37,7 +37,7 @@ def test_mace_outputs_correct_forces_and_energies_for_example_graph(
     assert result.forces.shape == (num_nodes + 3, 3)
     assert np.all(result.forces[num_nodes:] == 0.0)
     assert result.stress is None
-    assert result.stress_virial is None
+    assert result.pressure is None
 
     expected_forces = np.array(
         [

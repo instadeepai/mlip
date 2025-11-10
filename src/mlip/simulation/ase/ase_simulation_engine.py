@@ -31,6 +31,7 @@ from mlip.simulation.ase.mlip_ase_calculator import MLIPForceFieldASECalculator
 from mlip.simulation.configs.ase_config import ASESimulationConfig
 from mlip.simulation.enums import SimulationType
 from mlip.simulation.simulation_engine import ForceField, SimulationEngine
+from mlip.simulation.state import SimulationState
 from mlip.simulation.temperature_scheduling import get_temperature_schedule
 
 SIMULATION_RANDOM_SEED = 42
@@ -63,6 +64,9 @@ class ASESimulationEngine(SimulationEngine):
         force_field: ForceField,
         config: ASESimulationConfig,
     ) -> None:
+        if isinstance(atoms, list):
+            raise ValueError("Batched simulations not supported with ASE backend.")
+
         logger.debug("Initialization of simulation begins...")
         self._config = config
         self.atoms = atoms
@@ -133,20 +137,21 @@ class ASESimulationEngine(SimulationEngine):
                 f"{self._config.simulation_type=} not implemented for ASE backend"
             )
 
+        def update_temporary_state() -> None:
+            """Update the internal temporary SimulationState object."""
+            self._update_temporary_state(is_md_simulation)
+
+        def update_state() -> None:
+            """Update the internal SimulationState object using the temporary state."""
+            step = dyn.get_number_of_steps()
+            compute_time = time.perf_counter() - self.self_start_interval_time
+            self._update_state(step, compute_time, is_md_simulation)
+
         def log_to_console() -> None:
             """Logs info to console."""
             step = dyn.get_number_of_steps()
             compute_time = time.perf_counter() - self.self_start_interval_time
             self._log_to_console(step, compute_time)
-
-        def update_state() -> None:
-            """Update the internal SimulationState object"""
-            step = dyn.get_number_of_steps()
-            compute_time = time.perf_counter() - self.self_start_interval_time
-            self._update_state(step, compute_time, is_md_simulation)
-
-        def set_beginning_interval_time() -> None:
-            self.self_start_interval_time = time.perf_counter()
 
         def update_temperature() -> None:
             """Update the temperature if a temperature schedule is given."""
@@ -154,8 +159,15 @@ class ASESimulationEngine(SimulationEngine):
             temperature_kelvin = self._temperature_schedule(cur_step)
             dyn.set_temperature(temperature_K=temperature_kelvin)
 
+        def begin_new_log_interval() -> None:
+            """Setup variables required at each log_interval steps."""
+            self.self_start_interval_step = dyn.get_number_of_steps()
+            self.self_start_interval_time = time.perf_counter()
+            self.temporary_state = SimulationState()
+
+        dyn.attach(update_temporary_state, interval=self._config.snapshot_interval)
+        dyn.attach(update_state, interval=self._config.log_interval)
         dyn.attach(log_to_console, interval=self._config.log_interval)
-        dyn.attach(update_state, interval=self._config.snapshot_interval)
         dyn.attach(self._call_loggers, interval=self._config.log_interval)
         # Every self._config.log_interval steps, we log. At the end of this logging, we
         # set the beginning of this new interval in order to calculate total compute
@@ -164,8 +176,9 @@ class ASESimulationEngine(SimulationEngine):
         if is_md_simulation:
             dyn.attach(update_temperature)
 
-        dyn.attach(set_beginning_interval_time, interval=self._config.log_interval)
-        self.self_start_interval_time = time.perf_counter()
+        dyn.attach(begin_new_log_interval, interval=self._config.log_interval)
+        # Begin the first log interval
+        begin_new_log_interval()
 
         if is_md_simulation:
             dyn.run(self._config.num_steps)
@@ -190,15 +203,36 @@ class ASESimulationEngine(SimulationEngine):
         else:
             logger.info(
                 "Steps %s to %s completed in %.2f seconds.",
-                self.state.step,
+                self.self_start_interval_step,
                 step,
                 compute_time,
             )
 
+    def _update_temporary_state(self, is_md_simulation: bool) -> None:
+        """Update the internal temporary state of the simulation.
+
+        Args:
+            is_md_simulation: Whether the simulation is an MD simulation.
+        """
+
+        def _update_temporary_list(name: str, new: np.ndarray) -> list:
+            current_value = getattr(self.temporary_state, name)
+            if current_value is None:
+                setattr(self.temporary_state, name, [new])
+            else:
+                current_value.append(new)
+
+        _update_temporary_list("positions", self.atoms.get_positions())
+        _update_temporary_list("forces", self.model_calculator.results["forces"])
+        if is_md_simulation:
+            _update_temporary_list("temperature", self.atoms.get_temperature())
+            _update_temporary_list("kinetic_energy", self.atoms.get_kinetic_energy())
+            _update_temporary_list("velocities", self.atoms.get_velocities())
+
     def _update_state(
         self, step: int, compute_time: float, is_md_simulation: bool
     ) -> None:
-        """Update the internal state of the simulation.
+        """Update the internal state of the simulation, using the temporary state.
 
         Args:
             step: The current step of the simulation
@@ -206,27 +240,24 @@ class ASESimulationEngine(SimulationEngine):
             is_md_simulation: Whether the simulation is an MD simulation
         """
 
-        def _concat(current: np.ndarray, new: np.ndarray) -> np.ndarray:
-            if current is None:
-                return np.expand_dims(new, axis=0)
-            return np.concatenate([current, np.expand_dims(new, axis=0)], axis=0)
+        def _update_state_array(name: str) -> np.ndarray:
+            state_value = getattr(self.state, name)
+            temp_value = getattr(self.temporary_state, name)
+            if temp_value is None:  # No new values to add
+                return
 
-        self.state.positions = _concat(self.state.positions, self.atoms.get_positions())
-        self.state.forces = _concat(
-            self.state.forces, self.model_calculator.results["forces"]
-        )
+            new = np.stack(temp_value, axis=0)
+            if state_value is None:
+                setattr(self.state, name, new)
+            else:
+                setattr(self.state, name, np.concatenate([state_value, new], axis=0))
 
+        _update_state_array("positions")
+        _update_state_array("forces")
         self.state.step = step
         self.state.compute_time_seconds += compute_time
 
         if is_md_simulation:
-            kinetic_energy = self.atoms.get_kinetic_energy()
-            temperature = self.atoms.get_temperature()
-            velocities = self.atoms.get_velocities()
-            self.state.temperature = _concat(
-                self.state.temperature, np.array(temperature)
-            )
-            self.state.kinetic_energy = _concat(
-                self.state.kinetic_energy, np.array(kinetic_energy)
-            )
-            self.state.velocities = _concat(self.state.velocities, np.array(velocities))
+            _update_state_array("temperature")
+            _update_state_array("kinetic_energy")
+            _update_state_array("velocities")

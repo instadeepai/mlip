@@ -49,8 +49,10 @@ class SimulationEngine(abc.ABC):
         Raises:
             ValueError: if input system has only one atom.
         """
-        if len(atoms) == 1:
+        if len(atoms) == 1 and isinstance(atoms, ase.Atoms):
             raise ValueError("Single atom systems are not supported yet.")
+        if len(atoms) == 0:
+            raise ValueError("Passed 'atoms' argument is empty.")
 
         self.state = SimulationState()
         self.loggers: list[Callable[[SimulationState], None]] = []

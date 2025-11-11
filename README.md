@@ -57,7 +57,7 @@ We recommend that the library is run on GPU.
 Use this command instead to install the GPU-compatible version:
 
 ```bash
-pip install mlip[cuda]
+pip install "mlip[cuda]"
 ```
 
 **This command installs the CUDA 12 version of JAX.** For different versions, please

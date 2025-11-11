@@ -15,7 +15,7 @@ Use this command instead to install the GPU-compatible version:
 
 .. code-block:: bash
 
-    pip install mlip[cuda]
+    pip install "mlip[cuda]"
 
 **This command installs the CUDA 12 version of JAX.** For different versions, please
 install *mlip* without the `cuda` flag and install the desired JAX version via pip.

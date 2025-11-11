@@ -1,5 +1,10 @@
 # Changelog
 
+## Release 0.1.6
+
+- Fixing incorrect instructions for GPU-compatible installation: most shells require
+  quotes around pip installations with extras.
+
 ## Release 0.1.5
 
 - Adding batched simulations feature for MD simulations and energy minimizations

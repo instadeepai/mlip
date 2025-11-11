@@ -1,6 +1,6 @@
 [project]
 name = "mlip"
-version = "0.1.5"
+version = "0.1.6"
 description = "Machine Learning Interatomic Potentials in JAX"
 license-files = [
     "LICENSE"

@@ -1,0 +1,471 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="API reference" href="../api_reference/index.html"><link rel="prev" title="Simulations" href="simulations.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+        <title>Model fine-tuning - MLIP documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">MLIP  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">MLIP  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">User guide</a><input aria-label="Toggle navigation of User guide" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="data_processing.html">Data processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html">Model training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simulations.html">Simulations</a></li>
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Model fine-tuning</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api_reference/index.html">API reference</a><input aria-label="Toggle navigation of API reference" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/data/index.html">Data processing</a><input aria-label="Toggle navigation of Data processing" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/graph_dataset_builder.html">Graph Dataset Builder</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/index.html">Chemical System Readers</a><input aria-label="Toggle navigation of Chemical System Readers" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/chemical_systems_reader.html">Chemical Systems Reader: Interface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/extxyz_reader.html">Extxyz Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/hdf5_reader.html">HDF5 Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/combined_reader.html">Combined Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/reader_utils.html">Reader Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/chemical_system.html">Chemical System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/dataset_info.html">Dataset Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/dataset_configs.html">Dataset Configs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/atomic_number_table.html">Atomic Number Table</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/graph_definition.html">Graph Definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/graph_dataset.html">Graph Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/data_prefetching.html">Data parallelization and batch prefetching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/data_split.html">Data split</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/helper_functions.html">Helper functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/models/index.html">Models</a><input aria-label="Toggle navigation of Models" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/mlip_network.html">MLIP Network: Base Class</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/mace.html">MACE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/nequip.html">NequIP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/visnet.html">ViSNet</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/predictor.html">Force Field predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/force_field.html">Force Field</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/prediction.html">Prediction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/io.html">Model I/O</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/loss.html">Loss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/options.html">Model options: Enum classes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/training/index.html">Model training</a><input aria-label="Toggle navigation of Model training" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_loop.html">Training Loop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_loop_config.html">Training Loop Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_state.html">Training state</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_step.html">Training step</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/optimizer.html">Optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/ema.html">Exponential Moving Average (EMA)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_io_handling.html">IO handling during training</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/evaluation.html">Model evaluation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/finetuning.html">Fine-tuning utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/simulation/index.html">Simulations</a><input aria-label="Toggle navigation of Simulations" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/simulation_engine.html">Simulation Engine: Interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/sim_config.html">Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/simulation_state.html">Simulation State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/enums.html">Simulation Enums</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/graph_from_atoms.html">Create graph from ASE atoms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/jaxmd_engine.html">JAX-MD Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/jaxmd_sim_config.html">JAX-MD Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/ase_engine.html">ASE Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/ase_calculator.html">MLIP ASE Calculator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/ase_sim_config.html">ASE Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/temperature_scheduling.html">Temperature scheduling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/batched_inference.html">Batched inference</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/user_guide/finetuning.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="model-fine-tuning">
+<span id="model-finetuning"></span><h1>Model fine-tuning<a class="headerlink" href="#model-fine-tuning" title="Link to this heading">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Currently, fine-tuning is only available for MACE models.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If the downstream dataset contains fewer elements than the training set, you
+might run into silent inconsistencies where some atomic numbers are mapped to
+the wrong specie indices.</p>
+<p><strong>Starting from mlip 0.1.4</strong>, you can (and should) pass the <code class="code docutils literal notranslate"><span class="pre">.dataset_info</span></code>
+of a trained <code class="code docutils literal notranslate"><span class="pre">ForceField</span></code> to <code class="code docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code> when preparing data for
+downstream tasks.</p>
+</div>
+<p>In the following, we describe how to fine-tune an MLIP model with this library.
+A common use case is fine-tuning a pre-trained MLIP model
+on additional data to improve its accuracy for specific types of chemical systems.</p>
+<p>We recall that an MLIP model can be trained using multiple read-out heads. Note that
+currently, this is just implemented for the MACE architecture. The number of read-out
+heads can be set via <code class="docutils literal notranslate"><span class="pre">num_readout_heads</span></code> in
+<a class="reference internal" href="../api_reference/models/mace.html#mlip.models.mace.config.MaceConfig" title="mlip.models.mace.config.MaceConfig"><code class="xref py py-func docutils literal notranslate"><span class="pre">MaceConfig</span></code></a>.
+By default, one trains a model with only one read-out head. However, it does
+not matter for this fine-tuning step whether a model already has <em>N</em> read-out heads,
+it can be fine-tuned by adding more heads and optimizing their associated weights only.
+The final energy prediction of a model is obtained by summing the outputs
+of the <em>N</em> read-out heads.</p>
+<p>To fine-tune a given model, set up the new model with at least one more read-out head
+than the pre-trained model.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mace</span><span class="p">,</span> <span class="n">ForceField</span>
+
+<span class="n">pretrained_model_params</span> <span class="o">=</span> <span class="n">_get_params_for_pretrained_model</span><span class="p">()</span>  <span class="c1"># placeholder</span>
+
+<span class="c1"># Make sure the new model you create has at least one more read-out head</span>
+<span class="n">mace</span> <span class="o">=</span> <span class="n">Mace</span><span class="p">(</span><span class="n">Mace</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span><span class="n">num_readout_heads</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span> <span class="n">dataset_info</span><span class="p">)</span>
+<span class="n">initial_force_field</span> <span class="o">=</span> <span class="n">ForceField</span><span class="o">.</span><span class="n">from_mlip_network</span><span class="p">(</span><span class="n">mace</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now, we can transfer the pre-trained parameters into the new parameter object by using
+the function
+<a class="reference internal" href="../api_reference/training/finetuning.html#mlip.models.params_transfer.transfer_params" title="mlip.models.params_transfer.transfer_params"><code class="xref py py-func docutils literal notranslate"><span class="pre">transfer_params()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.models.params_transfer</span><span class="w"> </span><span class="kn">import</span> <span class="n">transfer_params</span>
+
+<span class="n">transferred_params</span><span class="p">,</span> <span class="n">finetuning_blocks</span> <span class="o">=</span> <span class="n">transfer_params</span><span class="p">(</span>
+    <span class="n">pretrained_model_params</span><span class="p">,</span>
+    <span class="n">initial_force_field</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+    <span class="n">scale_factor</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>As shown above, you have the option to rescale the randomly initialized
+parameters of the additional heads by setting the keyword argument
+<code class="docutils literal notranslate"><span class="pre">scale_factor</span></code> accordingly. Rescaling the yet untrained
+parameters to values close to zero can potentially aid model learning, as it initializes
+the model to be close to the pre-trained model at the start of the training.
+As part of our initial testing, we have found that models that are trained with a
+scale factor of 1.0 could sometimes not be optimized back to the quality of the
+pre-trained model. At the same time, a scale factor of 0.0 keeps all untrained
+weights at zero at the start of the training which prevents proper gradient flow.</p>
+<p>Therefore, <strong>we recommend to apply a non-zero scale factor of about 0.1 or lower</strong> which
+worked well in our initial tests. However, we also encourage users
+to experiment with this hyperparameter themselves.</p>
+<p>The resulting <code class="docutils literal notranslate"><span class="pre">transferred_params</span></code> have the shape of your new model, but the new
+heads are not yet optimized. The other parameters are taken from the pre-trained
+model. The second output of the function <code class="docutils literal notranslate"><span class="pre">finetuning_blocks</span></code> holds a list
+of module names inside the parameters that correspond to the blocks of untrained
+parameters. This list will be needed for the subsequent step.</p>
+<p>In the final step of preparing a model fine-tuning, we need to mask the optimizer to
+only update the untrained parameters. This can be easily done with the utility function
+<a class="reference internal" href="../api_reference/training/finetuning.html#mlip.training.finetuning_utils.mask_optimizer_for_finetuning" title="mlip.training.finetuning_utils.mask_optimizer_for_finetuning"><code class="xref py py-func docutils literal notranslate"><span class="pre">mask_optimizer_for_finetuning()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.training.finetuning_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">mask_optimizer_for_finetuning</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">_set_up_optimizer_like_for_normal_model_training</span><span class="p">()</span>  <span class="c1"># placeholder</span>
+
+<span class="n">masked_optimizer</span> <span class="o">=</span> <span class="n">mask_optimizer_for_finetuning</span><span class="p">(</span>
+    <span class="n">optimizer</span><span class="p">,</span> <span class="n">transferred_params</span><span class="p">,</span> <span class="n">finetuning_blocks</span>
+<span class="p">)</span>
+
+<span class="c1"># Go on to set up a normal training with the masked_optimizer</span>
+<span class="c1"># and the transferred_params</span>
+</pre></div>
+</div>
+<p>Subsequently, fine-tuning this model works exactly like the normal model training.
+All code can be reused. Creating a force field that is needed for training with
+the transferred parameters works like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ForceField</span>
+
+<span class="n">force_field</span> <span class="o">=</span> <span class="n">ForceField</span><span class="p">(</span><span class="n">initial_force_field</span><span class="o">.</span><span class="n">predictor</span><span class="p">,</span> <span class="n">transferred_params</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>To summarize, there are only four additional steps that are</strong>
+<strong>required for fine-tuning in contrast to a regular model training:</strong></p>
+<ul class="simple">
+<li><p>Loading the original pre-trained model parameters <em>and</em> setting up a new model that
+has the same configuration but with one or more additional read-out heads.</p></li>
+<li><p>Transfer the parameters using the function
+<a class="reference internal" href="../api_reference/training/finetuning.html#mlip.models.params_transfer.transfer_params" title="mlip.models.params_transfer.transfer_params"><code class="xref py py-func docutils literal notranslate"><span class="pre">transfer_params()</span></code></a>.</p></li>
+<li><p>Mask the optimizer using the function
+<a class="reference internal" href="../api_reference/training/finetuning.html#mlip.training.finetuning_utils.mask_optimizer_for_finetuning" title="mlip.training.finetuning_utils.mask_optimizer_for_finetuning"><code class="xref py py-func docutils literal notranslate"><span class="pre">mask_optimizer_for_finetuning()</span></code></a>.</p></li>
+<li><p>Make sure the <code class="code docutils literal notranslate"><span class="pre">dataset_info</span></code> object is used consistently across pretrained
+<a class="reference internal" href="../api_reference/models/force_field.html#mlip.models.force_field.ForceField" title="mlip.models.force_field.ForceField"><code class="xref py py-func docutils literal notranslate"><span class="pre">ForceField</span></code></a> and
+<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder" title="mlip.data.graph_dataset_builder.GraphDatasetBuilder"><code class="xref py py-func docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code></a>.</p></li>
+</ul>
+<p><strong>Additional note:</strong> When fine-tuning on datasets that are quite different to the
+original dataset which the pre-trained model was trained on, we recommend to add a subset
+of the original dataset to the dataset the fine-tuning is performed on. The proportion
+to which the original dataset should extend the new data points (e.g., 50:50 or
+90:10 ratio) is a hyperparameter to experiment with and the optimal choice
+may depend on how chemically different the new data is from the original data.</p>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="../api_reference/index.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">API reference</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="simulations.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Simulations</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2025, InstaDeep
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

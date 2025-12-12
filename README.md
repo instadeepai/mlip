@@ -1,4 +1,4 @@
-# 🪩 MLIP: Machine Learning Interatomic Potentials 🚀
+# 🪩 MLIP: Machine Learning Interatomic Potentials
 
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Python 3.11](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/downloads/release/python-3110/)
@@ -28,11 +28,13 @@ experienced with MLIP and JAX, and (3) a focus on **high inference speeds** that
 running long MD simulations on large systems which we believe is necessary in order to
 bring MLIP to large-scale industrial application.
 See our [inference speed benchmark](#-inference-time-benchmarks) below.
-With our library, we observe a 10x speedup on 138 atoms and up to 4x speed up
-on 1205 atoms over equivalent implementations relying on Torch and ASE.
 
-See the [Installation](#-installation) section for details on how to install
-MLIP-JAX and the example Google Colab notebooks linked below for a quick way
+🎙️ For further information on the design principles and story behind the *mlip* library,
+also check out our [Let's Talk Research podcast episode](https://youtu.be/xsCclme6RmY)
+on the topic.
+
+See the [Installation](#-installation) section for details on how to install *mlip* and the
+example Jupyter notebooks linked below for a quick way
 to get started. For detailed instructions, visit our extensive
 [code documentation](https://instadeepai.github.io/mlip/).
 
@@ -167,3 +169,21 @@ S. Attias, M. Maarand, Y. Khanfir, E. Toledo, F. Falcioni, M. Bluntzer,
 S. Acosta-Gutiérrez and J. Tilly, *Machine Learning Interatomic Potentials:
 library for efficient training, model development and simulation of molecular systems*,
 arXiv, 2025, arXiv:2505.22397.
+
+The BibTeX formatted citation:
+
+```
+@misc{brunken2025mlip,
+      title={Machine Learning Interatomic Potentials: library for efficient training,
+             model development and simulation of molecular systems},
+      author={Christoph Brunken and Olivier Peltre and Heloise Chomet and
+              Lucien Walewski and Manus McAuliffe and Valentin Heyraud and Solal Attias
+              and Martin Maarand and Yessine Khanfir and Edan Toledo and Fabio Falcioni
+              and Marie Bluntzer and Silvia Acosta-Gutiérrez and Jules Tilly},
+      year={2025},
+      eprint={2505.22397},
+      archivePrefix={arXiv},
+      primaryClass={physics.chem-ph},
+      url={https://arxiv.org/abs/2505.22397},
+}
+```

@@ -91,6 +91,8 @@ def _prepare_graphs(
             atomic_numbers=atoms.numbers,
             atomic_species=np.asarray([z_table.z_to_index(z) for z in atoms.numbers]),
             positions=atoms.get_positions(),
+            cell=np.array(atoms.get_cell()),
+            pbc=atoms.pbc,
         )
         for atoms in structures
     ]

@@ -43,9 +43,11 @@ class SimulationConfig(pydantic.BaseModel):
                            state. This means information about every N-th
                            snapshot is stored in the simulation state available to the
                            loggers (N being the snapshot interval). Defaults to 1.
-        box: The simulation box. If ``None``, no periodic boundary conditions are
-             applied (this is the default). It can be set to either a float or a list
-             of three floats, describing the dimensions of the box.
+        box: The optional simulation box. If `None`, no periodic boundary conditions
+             (PBCs) are applied. It can be set to either a float or a list three floats,
+             to enforce orthorhombic PBCs. Note that the `ASESimulationEngine` supports
+             generic PBCs by reading the `cell` attribute of the `ase.Atoms` to
+             simulate, in which case the `box` parameter should not be used.
         edge_capacity_multiplier: Factor to multiply the number of edges by to
                                   obtain the edge capacity including padding. Defaults
                                   to 1.25.

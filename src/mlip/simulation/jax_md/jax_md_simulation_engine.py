@@ -99,6 +99,9 @@ class JaxMDSimulationEngine(SimulationEngine):
 
         logger.debug("Initialization of simulation begins...")
         self._config = config
+        self._atoms = atoms
+        self._force_field = force_field
+
         positions = tree_map(lambda a: a.get_positions(), atoms)
         self._num_atoms = tree_map(lambda p: p.shape[0], positions)
         if isinstance(self._num_atoms, list) and 0 in self._num_atoms:
@@ -233,14 +236,24 @@ class JaxMDSimulationEngine(SimulationEngine):
                 lambda s, n: s.set(neighbors=n),
                 self._internal_state.system_state,
                 new_neighbors,
+                is_leaf=lambda x: is_system_state(x) or is_neighbor_list(x),
             )
         )
+        self._update_base_graph_in_pure_sim_step_fun(new_neighbors)
         logger.debug("Reallocation of neighbor lists completed.")
 
     def _init_box(self) -> None:
-        if self._config.box is None:
+        # TODO: test jax_md.periodic_general() for arbitrary lattices. For now, we
+        #       check that the ase.Atoms do not have PBCs or cell, since Jax-MD only
+        #       supports orthorhombic boxes that are passed from config.
+        has_pbc = (
+            any(atoms.pbc.any() for atoms in self._atoms)
+            if isinstance(self._atoms, list)
+            else self._atoms.pbc.any()
+        )
+        if self._config.box is None and not has_pbc:
             self._displacement_fun, self._shift_fun = jax_md.space.free()
-        else:
+        elif self._config.box is not None:
             box = (
                 np.array(self._config.box)
                 if isinstance(self._config.box, list)
@@ -248,6 +261,11 @@ class JaxMDSimulationEngine(SimulationEngine):
             )
             self._displacement_fun, self._shift_fun = jax_md.space.periodic(
                 box, wrapped=False
+            )
+        else:
+            raise NotImplementedError(
+                "Jax-MD can only be used with cubic boxes passed from config for now. "
+                "To avoid this error, you can set atoms.pbc to False."
             )
 
     @staticmethod
@@ -281,7 +299,7 @@ class JaxMDSimulationEngine(SimulationEngine):
 
         forces_split_idx = None
         if is_batched_sim:
-            sizes = np.delete(graph.n_node, 1)
+            sizes = np.delete(graph.n_node, -1)
             forces_split_idx = [int(sum(sizes[:i])) for i in range(1, len(sizes))]
 
         return functools.partial(
@@ -576,3 +594,23 @@ class JaxMDSimulationEngine(SimulationEngine):
             return batched_graph._replace(edges=saved_edges)
 
         return graph
+
+    def _update_base_graph_in_pure_sim_step_fun(
+        self, neighbors: jax_md.partition.NeighborList
+    ) -> None:
+        """After reallocation of neighbors, the simulation step function needs to
+        be updated because the `graph.n_edge` attribute has changed."""
+        senders = tree_map(lambda n: n.idx[1, :], neighbors, is_leaf=is_neighbor_list)
+        receivers = tree_map(lambda n: n.idx[0, :], neighbors, is_leaf=is_neighbor_list)
+        new_base_graph = self._init_base_graph(
+            self._atoms, senders, receivers, self._force_field.allowed_atomic_numbers
+        )
+        model_calculate_fun = self._get_model_calculate_fun(
+            new_base_graph,
+            self._force_field,
+            is_batched_sim=isinstance(self._atoms, list),
+        )
+        _, sim_apply_fun = init_simulation_algorithm(
+            model_calculate_fun, self._shift_fun, self._config
+        )
+        self._pure_simulation_step_fun.keywords["apply_fun"] = sim_apply_fun

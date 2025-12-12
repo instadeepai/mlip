@@ -273,3 +273,19 @@ that allows to input a list of `ase.Atoms` objects and returns a list of
     # Example: Get energy and forces for 7-th structure (indexing starts at 0)
     energy = predictions[7].energy
     forces = predictions[7].forces
+
+
+Periodic Boundary Conditions
+----------------------------
+
+Generic periodic boundary conditions (PBCs) are currently only supported by
+the :py:class:`ASESimulationEngine <mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine>`,
+which are read from the `cell` attribute of the `ase.Atoms` to be simulated.
+
+Orthorhombic PBCs (90° angles) can otherwise be specified for both simulation engines
+via the `box` attribute of
+:py:class:`SimulationConfig <mlip.simulation.configs.simulation_config.SimulationConfig>`,
+which can either be `None`, a float, or a list of three floats.
+This is currently due to a limitation of
+`jax_md.space.periodic <https://jax-md.readthedocs.io/en/main/jax_md.space.html#jax_md.space.periodic>`_,
+but we may support non-orthorhombic lattices with Jax-MD too in future versions.

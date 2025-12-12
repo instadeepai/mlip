@@ -58,6 +58,12 @@ class ASESimulationConfig(SimulationConfig):
                                          w.r.t. the sum of the force norms. See the
                                          ASE docs for more information. If not set,
                                          the ASE default will be used.
+
+    Note:
+        This simulation engine supports generic PBCs and lattice parameters read from
+        the `cell` attribute of the `ase.Atoms` to be simulated. Setting the `box`
+        parameter from configuration is discouraged in this case, but kept for
+        consistency with `JaxMDSimulationEngine` engine for now.
     """
 
     log_interval: PositiveInt | None = None

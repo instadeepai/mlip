@@ -90,6 +90,12 @@ class ASESimulationEngine(SimulationEngine):
         logger.debug("Initialization of simulation completed.")
 
     def _init_box(self) -> None:
+        """Update the PBC parameters of the underlying `ase.Atoms`"""
+        # Pass if atoms already have PBC and cell, best source of truth
+        if self.atoms.cell is not None and self.atoms.pbc is not None:
+            return
+        # Support cubic periodic box from config for Jax-MD consistency.
+        # To be discouraged once both engines support arbitrary lattices.
         if isinstance(self._config.box, float):
             self.atoms.cell = np.eye(3) * self._config.box
             self.atoms.pbc = True

@@ -1,5 +1,14 @@
 # Changelog
 
+## Release 0.1.7
+
+- Fixing issues with Periodic Boundary Conditions (PBCs) during inference.
+- Supporting PBCs passed from `ase.Atoms` during simulation with the ASE engine.
+  Passing an orthorhombic box from configuration is still supported in both simulation
+  engines, but might become discouraged in future releases.
+- Fixing a few bugs related to batched simulations occurring in cases of
+  reallocation of neighbor lists.
+
 ## Release 0.1.6
 
 - Fixing incorrect instructions for GPU-compatible installation: most shells require

@@ -1,0 +1,1927 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="#"><link rel="search" title="Search" href="search.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 --><title>Index - MLIP documentation</title>
+<link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">MLIP  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">MLIP  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation/index.html">Installation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="user_guide/index.html">User guide</a><input aria-label="Toggle navigation of User guide" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/data_processing.html">Data processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/training.html">Model training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/simulations.html">Simulations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/finetuning.html">Model fine-tuning</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="api_reference/index.html">API reference</a><input aria-label="Toggle navigation of API reference" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api_reference/data/index.html">Data processing</a><input aria-label="Toggle navigation of Data processing" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/graph_dataset_builder.html">Graph Dataset Builder</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api_reference/data/chemical_systems_readers/index.html">Chemical System Readers</a><input aria-label="Toggle navigation of Chemical System Readers" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="api_reference/data/chemical_systems_readers/chemical_systems_reader.html">Chemical Systems Reader: Interface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api_reference/data/chemical_systems_readers/extxyz_reader.html">Extxyz Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api_reference/data/chemical_systems_readers/hdf5_reader.html">HDF5 Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api_reference/data/chemical_systems_readers/combined_reader.html">Combined Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api_reference/data/chemical_systems_readers/reader_utils.html">Reader Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/chemical_system.html">Chemical System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/dataset_info.html">Dataset Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/dataset_configs.html">Dataset Configs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/atomic_number_table.html">Atomic Number Table</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/graph_definition.html">Graph Definition</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/graph_dataset.html">Graph Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/data_prefetching.html">Data parallelization and batch prefetching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/data_split.html">Data split</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/data/helper_functions.html">Helper functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api_reference/models/index.html">Models</a><input aria-label="Toggle navigation of Models" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/mlip_network.html">MLIP Network: Base Class</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/mace.html">MACE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/nequip.html">NequIP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/visnet.html">ViSNet</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/predictor.html">Force Field predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/force_field.html">Force Field</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/prediction.html">Prediction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/io.html">Model I/O</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/loss.html">Loss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/models/options.html">Model options: Enum classes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api_reference/training/index.html">Model training</a><input aria-label="Toggle navigation of Model training" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/training_loop.html">Training Loop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/training_loop_config.html">Training Loop Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/training_state.html">Training state</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/training_step.html">Training step</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/optimizer.html">Optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/ema.html">Exponential Moving Average (EMA)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/training_io_handling.html">IO handling during training</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/evaluation.html">Model evaluation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/training/finetuning.html">Fine-tuning utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api_reference/simulation/index.html">Simulations</a><input aria-label="Toggle navigation of Simulations" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/simulation_engine.html">Simulation Engine: Interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/sim_config.html">Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/simulation_state.html">Simulation State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/enums.html">Simulation Enums</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/graph_from_atoms.html">Create graph from ASE atoms</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/jaxmd_engine.html">JAX-MD Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/jaxmd_sim_config.html">JAX-MD Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/ase_engine.html">ASE Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/ase_calculator.html">MLIP ASE Calculator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/ase_sim_config.html">ASE Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/temperature_scheduling.html">Temperature scheduling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api_reference/simulation/batched_inference.html">Batched inference</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          
+<section class="genindex-section">
+  <h1 id="index">Index</h1>
+  <div class="genindex-jumpbox"><a href="#_"><strong>_</strong></a> | <a href="#A"><strong>A</strong></a> | <a href="#B"><strong>B</strong></a> | <a href="#C"><strong>C</strong></a> | <a href="#D"><strong>D</strong></a> | <a href="#E"><strong>E</strong></a> | <a href="#F"><strong>F</strong></a> | <a href="#G"><strong>G</strong></a> | <a href="#H"><strong>H</strong></a> | <a href="#I"><strong>I</strong></a> | <a href="#J"><strong>J</strong></a> | <a href="#K"><strong>K</strong></a> | <a href="#L"><strong>L</strong></a> | <a href="#M"><strong>M</strong></a> | <a href="#N"><strong>N</strong></a> | <a href="#O"><strong>O</strong></a> | <a href="#P"><strong>P</strong></a> | <a href="#Q"><strong>Q</strong></a> | <a href="#R"><strong>R</strong></a> | <a href="#S"><strong>S</strong></a> | <a href="#T"><strong>T</strong></a> | <a href="#U"><strong>U</strong></a> | <a href="#V"><strong>V</strong></a> | <a href="#W"><strong>W</strong></a> | <a href="#Z"><strong>Z</strong></a></div>
+</section>
+<section id="_" class="genindex-section">
+  <h2>_</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.__call__">__call__() (mlip.models.force_field.ForceField method)</a>
+
+        <ul>
+          <li><a href="api_reference/models/loss.html#mlip.models.loss.HuberLoss.__call__">(mlip.models.loss.HuberLoss method)</a>
+</li>
+          <li><a href="api_reference/models/loss.html#mlip.models.loss.Loss.__call__">(mlip.models.loss.Loss method)</a>
+</li>
+          <li><a href="api_reference/models/loss.html#mlip.models.loss.MSELoss.__call__">(mlip.models.loss.MSELoss method)</a>
+</li>
+          <li><a href="api_reference/models/loss.html#mlip.models.loss.WeightedEFSLoss.__call__">(mlip.models.loss.WeightedEFSLoss method)</a>
+</li>
+          <li><a href="api_reference/models/mace.html#mlip.models.mace.models.Mace.__call__">(mlip.models.mace.models.Mace method)</a>
+</li>
+          <li><a href="api_reference/models/mlip_network.html#mlip.models.mlip_network.MLIPNetwork.__call__">(mlip.models.mlip_network.MLIPNetwork method)</a>
+</li>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.models.Nequip.__call__">(mlip.models.nequip.models.Nequip method)</a>
+</li>
+          <li><a href="api_reference/models/predictor.html#mlip.models.predictor.ForceFieldPredictor.__call__">(mlip.models.predictor.ForceFieldPredictor method)</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.models.Visnet.__call__">(mlip.models.visnet.models.Visnet method)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.__init__">__init__() (mlip.data.chemical_system.ChemicalSystem method)</a>
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/chemical_systems_reader.html#mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader.__init__">(mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader method)</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/combined_reader.html#mlip.data.chemical_systems_readers.combined_reader.CombinedReader.__init__">(mlip.data.chemical_systems_readers.combined_reader.CombinedReader method)</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/extxyz_reader.html#mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader.__init__">(mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader method)</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/hdf5_reader.html#mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader.__init__">(mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader method)</a>
+</li>
+          <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo.__init__">(mlip.data.dataset_info.DatasetInfo method)</a>
+</li>
+          <li><a href="api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder.__init__">(mlip.data.graph_dataset_builder.GraphDatasetBuilder method)</a>
+</li>
+          <li><a href="api_reference/data/atomic_number_table.html#mlip.data.helpers.atomic_number_table.AtomicNumberTable.__init__">(mlip.data.helpers.atomic_number_table.AtomicNumberTable method)</a>
+</li>
+          <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.ParallelGraphDataset.__init__">(mlip.data.helpers.data_prefetching.ParallelGraphDataset method)</a>
+</li>
+          <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator.__init__">(mlip.data.helpers.data_prefetching.PrefetchIterator method)</a>
+</li>
+          <li><a href="api_reference/data/graph_dataset.html#mlip.data.helpers.graph_dataset.GraphDataset.__init__">(mlip.data.helpers.graph_dataset.GraphDataset method)</a>
+</li>
+          <li><a href="api_reference/models/loss.html#mlip.models.loss.HuberLoss.__init__">(mlip.models.loss.HuberLoss method)</a>
+</li>
+          <li><a href="api_reference/models/loss.html#mlip.models.loss.MSELoss.__init__">(mlip.models.loss.MSELoss method)</a>
+</li>
+          <li><a href="api_reference/models/loss.html#mlip.models.loss.WeightedEFSLoss.__init__">(mlip.models.loss.WeightedEFSLoss method)</a>
+</li>
+          <li><a href="api_reference/simulation/ase_engine.html#mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine.__init__">(mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine method)</a>
+</li>
+          <li><a href="api_reference/simulation/ase_calculator.html#mlip.simulation.ase.mlip_ase_calculator.MLIPForceFieldASECalculator.__init__">(mlip.simulation.ase.mlip_ase_calculator.MLIPForceFieldASECalculator method)</a>
+</li>
+          <li><a href="api_reference/simulation/jaxmd_engine.html#mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine.__init__">(mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine method)</a>
+</li>
+          <li><a href="api_reference/simulation/simulation_engine.html#mlip.simulation.simulation_engine.SimulationEngine.__init__">(mlip.simulation.simulation_engine.SimulationEngine method)</a>
+</li>
+          <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.__init__">(mlip.simulation.state.SimulationState method)</a>
+</li>
+          <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.__init__">(mlip.training.optimizer_config.OptimizerConfig method)</a>
+</li>
+          <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandler.__init__">(mlip.training.training_io_handler.TrainingIOHandler method)</a>
+</li>
+          <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.__init__">(mlip.training.training_io_handler.TrainingIOHandlerConfig method)</a>
+</li>
+          <li><a href="api_reference/training/training_loop.html#mlip.training.training_loop.TrainingLoop.__init__">(mlip.training.training_loop.TrainingLoop method)</a>
+</li>
+          <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.__init__">(mlip.training.training_loop_config.TrainingLoopConfig method)</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.ParallelGraphDataset.__iter__">__iter__() (mlip.data.helpers.data_prefetching.ParallelGraphDataset method)</a>
+
+        <ul>
+          <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator.__iter__">(mlip.data.helpers.data_prefetching.PrefetchIterator method)</a>
+</li>
+          <li><a href="api_reference/data/graph_dataset.html#mlip.data.helpers.graph_dataset.GraphDataset.__iter__">(mlip.data.helpers.graph_dataset.GraphDataset method)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.ParallelGraphDataset.__len__">__len__() (mlip.data.helpers.data_prefetching.ParallelGraphDataset method)</a>
+
+        <ul>
+          <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator.__len__">(mlip.data.helpers.data_prefetching.PrefetchIterator method)</a>
+</li>
+          <li><a href="api_reference/data/graph_dataset.html#mlip.data.helpers.graph_dataset.GraphDataset.__len__">(mlip.data.helpers.graph_dataset.GraphDataset method)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/simulation_engine.html#mlip.simulation.simulation_engine.SimulationEngine._initialize">_initialize() (mlip.simulation.simulation_engine.SimulationEngine method)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="A" class="genindex-section">
+  <h2>A</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState.acc_steps">acc_steps (mlip.training.training_state.TrainingState attribute)</a>
+</li>
+        <li><a href="api_reference/models/options.html#mlip.models.options.Activation">Activation (class in mlip.models.options)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.activation">activation (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.activation">(mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.allowed_atomic_numbers">allowed_atomic_numbers (mlip.models.force_field.ForceField property)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.apply_weight_decay_mask">apply_weight_decay_mask (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.SimulationBackend.ASE">ASE (mlip.simulation.enums.SimulationBackend attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_sim_config.html#mlip.simulation.configs.ase_config.ASESimulationConfig">ASESimulationConfig (class in mlip.simulation.configs.ase_config)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_engine.html#mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine">ASESimulationEngine (class in mlip.simulation.ase.ase_simulation_engine)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.atomic_energies">atomic_energies (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.atomic_energies">(mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.atomic_energies">(mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo.atomic_energies_map">atomic_energies_map (mlip.data.dataset_info.DatasetInfo attribute)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.atomic_numbers">atomic_numbers (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.atomic_numbers">(mlip.simulation.state.SimulationState attribute)</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.atomic_species">atomic_species (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+</li>
+        <li><a href="api_reference/data/atomic_number_table.html#mlip.data.helpers.atomic_number_table.AtomicNumberTable">AtomicNumberTable (class in mlip.data.helpers.atomic_number_table)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_engine.html#mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine.attach_logger">attach_logger() (mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine method)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/jaxmd_engine.html#mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine.attach_logger">(mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine method)</a>
+</li>
+          <li><a href="api_reference/simulation/simulation_engine.html#mlip.simulation.simulation_engine.SimulationEngine.attach_logger">(mlip.simulation.simulation_engine.SimulationEngine method)</a>
+</li>
+          <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandler.attach_logger">(mlip.training.training_io_handler.TrainingIOHandler method)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.attn_activation">attn_activation (mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.avg_num_neighbors">avg_num_neighbors (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo.avg_num_neighbors">(mlip.data.dataset_info.DatasetInfo attribute)</a>
+</li>
+          <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.avg_num_neighbors">(mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.avg_num_neighbors">(mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.avg_r_min">avg_r_min (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.avg_r_min_angstrom">avg_r_min_angstrom (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo.avg_r_min_angstrom">(mlip.data.dataset_info.DatasetInfo attribute)</a>
+</li>
+        </ul></li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="B" class="genindex-section">
+  <h2>B</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.batch_prefetch_num_devices">batch_prefetch_num_devices (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.batch_size">batch_size (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.LogCategory.BEST_MODEL">BEST_MODEL (mlip.training.training_io_handler.LogCategory attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.SimulationConfig.box">box (mlip.simulation.configs.simulation_config.SimulationConfig attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="C" class="genindex-section">
+  <h2>C</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/ase_calculator.html#mlip.simulation.ase.mlip_ase_calculator.MLIPForceFieldASECalculator.calculate">calculate() (mlip.simulation.ase.mlip_ase_calculator.MLIPForceFieldASECalculator method)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.cell">cell (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem">ChemicalSystem (class in mlip.data.chemical_system)</a>
+</li>
+        <li><a href="api_reference/data/chemical_systems_readers/chemical_systems_reader.html#mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader">ChemicalSystemsReader (class in mlip.data.chemical_systems_readers.chemical_systems_reader)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.ChemicalSystemsReaderConfig">ChemicalSystemsReaderConfig (class in mlip.data.configs)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.LogCategory.CLEANUP_AFTER_CKPT_RESTORATION">CLEANUP_AFTER_CKPT_RESTORATION (mlip.training.training_io_handler.LogCategory attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.clear_previous_checkpoints">clear_previous_checkpoints (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/chemical_systems_readers/combined_reader.html#mlip.data.chemical_systems_readers.combined_reader.CombinedReader">CombinedReader (class in mlip.data.chemical_systems_readers.combined_reader)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.atomic_energies.compute_average_e0s_from_graphs">compute_average_e0s_from_graphs() (in module mlip.data.helpers.atomic_energies)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.neighbor_analysis.compute_avg_min_neighbor_distance">compute_avg_min_neighbor_distance() (in module mlip.data.helpers.neighbor_analysis)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.neighbor_analysis.compute_avg_num_neighbors">compute_avg_num_neighbors() (in module mlip.data.helpers.neighbor_analysis)</a>
+</li>
+        <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.compute_dataset_info_from_graphs">compute_dataset_info_from_graphs() (in module mlip.data.dataset_info)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.compute_time_seconds">compute_time_seconds (mlip.simulation.state.SimulationState attribute)</a>
+</li>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.config">config (mlip.models.force_field.ForceField property)</a>
+
+        <ul>
+          <li><a href="api_reference/models/mace.html#mlip.models.mace.models.Mace.config">(mlip.models.mace.models.Mace attribute)</a>
+</li>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.models.Nequip.config">(mlip.models.nequip.models.Nequip attribute)</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.models.Visnet.config">(mlip.models.visnet.models.Visnet attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.TemperatureScheduleMethod.CONSTANT">CONSTANT (mlip.simulation.enums.TemperatureScheduleMethod attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/temperature_scheduling.html#mlip.simulation.temperature_scheduling.constant_schedule">constant_schedule() (in module mlip.simulation.temperature_scheduling)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_loggers.convert_mse_to_rmse_in_logs">convert_mse_to_rmse_in_logs() (in module mlip.training.training_loggers)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.correlation">correlation (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/graph_from_atoms.html#mlip.simulation.utils.create_graph_from_atoms">create_graph_from_atoms() (in module mlip.simulation.utils)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.graph_creation.create_graph_from_chemical_system">create_graph_from_chemical_system() (in module mlip.data.helpers.graph_creation)</a>
+</li>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.cutoff_distance">cutoff_distance (mlip.models.force_field.ForceField property)</a>
+</li>
+        <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo.cutoff_distance_angstrom">cutoff_distance_angstrom (mlip.data.dataset_info.DatasetInfo attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="D" class="genindex-section">
+  <h2>D</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder.dataset_info">dataset_info (mlip.data.graph_dataset_builder.GraphDatasetBuilder property)</a>
+
+        <ul>
+          <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.dataset_info">(mlip.models.force_field.ForceField property)</a>
+</li>
+          <li><a href="api_reference/models/mace.html#mlip.models.mace.models.Mace.dataset_info">(mlip.models.mace.models.Mace attribute)</a>
+</li>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.models.Nequip.dataset_info">(mlip.models.nequip.models.Nequip attribute)</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.models.Visnet.dataset_info">(mlip.models.visnet.models.Visnet attribute)</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo">DatasetInfo (class in mlip.data.dataset_info)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.dynamically_batch.dynamically_batch">dynamically_batch() (in module mlip.data.helpers.dynamically_batch)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="E" class="genindex-section">
+  <h2>E</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.SimulationConfig.edge_capacity_multiplier">edge_capacity_multiplier (mlip.simulation.configs.simulation_config.SimulationConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.ema_decay">ema_decay (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.ema_decay">(mlip.training.training_loop_config.TrainingLoopConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState.ema_state">ema_state (mlip.training.training_state.TrainingState attribute)</a>
+</li>
+        <li><a href="api_reference/training/ema.html#mlip.training.ema.EMAParameterTransformation">EMAParameterTransformation (class in mlip.training.ema)</a>
+</li>
+        <li><a href="api_reference/training/ema.html#mlip.training.ema.EMAState">EMAState (class in mlip.training.ema)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig.end_temperature">end_temperature (mlip.simulation.configs.simulation_config.TemperatureScheduleConfig attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.energy">energy (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/prediction.html#mlip.typing.prediction.Prediction.energy">(mlip.typing.prediction.Prediction attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.epoch_to_restore">epoch_to_restore (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.LogCategory.EVAL_METRICS">EVAL_METRICS (mlip.training.training_io_handler.LogCategory attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.eval_num_graphs">eval_num_graphs (mlip.training.training_loop_config.TrainingLoopConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/ema.html#mlip.training.ema.exponentially_moving_average">exponentially_moving_average() (in module mlip.training.ema)</a>
+</li>
+        <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState.extras">extras (mlip.training.training_state.TrainingState attribute)</a>
+</li>
+        <li><a href="api_reference/data/chemical_systems_readers/extxyz_reader.html#mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader">ExtxyzReader (class in mlip.data.chemical_systems_readers.extxyz_reader)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="F" class="genindex-section">
+  <h2>F</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/chemical_systems_readers/reader_utils.html#mlip.data.chemical_systems_readers.utils.filter_systems_with_unseen_atoms_and_assign_atomic_species">filter_systems_with_unseen_atoms_and_assign_atomic_species() (in module mlip.data.chemical_systems_readers.utils)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.final_learning_rate">final_learning_rate (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField">ForceField (class in mlip.models.force_field)</a>
+</li>
+        <li><a href="api_reference/models/predictor.html#mlip.models.predictor.ForceFieldPredictor">ForceFieldPredictor (class in mlip.models.predictor)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.forces">forces (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.forces">(mlip.simulation.state.SimulationState attribute)</a>
+</li>
+          <li><a href="api_reference/models/prediction.html#mlip.typing.prediction.Prediction.forces">(mlip.typing.prediction.Prediction attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/ase_sim_config.html#mlip.simulation.configs.ase_config.ASESimulationConfig.friction">friction (mlip.simulation.configs.ase_config.ASESimulationConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.from_mlip_network">from_mlip_network() (mlip.models.force_field.ForceField class method)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="G" class="genindex-section">
+  <h2>G</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.gate_nodes">gate_nodes (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/ema.html#mlip.training.ema.get_debiased_params">get_debiased_params() (in module mlip.training.ema)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer.get_default_mlip_optimizer">get_default_mlip_optimizer() (in module mlip.training.optimizer)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.dummy_init_graph.get_dummy_graph_for_model_init">get_dummy_graph_for_model_init() (in module mlip.data.helpers.dummy_init_graph)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.edge_vectors.get_edge_relative_vectors">get_edge_relative_vectors() (in module mlip.data.helpers.edge_vectors)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.edge_vectors.get_edge_vectors">get_edge_vectors() (in module mlip.data.helpers.edge_vectors)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer.get_mlip_optimizer_chain_with_flexible_base_optimizer">get_mlip_optimizer_chain_with_flexible_base_optimizer() (in module mlip.training.optimizer)</a>
+</li>
+        <li><a href="api_reference/data/helper_functions.html#mlip.data.helpers.neighborhood.get_neighborhood">get_neighborhood() (in module mlip.data.helpers.neighborhood)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_calculator.html#mlip.utils.no_pbc_cell.get_no_pbc_cell">get_no_pbc_cell() (in module mlip.utils.no_pbc_cell)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder.get_splits">get_splits() (mlip.data.graph_dataset_builder.GraphDatasetBuilder method)</a>
+</li>
+        <li><a href="api_reference/simulation/temperature_scheduling.html#mlip.simulation.temperature_scheduling.get_temperature_schedule">get_temperature_schedule() (in module mlip.simulation.temperature_scheduling)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.grad_norm">grad_norm (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.graph_cutoff_angstrom">graph_cutoff_angstrom (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/graph_dataset.html#mlip.data.helpers.graph_dataset.GraphDataset">GraphDataset (class in mlip.data.helpers.graph_dataset)</a>
+</li>
+        <li><a href="api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder">GraphDatasetBuilder (class in mlip.data.graph_dataset_builder)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig">GraphDatasetBuilderConfig (class in mlip.data.configs)</a>
+</li>
+        <li><a href="api_reference/data/graph_definition.html#mlip.typing.graph_definition.GraphEdges">GraphEdges (class in mlip.typing.graph_definition)</a>
+</li>
+        <li><a href="api_reference/data/graph_definition.html#mlip.typing.graph_definition.GraphGlobals">GraphGlobals (class in mlip.typing.graph_definition)</a>
+</li>
+        <li><a href="api_reference/data/graph_definition.html#mlip.typing.graph_definition.GraphNodes">GraphNodes (class in mlip.typing.graph_definition)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="H" class="genindex-section">
+  <h2>H</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/chemical_systems_readers/hdf5_reader.html#mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader">Hdf5Reader (class in mlip.data.chemical_systems_readers.hdf5_reader)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig.heating_period">heating_period (mlip.simulation.configs.simulation_config.TemperatureScheduleConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/loss.html#mlip.models.loss.HuberLoss">HuberLoss (class in mlip.models.loss)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="I" class="genindex-section">
+  <h2>I</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.include_pseudotensors">include_pseudotensors (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/atomic_number_table.html#mlip.data.helpers.atomic_number_table.AtomicNumberTable.index_to_z">index_to_z() (mlip.data.helpers.atomic_number_table.AtomicNumberTable method)</a>
+</li>
+        <li><a href="api_reference/training/ema.html#mlip.training.ema.EMAParameterTransformation.init">init (mlip.training.ema.EMAParameterTransformation attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.init">init() (mlip.models.force_field.ForceField class method)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.init_learning_rate">init_learning_rate (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator.iterable">iterable (mlip.data.helpers.data_prefetching.PrefetchIterator attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="J" class="genindex-section">
+  <h2>J</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.SimulationBackend.JAX_MD">JAX_MD (mlip.simulation.enums.SimulationBackend attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/jaxmd_sim_config.html#mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig">JaxMDSimulationConfig (class in mlip.simulation.configs.jax_md_config)</a>
+</li>
+        <li><a href="api_reference/simulation/jaxmd_engine.html#mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine">JaxMDSimulationEngine (class in mlip.simulation.jax_md.jax_md_simulation_engine)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="K" class="genindex-section">
+  <h2>K</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState.key">key (mlip.training.training_state.TrainingState attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.kinetic_energy">kinetic_energy (mlip.simulation.state.SimulationState attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="L" class="genindex-section">
+  <h2>L</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.l_max">l_max (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.l_max">(mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.l_max">(mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.TemperatureScheduleMethod.LINEAR">LINEAR (mlip.simulation.enums.TemperatureScheduleMethod attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/temperature_scheduling.html#mlip.simulation.temperature_scheduling.linear_schedule">linear_schedule() (in module mlip.simulation.temperature_scheduling)</a>
+</li>
+        <li><a href="api_reference/data/chemical_systems_readers/chemical_systems_reader.html#mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader.load">load() (mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader method)</a>
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/combined_reader.html#mlip.data.chemical_systems_readers.combined_reader.CombinedReader.load">(mlip.data.chemical_systems_readers.combined_reader.CombinedReader method)</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/extxyz_reader.html#mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader.load">(mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader method)</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/hdf5_reader.html#mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader.load">(mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader method)</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/io.html#mlip.models.model_io.load_model_from_zip">load_model_from_zip() (in module mlip.models.model_io)</a>
+</li>
+        <li><a href="api_reference/models/io.html#mlip.models.params_loading.load_parameters_from_checkpoint">load_parameters_from_checkpoint() (in module mlip.models.params_loading)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.local_model_output_dir">local_model_output_dir (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandler.log">log() (mlip.training.training_io_handler.TrainingIOHandler method)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_sim_config.html#mlip.simulation.configs.ase_config.ASESimulationConfig.log_interval">log_interval (mlip.simulation.configs.ase_config.ASESimulationConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_loggers.log_metrics_to_line">log_metrics_to_line() (in module mlip.training.training_loggers)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_loggers.log_metrics_to_table">log_metrics_to_table() (in module mlip.training.training_loggers)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.LogCategory">LogCategory (class in mlip.training.training_io_handler)</a>
+</li>
+        <li><a href="api_reference/models/loss.html#mlip.models.loss.Loss">Loss (class in mlip.models.loss)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="M" class="genindex-section">
+  <h2>M</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.models.Mace">Mace (class in mlip.models.mace.models)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig">MaceConfig (class in mlip.models.mace.config)</a>
+</li>
+        <li><a href="api_reference/training/evaluation.html#mlip.training.evaluation.make_evaluation_step">make_evaluation_step() (in module mlip.training.evaluation)</a>
+</li>
+        <li><a href="api_reference/training/training_step.html#mlip.training.training_step.make_train_step">make_train_step() (in module mlip.training.training_step)</a>
+</li>
+        <li><a href="api_reference/training/finetuning.html#mlip.training.finetuning_utils.mask_optimizer_for_finetuning">mask_optimizer_for_finetuning() (in module mlip.training.finetuning_utils)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.max_checkpoints_to_keep">max_checkpoints_to_keep (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_sim_config.html#mlip.simulation.configs.ase_config.ASESimulationConfig.max_force_convergence_threshold">max_force_convergence_threshold (mlip.simulation.configs.ase_config.ASESimulationConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.max_n_edge">max_n_edge (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.max_n_node">max_n_node (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig.max_temperature">max_temperature (mlip.simulation.configs.simulation_config.TemperatureScheduleConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.SimulationType.MD">MD (mlip.simulation.enums.SimulationType attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig.method">method (mlip.simulation.configs.simulation_config.TemperatureScheduleConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig.min_temperature">min_temperature (mlip.simulation.configs.simulation_config.TemperatureScheduleConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.SimulationType.MINIMIZATION">MINIMIZATION (mlip.simulation.enums.SimulationType attribute)</a>
+</li>
+        <li>
+    mlip
+
+        <ul>
+          <li><a href="api_reference/index.html#module-mlip">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data
+
+        <ul>
+          <li><a href="api_reference/data/index.html#module-mlip.data">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.chemical_system
+
+        <ul>
+          <li><a href="api_reference/data/chemical_system.html#module-mlip.data.chemical_system">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.chemical_systems_readers
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/index.html#module-mlip.data.chemical_systems_readers">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.chemical_systems_readers.chemical_systems_reader
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/chemical_systems_reader.html#module-mlip.data.chemical_systems_readers.chemical_systems_reader">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.chemical_systems_readers.combined_reader
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/combined_reader.html#module-mlip.data.chemical_systems_readers.combined_reader">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.chemical_systems_readers.extxyz_reader
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/extxyz_reader.html#module-mlip.data.chemical_systems_readers.extxyz_reader">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.chemical_systems_readers.hdf5_reader
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/hdf5_reader.html#module-mlip.data.chemical_systems_readers.hdf5_reader">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.chemical_systems_readers.utils
+
+        <ul>
+          <li><a href="api_reference/data/chemical_systems_readers/reader_utils.html#module-mlip.data.chemical_systems_readers.utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.configs
+
+        <ul>
+          <li><a href="api_reference/data/dataset_configs.html#module-mlip.data.configs">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.dataset_info
+
+        <ul>
+          <li><a href="api_reference/data/dataset_info.html#module-mlip.data.dataset_info">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.graph_dataset_builder
+
+        <ul>
+          <li><a href="api_reference/data/graph_dataset_builder.html#module-mlip.data.graph_dataset_builder">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.atomic_energies
+
+        <ul>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.atomic_energies">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.atomic_number_table
+
+        <ul>
+          <li><a href="api_reference/data/atomic_number_table.html#module-mlip.data.helpers.atomic_number_table">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.data_prefetching
+
+        <ul>
+          <li><a href="api_reference/data/data_prefetching.html#module-mlip.data.helpers.data_prefetching">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.data_split
+
+        <ul>
+          <li><a href="api_reference/data/data_split.html#module-mlip.data.helpers.data_split">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.dummy_init_graph
+
+        <ul>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.dummy_init_graph">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.dynamically_batch
+
+        <ul>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.dynamically_batch">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.edge_vectors
+
+        <ul>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.edge_vectors">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.graph_creation
+
+        <ul>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.graph_creation">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.graph_dataset
+
+        <ul>
+          <li><a href="api_reference/data/graph_dataset.html#module-mlip.data.helpers.graph_dataset">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.neighbor_analysis
+
+        <ul>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.neighbor_analysis">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.data.helpers.neighborhood
+
+        <ul>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.neighborhood">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.inference.batched_inference
+
+        <ul>
+          <li><a href="api_reference/simulation/batched_inference.html#module-mlip.inference.batched_inference">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models
+
+        <ul>
+          <li><a href="api_reference/models/index.html#module-mlip.models">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.force_field
+
+        <ul>
+          <li><a href="api_reference/models/force_field.html#module-mlip.models.force_field">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.loss
+
+        <ul>
+          <li><a href="api_reference/models/loss.html#module-mlip.models.loss">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.mace.config
+
+        <ul>
+          <li><a href="api_reference/models/mace.html#module-mlip.models.mace.config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.mace.models
+
+        <ul>
+          <li><a href="api_reference/models/mace.html#module-mlip.models.mace.models">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.mlip_network
+
+        <ul>
+          <li><a href="api_reference/models/mlip_network.html#module-mlip.models.mlip_network">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.model_io
+
+        <ul>
+          <li><a href="api_reference/models/io.html#module-mlip.models.model_io">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.nequip.config
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#module-mlip.models.nequip.config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.nequip.models
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#module-mlip.models.nequip.models">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.options
+
+        <ul>
+          <li><a href="api_reference/models/options.html#module-mlip.models.options">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.params_loading
+
+        <ul>
+          <li><a href="api_reference/models/io.html#module-mlip.models.params_loading">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.params_transfer
+
+        <ul>
+          <li><a href="api_reference/training/finetuning.html#module-mlip.models.params_transfer">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.predictor
+
+        <ul>
+          <li><a href="api_reference/models/predictor.html#module-mlip.models.predictor">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.visnet.config
+
+        <ul>
+          <li><a href="api_reference/models/visnet.html#module-mlip.models.visnet.config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.models.visnet.models
+
+        <ul>
+          <li><a href="api_reference/models/visnet.html#module-mlip.models.visnet.models">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation
+
+        <ul>
+          <li><a href="api_reference/simulation/index.html#module-mlip.simulation">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.ase.ase_simulation_engine
+
+        <ul>
+          <li><a href="api_reference/simulation/ase_engine.html#module-mlip.simulation.ase.ase_simulation_engine">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.ase.mlip_ase_calculator
+
+        <ul>
+          <li><a href="api_reference/simulation/ase_calculator.html#module-mlip.simulation.ase.mlip_ase_calculator">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.configs.ase_config
+
+        <ul>
+          <li><a href="api_reference/simulation/ase_sim_config.html#module-mlip.simulation.configs.ase_config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.configs.jax_md_config
+
+        <ul>
+          <li><a href="api_reference/simulation/jaxmd_sim_config.html#module-mlip.simulation.configs.jax_md_config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.configs.simulation_config
+
+        <ul>
+          <li><a href="api_reference/simulation/sim_config.html#module-mlip.simulation.configs.simulation_config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.enums
+
+        <ul>
+          <li><a href="api_reference/simulation/enums.html#module-mlip.simulation.enums">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.jax_md.jax_md_simulation_engine
+
+        <ul>
+          <li><a href="api_reference/simulation/jaxmd_engine.html#module-mlip.simulation.jax_md.jax_md_simulation_engine">module</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li>
+    mlip.simulation.simulation_engine
+
+        <ul>
+          <li><a href="api_reference/simulation/simulation_engine.html#module-mlip.simulation.simulation_engine">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.state
+
+        <ul>
+          <li><a href="api_reference/simulation/simulation_state.html#module-mlip.simulation.state">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.temperature_scheduling
+
+        <ul>
+          <li><a href="api_reference/simulation/temperature_scheduling.html#module-mlip.simulation.temperature_scheduling">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.simulation.utils
+
+        <ul>
+          <li><a href="api_reference/simulation/graph_from_atoms.html#module-mlip.simulation.utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training
+
+        <ul>
+          <li><a href="api_reference/training/index.html#module-mlip.training">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.ema
+
+        <ul>
+          <li><a href="api_reference/training/ema.html#module-mlip.training.ema">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.evaluation
+
+        <ul>
+          <li><a href="api_reference/training/evaluation.html#module-mlip.training.evaluation">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.finetuning_utils
+
+        <ul>
+          <li><a href="api_reference/training/finetuning.html#module-mlip.training.finetuning_utils">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.optimizer
+
+        <ul>
+          <li><a href="api_reference/training/optimizer.html#module-mlip.training.optimizer">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.optimizer_config
+
+        <ul>
+          <li><a href="api_reference/training/optimizer.html#module-mlip.training.optimizer_config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.training_io_handler
+
+        <ul>
+          <li><a href="api_reference/training/training_io_handling.html#module-mlip.training.training_io_handler">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.training_loggers
+
+        <ul>
+          <li><a href="api_reference/training/training_io_handling.html#module-mlip.training.training_loggers">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.training_loop
+
+        <ul>
+          <li><a href="api_reference/training/training_loop.html#module-mlip.training.training_loop">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.training_loop_config
+
+        <ul>
+          <li><a href="api_reference/training/training_loop_config.html#module-mlip.training.training_loop_config">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.training_state
+
+        <ul>
+          <li><a href="api_reference/training/training_state.html#module-mlip.training.training_state">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.training.training_step
+
+        <ul>
+          <li><a href="api_reference/training/training_step.html#module-mlip.training.training_step">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.typing.graph_definition
+
+        <ul>
+          <li><a href="api_reference/data/graph_definition.html#module-mlip.typing.graph_definition">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.typing.prediction
+
+        <ul>
+          <li><a href="api_reference/models/prediction.html#module-mlip.typing.prediction">module</a>
+</li>
+        </ul></li>
+        <li>
+    mlip.utils.no_pbc_cell
+
+        <ul>
+          <li><a href="api_reference/simulation/ase_calculator.html#module-mlip.utils.no_pbc_cell">module</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/predictor.html#mlip.models.predictor.ForceFieldPredictor.mlip_network">mlip_network (mlip.models.predictor.ForceFieldPredictor attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_calculator.html#mlip.simulation.ase.mlip_ase_calculator.MLIPForceFieldASECalculator">MLIPForceFieldASECalculator (class in mlip.simulation.ase.mlip_ase_calculator)</a>
+</li>
+        <li><a href="api_reference/models/mlip_network.html#mlip.models.mlip_network.MLIPNetwork">MLIPNetwork (class in mlip.models.mlip_network)</a>
+</li>
+        <li>
+    module
+
+        <ul>
+          <li><a href="api_reference/index.html#module-mlip">mlip</a>
+</li>
+          <li><a href="api_reference/data/index.html#module-mlip.data">mlip.data</a>
+</li>
+          <li><a href="api_reference/data/chemical_system.html#module-mlip.data.chemical_system">mlip.data.chemical_system</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/index.html#module-mlip.data.chemical_systems_readers">mlip.data.chemical_systems_readers</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/chemical_systems_reader.html#module-mlip.data.chemical_systems_readers.chemical_systems_reader">mlip.data.chemical_systems_readers.chemical_systems_reader</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/combined_reader.html#module-mlip.data.chemical_systems_readers.combined_reader">mlip.data.chemical_systems_readers.combined_reader</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/extxyz_reader.html#module-mlip.data.chemical_systems_readers.extxyz_reader">mlip.data.chemical_systems_readers.extxyz_reader</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/hdf5_reader.html#module-mlip.data.chemical_systems_readers.hdf5_reader">mlip.data.chemical_systems_readers.hdf5_reader</a>
+</li>
+          <li><a href="api_reference/data/chemical_systems_readers/reader_utils.html#module-mlip.data.chemical_systems_readers.utils">mlip.data.chemical_systems_readers.utils</a>
+</li>
+          <li><a href="api_reference/data/dataset_configs.html#module-mlip.data.configs">mlip.data.configs</a>
+</li>
+          <li><a href="api_reference/data/dataset_info.html#module-mlip.data.dataset_info">mlip.data.dataset_info</a>
+</li>
+          <li><a href="api_reference/data/graph_dataset_builder.html#module-mlip.data.graph_dataset_builder">mlip.data.graph_dataset_builder</a>
+</li>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.atomic_energies">mlip.data.helpers.atomic_energies</a>
+</li>
+          <li><a href="api_reference/data/atomic_number_table.html#module-mlip.data.helpers.atomic_number_table">mlip.data.helpers.atomic_number_table</a>
+</li>
+          <li><a href="api_reference/data/data_prefetching.html#module-mlip.data.helpers.data_prefetching">mlip.data.helpers.data_prefetching</a>
+</li>
+          <li><a href="api_reference/data/data_split.html#module-mlip.data.helpers.data_split">mlip.data.helpers.data_split</a>
+</li>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.dummy_init_graph">mlip.data.helpers.dummy_init_graph</a>
+</li>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.dynamically_batch">mlip.data.helpers.dynamically_batch</a>
+</li>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.edge_vectors">mlip.data.helpers.edge_vectors</a>
+</li>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.graph_creation">mlip.data.helpers.graph_creation</a>
+</li>
+          <li><a href="api_reference/data/graph_dataset.html#module-mlip.data.helpers.graph_dataset">mlip.data.helpers.graph_dataset</a>
+</li>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.neighbor_analysis">mlip.data.helpers.neighbor_analysis</a>
+</li>
+          <li><a href="api_reference/data/helper_functions.html#module-mlip.data.helpers.neighborhood">mlip.data.helpers.neighborhood</a>
+</li>
+          <li><a href="api_reference/simulation/batched_inference.html#module-mlip.inference.batched_inference">mlip.inference.batched_inference</a>
+</li>
+          <li><a href="api_reference/models/index.html#module-mlip.models">mlip.models</a>
+</li>
+          <li><a href="api_reference/models/force_field.html#module-mlip.models.force_field">mlip.models.force_field</a>
+</li>
+          <li><a href="api_reference/models/loss.html#module-mlip.models.loss">mlip.models.loss</a>
+</li>
+          <li><a href="api_reference/models/mace.html#module-mlip.models.mace.config">mlip.models.mace.config</a>
+</li>
+          <li><a href="api_reference/models/mace.html#module-mlip.models.mace.models">mlip.models.mace.models</a>
+</li>
+          <li><a href="api_reference/models/mlip_network.html#module-mlip.models.mlip_network">mlip.models.mlip_network</a>
+</li>
+          <li><a href="api_reference/models/io.html#module-mlip.models.model_io">mlip.models.model_io</a>
+</li>
+          <li><a href="api_reference/models/nequip.html#module-mlip.models.nequip.config">mlip.models.nequip.config</a>
+</li>
+          <li><a href="api_reference/models/nequip.html#module-mlip.models.nequip.models">mlip.models.nequip.models</a>
+</li>
+          <li><a href="api_reference/models/options.html#module-mlip.models.options">mlip.models.options</a>
+</li>
+          <li><a href="api_reference/models/io.html#module-mlip.models.params_loading">mlip.models.params_loading</a>
+</li>
+          <li><a href="api_reference/training/finetuning.html#module-mlip.models.params_transfer">mlip.models.params_transfer</a>
+</li>
+          <li><a href="api_reference/models/predictor.html#module-mlip.models.predictor">mlip.models.predictor</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#module-mlip.models.visnet.config">mlip.models.visnet.config</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#module-mlip.models.visnet.models">mlip.models.visnet.models</a>
+</li>
+          <li><a href="api_reference/simulation/index.html#module-mlip.simulation">mlip.simulation</a>
+</li>
+          <li><a href="api_reference/simulation/ase_engine.html#module-mlip.simulation.ase.ase_simulation_engine">mlip.simulation.ase.ase_simulation_engine</a>
+</li>
+          <li><a href="api_reference/simulation/ase_calculator.html#module-mlip.simulation.ase.mlip_ase_calculator">mlip.simulation.ase.mlip_ase_calculator</a>
+</li>
+          <li><a href="api_reference/simulation/ase_sim_config.html#module-mlip.simulation.configs.ase_config">mlip.simulation.configs.ase_config</a>
+</li>
+          <li><a href="api_reference/simulation/jaxmd_sim_config.html#module-mlip.simulation.configs.jax_md_config">mlip.simulation.configs.jax_md_config</a>
+</li>
+          <li><a href="api_reference/simulation/sim_config.html#module-mlip.simulation.configs.simulation_config">mlip.simulation.configs.simulation_config</a>
+</li>
+          <li><a href="api_reference/simulation/enums.html#module-mlip.simulation.enums">mlip.simulation.enums</a>
+</li>
+          <li><a href="api_reference/simulation/jaxmd_engine.html#module-mlip.simulation.jax_md.jax_md_simulation_engine">mlip.simulation.jax_md.jax_md_simulation_engine</a>
+</li>
+          <li><a href="api_reference/simulation/simulation_engine.html#module-mlip.simulation.simulation_engine">mlip.simulation.simulation_engine</a>
+</li>
+          <li><a href="api_reference/simulation/simulation_state.html#module-mlip.simulation.state">mlip.simulation.state</a>
+</li>
+          <li><a href="api_reference/simulation/temperature_scheduling.html#module-mlip.simulation.temperature_scheduling">mlip.simulation.temperature_scheduling</a>
+</li>
+          <li><a href="api_reference/simulation/graph_from_atoms.html#module-mlip.simulation.utils">mlip.simulation.utils</a>
+</li>
+          <li><a href="api_reference/training/index.html#module-mlip.training">mlip.training</a>
+</li>
+          <li><a href="api_reference/training/ema.html#module-mlip.training.ema">mlip.training.ema</a>
+</li>
+          <li><a href="api_reference/training/evaluation.html#module-mlip.training.evaluation">mlip.training.evaluation</a>
+</li>
+          <li><a href="api_reference/training/finetuning.html#module-mlip.training.finetuning_utils">mlip.training.finetuning_utils</a>
+</li>
+          <li><a href="api_reference/training/optimizer.html#module-mlip.training.optimizer">mlip.training.optimizer</a>
+</li>
+          <li><a href="api_reference/training/optimizer.html#module-mlip.training.optimizer_config">mlip.training.optimizer_config</a>
+</li>
+          <li><a href="api_reference/training/training_io_handling.html#module-mlip.training.training_io_handler">mlip.training.training_io_handler</a>
+</li>
+          <li><a href="api_reference/training/training_io_handling.html#module-mlip.training.training_loggers">mlip.training.training_loggers</a>
+</li>
+          <li><a href="api_reference/training/training_loop.html#module-mlip.training.training_loop">mlip.training.training_loop</a>
+</li>
+          <li><a href="api_reference/training/training_loop_config.html#module-mlip.training.training_loop_config">mlip.training.training_loop_config</a>
+</li>
+          <li><a href="api_reference/training/training_state.html#module-mlip.training.training_state">mlip.training.training_state</a>
+</li>
+          <li><a href="api_reference/training/training_step.html#module-mlip.training.training_step">mlip.training.training_step</a>
+</li>
+          <li><a href="api_reference/data/graph_definition.html#module-mlip.typing.graph_definition">mlip.typing.graph_definition</a>
+</li>
+          <li><a href="api_reference/models/prediction.html#module-mlip.typing.prediction">mlip.typing.prediction</a>
+</li>
+          <li><a href="api_reference/simulation/ase_calculator.html#module-mlip.utils.no_pbc_cell">mlip.utils.no_pbc_cell</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/loss.html#mlip.models.loss.MSELoss">MSELoss (class in mlip.models.loss)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="N" class="genindex-section">
+  <h2>N</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/nequip.html#mlip.models.nequip.models.Nequip">Nequip (class in mlip.models.nequip.models)</a>
+</li>
+        <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig">NequipConfig (class in mlip.models.nequip.config)</a>
+</li>
+        <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.node_irreps">node_irreps (mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.node_symmetry">node_symmetry (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.num_batch_prefetch">num_batch_prefetch (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.num_bessel">num_bessel (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.num_bessel">(mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.num_channels">num_channels (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.num_channels">(mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/jaxmd_sim_config.html#mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig.num_episodes">num_episodes (mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.num_epochs">num_epochs (mlip.training.training_loop_config.TrainingLoopConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.num_gradient_accumulation_steps">num_gradient_accumulation_steps (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.num_gradient_accumulation_steps">(mlip.training.training_loop_config.TrainingLoopConfig attribute)</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.num_heads">num_heads (mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.num_layers">num_layers (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.num_layers">(mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.num_layers">(mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.num_rbf">num_rbf (mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.num_readout_heads">num_readout_heads (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.num_species">num_species (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.num_species">(mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+          <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.num_species">(mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.SimulationConfig.num_steps">num_steps (mlip.simulation.configs.simulation_config.SimulationConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState.num_steps">(mlip.training.training_state.TrainingState attribute)</a>
+</li>
+        </ul></li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="O" class="genindex-section">
+  <h2>O</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState.optimizer_state">optimizer_state (mlip.training.training_state.TrainingState attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig">OptimizerConfig (class in mlip.training.optimizer_config)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="P" class="genindex-section">
+  <h2>P</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.ParallelGraphDataset">ParallelGraphDataset (class in mlip.data.helpers.data_prefetching)</a>
+</li>
+        <li><a href="api_reference/training/finetuning.html#mlip.models.params_transfer.ParameterTransferImpossibleError">ParameterTransferImpossibleError (class in mlip.models.params_transfer)</a>
+</li>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.params">params (mlip.models.force_field.ForceField attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState.params">(mlip.training.training_state.TrainingState attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/training/ema.html#mlip.training.ema.EMAState.params_ema">params_ema (mlip.training.ema.EMAState attribute)</a>
+</li>
+        <li><a href="api_reference/models/options.html#mlip.models.options.parse_activation">parse_activation() (in module mlip.models.options)</a>
+</li>
+        <li><a href="api_reference/models/options.html#mlip.models.options.parse_radial_basis">parse_radial_basis() (in module mlip.models.options)</a>
+</li>
+        <li><a href="api_reference/models/options.html#mlip.models.options.parse_radial_envelope">parse_radial_envelope() (in module mlip.models.options)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.pbc">pbc (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.peak_learning_rate">peak_learning_rate (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.positions">positions (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.positions">(mlip.simulation.state.SimulationState attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/predictor.html#mlip.models.predictor.ForceFieldPredictor.predict_stress">predict_stress (mlip.models.predictor.ForceFieldPredictor attribute)</a>
+</li>
+        <li><a href="api_reference/models/prediction.html#mlip.typing.prediction.Prediction">Prediction (class in mlip.typing.prediction)</a>
+</li>
+        <li><a href="api_reference/models/force_field.html#mlip.models.force_field.ForceField.predictor">predictor (mlip.models.force_field.ForceField attribute)</a>
+</li>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator">PrefetchIterator (class in mlip.data.helpers.data_prefetching)</a>
+</li>
+        <li><a href="api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder.prepare_datasets">prepare_datasets() (mlip.data.graph_dataset_builder.GraphDatasetBuilder method)</a>
+</li>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator.preprocess_fn">preprocess_fn (mlip.data.helpers.data_prefetching.PrefetchIterator attribute)</a>
+</li>
+        <li><a href="api_reference/models/prediction.html#mlip.typing.prediction.Prediction.pressure">pressure (mlip.typing.prediction.Prediction attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="Q" class="genindex-section">
+  <h2>Q</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator.queue">queue (mlip.data.helpers.data_prefetching.PrefetchIterator attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="R" class="genindex-section">
+  <h2>R</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.radial_envelope">radial_envelope (mlip.models.mace.config.MaceConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.radial_envelope">(mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.radial_net_n_hidden">radial_net_n_hidden (mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.radial_net_n_layers">radial_net_n_layers (mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.radial_net_nonlinearity">radial_net_nonlinearity (mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/options.html#mlip.models.options.RadialBasis">RadialBasis (class in mlip.models.options)</a>
+</li>
+        <li><a href="api_reference/models/options.html#mlip.models.options.RadialEnvelope">RadialEnvelope (class in mlip.models.options)</a>
+</li>
+        <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.random_seed">random_seed (mlip.training.training_loop_config.TrainingLoopConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.readout_irreps">readout_irreps (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.restore_checkpoint_if_exists">restore_checkpoint_if_exists (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.restore_optimizer_state">restore_optimizer_state (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandler.restore_training_state">restore_training_state() (mlip.training.training_io_handler.TrainingIOHandler method)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_engine.html#mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine.run">run() (mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine method)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/jaxmd_engine.html#mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine.run">(mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine method)</a>
+</li>
+          <li><a href="api_reference/simulation/simulation_engine.html#mlip.simulation.simulation_engine.SimulationEngine.run">(mlip.simulation.simulation_engine.SimulationEngine method)</a>
+</li>
+          <li><a href="api_reference/training/training_loop.html#mlip.training.training_loop.TrainingLoop.run">(mlip.training.training_loop.TrainingLoop method)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/batched_inference.html#mlip.inference.batched_inference.run_batched_inference">run_batched_inference() (in module mlip.inference.batched_inference)</a>
+</li>
+        <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.run_eval_at_start">run_eval_at_start (mlip.training.training_loop_config.TrainingLoopConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/evaluation.html#mlip.training.evaluation.run_evaluation">run_evaluation() (in module mlip.training.evaluation)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="S" class="genindex-section">
+  <h2>S</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandler.save_checkpoint">save_checkpoint() (mlip.training.training_io_handler.TrainingIOHandler method)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandler.save_dataset_info">save_dataset_info() (mlip.training.training_io_handler.TrainingIOHandler method)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig.save_debiased_ema">save_debiased_ema (mlip.training.training_io_handler.TrainingIOHandlerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/io.html#mlip.models.model_io.save_model_to_zip">save_model_to_zip() (in module mlip.models.model_io)</a>
+</li>
+        <li><a href="api_reference/models/nequip.html#mlip.models.nequip.config.NequipConfig.scalar_mlp_std">scalar_mlp_std (mlip.models.nequip.config.NequipConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo.scaling_mean">scaling_mean (mlip.data.dataset_info.DatasetInfo attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo.scaling_stdev">scaling_stdev (mlip.data.dataset_info.DatasetInfo attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.SimulationConfig.simulation_type">simulation_type (mlip.simulation.configs.simulation_config.SimulationConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.SimulationBackend">SimulationBackend (class in mlip.simulation.enums)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.SimulationConfig">SimulationConfig (class in mlip.simulation.configs.simulation_config)</a>
+</li>
+        <li><a href="api_reference/simulation/simulation_engine.html#mlip.simulation.simulation_engine.SimulationEngine">SimulationEngine (class in mlip.simulation.simulation_engine)</a>
+</li>
+        <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState">SimulationState (class in mlip.simulation.state)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.SimulationType">SimulationType (class in mlip.simulation.enums)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.SimulationConfig.snapshot_interval">snapshot_interval (mlip.simulation.configs.simulation_config.SimulationConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.species_embedding_dim">species_embedding_dim (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/data_split.html#mlip.data.helpers.data_split.split_data_by_group">split_data_by_group() (in module mlip.data.helpers.data_split)</a>
+</li>
+        <li><a href="api_reference/data/data_split.html#mlip.data.helpers.data_split.split_data_randomly">split_data_randomly() (in module mlip.data.helpers.data_split)</a>
+</li>
+        <li><a href="api_reference/data/data_split.html#mlip.data.helpers.data_split.split_data_randomly_by_group">split_data_randomly_by_group() (in module mlip.data.helpers.data_split)</a>
+</li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig.start_temperature">start_temperature (mlip.simulation.configs.simulation_config.TemperatureScheduleConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.step">step (mlip.simulation.state.SimulationState attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/training/ema.html#mlip.training.ema.EMAState.step">(mlip.training.ema.EMAState attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.stress">stress (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/models/prediction.html#mlip.typing.prediction.Prediction.stress">(mlip.typing.prediction.Prediction attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/data/graph_dataset.html#mlip.data.helpers.graph_dataset.GraphDataset.subset">subset() (mlip.data.helpers.graph_dataset.GraphDataset method)</a>
+</li>
+        <li><a href="api_reference/models/mace.html#mlip.models.mace.config.MaceConfig.symmetric_tensor_product_basis">symmetric_tensor_product_basis (mlip.models.mace.config.MaceConfig attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="T" class="genindex-section">
+  <h2>T</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig.temperature">temperature (mlip.simulation.configs.simulation_config.TemperatureScheduleConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.temperature">(mlip.simulation.state.SimulationState attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/ase_sim_config.html#mlip.simulation.configs.ase_config.ASESimulationConfig.temperature_kelvin">temperature_kelvin (mlip.simulation.configs.ase_config.ASESimulationConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/jaxmd_sim_config.html#mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig.temperature_kelvin">(mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/ase_sim_config.html#mlip.simulation.configs.ase_config.ASESimulationConfig.temperature_schedule_config">temperature_schedule_config (mlip.simulation.configs.ase_config.ASESimulationConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/jaxmd_sim_config.html#mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig.temperature_schedule_config">(mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig attribute)</a>
+</li>
+        </ul></li>
+        <li><a href="api_reference/simulation/sim_config.html#mlip.simulation.configs.simulation_config.TemperatureScheduleConfig">TemperatureScheduleConfig (class in mlip.simulation.configs.simulation_config)</a>
+</li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.TemperatureScheduleMethod">TemperatureScheduleMethod (class in mlip.simulation.enums)</a>
+</li>
+        <li><a href="api_reference/training/training_loop.html#mlip.training.training_loop.TrainingLoop.test">test() (mlip.training.training_loop.TrainingLoop method)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.ChemicalSystemsReaderConfig.test_dataset_paths">test_dataset_paths (mlip.data.configs.ChemicalSystemsReaderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.LogCategory.TEST_METRICS">TEST_METRICS (mlip.training.training_io_handler.LogCategory attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.ChemicalSystemsReaderConfig.test_num_to_load">test_num_to_load (mlip.data.configs.ChemicalSystemsReaderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator.thread">thread (mlip.data.helpers.data_prefetching.PrefetchIterator attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/ase_sim_config.html#mlip.simulation.configs.ase_config.ASESimulationConfig.timestep_fs">timestep_fs (mlip.simulation.configs.ase_config.ASESimulationConfig attribute)</a>
+
+        <ul>
+          <li><a href="api_reference/simulation/jaxmd_sim_config.html#mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig.timestep_fs">(mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig attribute)</a>
+</li>
+        </ul></li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.ChemicalSystemsReaderConfig.train_dataset_paths">train_dataset_paths (mlip.data.configs.ChemicalSystemsReaderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.LogCategory.TRAIN_METRICS">TRAIN_METRICS (mlip.training.training_io_handler.LogCategory attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.ChemicalSystemsReaderConfig.train_num_to_load">train_num_to_load (mlip.data.configs.ChemicalSystemsReaderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.trainable_rbf">trainable_rbf (mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_loop.html#mlip.training.training_loop.TrainingLoop.training_state">training_state (mlip.training.training_loop.TrainingLoop attribute)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandler">TrainingIOHandler (class in mlip.training.training_io_handler)</a>
+</li>
+        <li><a href="api_reference/training/training_io_handling.html#mlip.training.training_io_handler.TrainingIOHandlerConfig">TrainingIOHandlerConfig (class in mlip.training.training_io_handler)</a>
+</li>
+        <li><a href="api_reference/training/training_loop.html#mlip.training.training_loop.TrainingLoop">TrainingLoop (class in mlip.training.training_loop)</a>
+</li>
+        <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig">TrainingLoopConfig (class in mlip.training.training_loop_config)</a>
+</li>
+        <li><a href="api_reference/training/training_state.html#mlip.training.training_state.TrainingState">TrainingState (class in mlip.training.training_state)</a>
+</li>
+        <li><a href="api_reference/training/finetuning.html#mlip.models.params_transfer.transfer_params">transfer_params() (in module mlip.models.params_transfer)</a>
+</li>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.transition_steps">transition_steps (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/enums.html#mlip.simulation.enums.TemperatureScheduleMethod.TRIANGLE">TRIANGLE (mlip.simulation.enums.TemperatureScheduleMethod attribute)</a>
+</li>
+        <li><a href="api_reference/simulation/temperature_scheduling.html#mlip.simulation.temperature_scheduling.triangle_schedule">triangle_schedule() (in module mlip.simulation.temperature_scheduling)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="U" class="genindex-section">
+  <h2>U</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/ema.html#mlip.training.ema.EMAParameterTransformation.update">update (mlip.training.ema.EMAParameterTransformation attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/training_loop_config.html#mlip.training.training_loop_config.TrainingLoopConfig.use_ema_params_for_eval">use_ema_params_for_eval (mlip.training.training_loop_config.TrainingLoopConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig.use_formation_energies">use_formation_energies (mlip.data.configs.GraphDatasetBuilderConfig attribute)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="V" class="genindex-section">
+  <h2>V</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.ChemicalSystemsReaderConfig.valid_dataset_paths">valid_dataset_paths (mlip.data.configs.ChemicalSystemsReaderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/dataset_configs.html#mlip.data.configs.ChemicalSystemsReaderConfig.valid_num_to_load">valid_num_to_load (mlip.data.configs.ChemicalSystemsReaderConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.validate_cell_shape">validate_cell_shape() (mlip.data.chemical_system.ChemicalSystem class method)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.validate_stress_shape">validate_stress_shape() (mlip.data.chemical_system.ChemicalSystem class method)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.validate_variable_shapes">validate_variable_shapes() (mlip.data.chemical_system.ChemicalSystem method)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig.vecnorm_type">vecnorm_type (mlip.models.visnet.config.VisnetConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/options.html#mlip.models.options.VecNormType">VecNormType (class in mlip.models.options)</a>
+</li>
+        <li><a href="api_reference/simulation/simulation_state.html#mlip.simulation.state.SimulationState.velocities">velocities (mlip.simulation.state.SimulationState attribute)</a>
+</li>
+        <li><a href="api_reference/models/visnet.html#mlip.models.visnet.models.Visnet">Visnet (class in mlip.models.visnet.models)</a>
+</li>
+        <li><a href="api_reference/models/visnet.html#mlip.models.visnet.config.VisnetConfig">VisnetConfig (class in mlip.models.visnet.config)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="W" class="genindex-section">
+  <h2>W</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.warmup_steps">warmup_steps (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem.weight">weight (mlip.data.chemical_system.ChemicalSystem attribute)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/training/optimizer.html#mlip.training.optimizer_config.OptimizerConfig.weight_decay">weight_decay (mlip.training.optimizer_config.OptimizerConfig attribute)</a>
+</li>
+        <li><a href="api_reference/models/loss.html#mlip.models.loss.WeightedEFSLoss">WeightedEFSLoss (class in mlip.models.loss)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+<section id="Z" class="genindex-section">
+  <h2>Z</h2>
+  <table style="width: 100%" class="indextable genindextable"><tr>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/atomic_number_table.html#mlip.data.helpers.atomic_number_table.AtomicNumberTable.z_to_index">z_to_index() (mlip.data.helpers.atomic_number_table.AtomicNumberTable method)</a>
+</li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api_reference/data/atomic_number_table.html#mlip.data.helpers.atomic_number_table.AtomicNumberTable.z_to_index_map">z_to_index_map() (mlip.data.helpers.atomic_number_table.AtomicNumberTable method)</a>
+</li>
+    </ul></td>
+  </tr></table>
+</section>
+
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2025, InstaDeep
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

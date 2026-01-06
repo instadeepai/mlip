@@ -92,7 +92,10 @@ class ASESimulationEngine(SimulationEngine):
     def _init_box(self) -> None:
         """Update the PBC parameters of the underlying `ase.Atoms`"""
         # Pass if atoms already have PBC and cell, best source of truth
-        if self.atoms.cell is not None and self.atoms.pbc is not None:
+        if np.any(self.atoms.cell) or np.any(self.atoms.pbc):
+            logger.warning(
+                "Ignoring `box` parameter as `atoms` already has PBC configured."
+            )
             return
         # Support cubic periodic box from config for Jax-MD consistency.
         # To be discouraged once both engines support arbitrary lattices.

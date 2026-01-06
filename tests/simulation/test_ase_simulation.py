@@ -105,3 +105,30 @@ def test_md_can_be_restarted_from_velocities_with_ase_backend(
 
     for i in range(1, 5):
         assert not np.allclose(engine.state.velocities[i], velocities_to_restore)
+
+
+@pytest.mark.parametrize("atoms_cell", [None, np.eye(3) * 10.0])
+def test_ase_engine_sets_cell_from_config(
+    setup_system_and_mace_model, atoms_cell
+) -> None:
+    atoms, _, _, mace_ff = setup_system_and_mace_model
+    config_box_length = 25.0
+
+    _atoms = deepcopy(atoms)
+    if atoms_cell is None:  # If atoms have no cell, use config.box
+        _atoms.set_cell(None)
+        _atoms.set_pbc(None)
+        target_cell = np.eye(3) * config_box_length
+    else:  # If atoms have a cell, ignore config.box
+        _atoms.set_cell(atoms_cell)
+        _atoms.set_pbc(True)
+        target_cell = atoms_cell
+
+    md_config = ASESimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        num_steps=1,
+        box=config_box_length,
+    )
+    engine = ASESimulationEngine(_atoms, mace_ff, md_config)
+    assert (engine.atoms.get_cell() == target_cell).all()
+    assert engine.atoms.get_pbc().all()

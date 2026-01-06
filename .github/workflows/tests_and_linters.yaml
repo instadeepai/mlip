@@ -15,6 +15,7 @@ jobs:
         run: |
           apt-get update && apt-get install -y \
           coreutils \
+          gcc \
           git
           git config --system --add safe.directory $GITHUB_WORKSPACE
 

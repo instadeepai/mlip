@@ -103,6 +103,7 @@ class GraphDatasetBuilder:
         self._reader = reader
         self._config = dataset_config
         self._dataset_info: Optional[DatasetInfo] = dataset_info
+        self._graphs: Optional[dict[str, list[jraph.GraphsTuple]]] = None
         self._datasets: Optional[dict[str, Optional[GraphDataset]]] = None
         # Sanity check when DatasetInfo is passed from the outside
         cutoff = self._config.graph_cutoff_angstrom

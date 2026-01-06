@@ -41,7 +41,7 @@ def compute_average_e0s_from_graphs(
     energies = np.zeros(num_graphs)
 
     for i in range(num_graphs):
-        energies[i] = graphs[i].globals.energy
+        energies[i] = np.asarray(graphs[i].globals.energy).item()
         for j, species_number in enumerate(unique_species):
             species_count[i, j] = np.count_nonzero(
                 graphs[i].nodes.species == species_number

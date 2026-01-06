@@ -74,3 +74,22 @@ def test_batched_inference_works_correctly(
     assert result[0].pressure is None
     assert result[0].energy == pytest.approx(-0.11254195, abs=1e-3)
     assert result[0].forces[0][0] == pytest.approx(0.04921325, abs=1e-3)
+
+
+def test_batched_inference_with_graph_without_edges(setup_system_and_mace_model):
+    atoms, _, _, mace_ff = setup_system_and_mace_model
+
+    positions = np.array([[0, 0, 0], [0, 0, 10]])
+    atomic_numbers = np.array([6, 6])
+    atoms_without_edges = ase.Atoms(positions=positions, numbers=atomic_numbers)
+
+    structures = [atoms_without_edges, atoms]
+    result = run_batched_inference(structures, mace_ff, batch_size=2)
+
+    # For first structure, no energy if no edges
+    assert result[0].energy == 0.0
+    assert not result[0].forces.any()
+
+    # For second structure, normal result
+    assert result[1].energy == pytest.approx(-0.11254195, abs=1e-3)
+    assert result[1].forces[0][0] == pytest.approx(0.04921325, abs=1e-3)

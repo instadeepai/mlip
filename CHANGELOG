@@ -1,5 +1,12 @@
 # Changelog
 
+## Release 0.1.8
+
+- Fixing bug in ASE simulation engine to allow for passing Periodic Boundary
+  Conditions via the box config value.
+- Adapting setup line for zero shifts array to use `np.zeros` to guarantee correct
+  array shape, see issue #36 for reference.
+
 ## Release 0.1.7
 
 - Fixing issues with Periodic Boundary Conditions (PBCs) during inference.

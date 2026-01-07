@@ -76,7 +76,7 @@ class TrainingIOHandlerConfig(pydantic.BaseModel):
     local_model_output_dir: Optional[PathLike] = None
     max_checkpoints_to_keep: PositiveInt = 5
     save_debiased_ema: bool = True
-    ema_decay: EMADecay = 0.99
+    ema_decay: EMADecay = 0.98
 
     restore_checkpoint_if_exists: bool = False
     epoch_to_restore: Optional[PositiveInt] = None

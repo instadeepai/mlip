@@ -57,8 +57,8 @@ class WeightedEFSLoss(Loss, abc.ABC):
     def __init__(
         self,
         energy_weight_schedule: Callable[[int], float] = lambda _: 1.0,
-        forces_weight_schedule: Callable[[int], float] = lambda _: 25.0,
-        stress_weight_schedule: Callable[[int], float] = lambda _: 0.0,
+        forces_weight_schedule: Callable[[int], float] = lambda _: 15.0,
+        stress_weight_schedule: Callable[[int], float] = lambda _: 1.0,
         extended_metrics: bool = False,
     ) -> None:
         """

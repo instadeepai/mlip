@@ -77,3 +77,6 @@ def test_mace_shape(graph_sizes, mace_hparams, mace_inputs):
     layers = mace_hparams["num_interactions"]
     scalars_out = e3nn.Irreps(mace_hparams["output_irreps"]).num_irreps
     assert tuple(out.array.shape) == (n0, layers, 1, scalars_out)
+
+    # Mock change to be reverted again
+    assert tuple(out.array.shape) != (n0, layers, 2, scalars_out)

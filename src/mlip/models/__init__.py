@@ -17,3 +17,5 @@ from mlip.models.mace.models import Mace
 from mlip.models.nequip.models import Nequip
 from mlip.models.predictor import ForceFieldPredictor
 from mlip.models.visnet.models import Visnet
+from mlip.models.liten.models import Liten
+from mlip.models.so3krates.models import So3krates

@@ -49,11 +49,13 @@ class ForceFieldPredictor(nn.Module):
     mlip_network: nn.Module
     predict_stress: bool
 
-    def __call__(self, graph: jraph.GraphsTuple) -> Prediction:
+    def __call__(self, graph: jraph.GraphsTuple, training: bool = False) -> Prediction:
         """Returns a `Prediction` dataclass of properties based on an input graph.
 
         Args:
             graph: The input graph.
+            training: Whether the model is in training mode or not. If true, rngs should be
+                      passed for stochastic modules.
 
         Returns:
             The properties as a `Prediction` object including "energy" and "forces".
@@ -65,7 +67,7 @@ class ForceFieldPredictor(nn.Module):
                 "See models tutorial in documentation for details."
             )
 
-        prediction, minus_forces, pseudo_stress = self._compute_gradients(graph)
+        prediction, minus_forces, pseudo_stress = self._compute_gradients(graph, training)
         prediction = prediction.replace(forces=-minus_forces)
 
         if not self.predict_stress:
@@ -79,8 +81,8 @@ class ForceFieldPredictor(nn.Module):
         )
 
     def _compute_gradients(
-        self, graph: jraph.GraphsTuple
-    ) -> tuple[Prediction, np.ndarray, np.ndarray]:
+        self, graph: jraph.GraphsTuple, training: bool
+    ) -> tuple[Prediction, np.ndarray, np.ndarray | None]:
         """Return a `(prediction, gradients, pseudo_stress)` triple.
 
         The `prediction` holds graph energies, and eventual optional fields.
@@ -89,12 +91,37 @@ class ForceFieldPredictor(nn.Module):
         """
         # Note: strains are invariant vector fields tangent to cell
         strains = jnp.zeros_like(graph.globals.cell)
-        # Differentiate wrt positions and strains (not cell)
-        (gradients, pseudo_stress), prediction = jax.grad(
-            self._compute_energy, (0, 1), has_aux=True
-        )(graph.nodes.positions, strains, graph)
 
-        return prediction, gradients, pseudo_stress
+        # NOTE: When direct_force is enabled or predict_stress is disabled,
+        # there is no need to compute corresponding gradients.
+        direct_force = getattr(self.mlip_network.config, "direct_force", False)
+        if direct_force:
+            argnums = 1 if self.predict_stress else None
+        else:
+            argnums = (0, 1) if self.predict_stress else 0
+
+        # Gradient is not needed
+        if argnums is None:
+            _, prediction = self._compute_energy(
+                graph.nodes.positions, strains, graph, training
+            )
+            return prediction, -prediction.forces, None # pylint: disable=E1130
+
+        # Differentiate wrt positions and strains (not cell)
+        grads, prediction = jax.grad(
+            self._compute_energy, argnums, has_aux=True
+        )(graph.nodes.positions, strains, graph, training)
+
+        if argnums == (0, 1):
+            minus_forces, pseudo_stress = grads
+        elif argnums == 0:
+            minus_forces = grads
+            pseudo_stress = None
+        else:
+            minus_forces = -prediction.forces
+            pseudo_stress = grads
+
+        return prediction, minus_forces, pseudo_stress
 
     @staticmethod
     def _compute_stress_results(
@@ -125,6 +152,7 @@ class ForceFieldPredictor(nn.Module):
         positions: np.ndarray,
         strains: np.ndarray,
         graph: jraph.GraphsTuple,
+        training: bool,
     ) -> tuple[np.ndarray, Prediction]:
         """Return total energy and a `Prediction` object holding graph energies.
 
@@ -132,12 +160,20 @@ class ForceFieldPredictor(nn.Module):
         differentiation. The `Prediction` object holds graph-wise energies at this
         stage, and may be further populated by downstream methods.
         """
-        node_energies = self._compute_node_features(positions, strains, graph)
+        node_features = self._compute_node_features(positions, strains, graph, training)
 
-        assert node_energies.shape == (len(positions),), (
+        assert node_features.shape in [(len(positions),), (len(positions), 4)], (
             f"model output needs to be an array of shape "
-            f"(n_nodes, ) but got {node_energies.shape}"
+            f"(n_nodes, ) or (n_nodes, 4), but got {node_features.shape}"
         )
+
+        # When `node_energies` is a concatenation of the node-wise energies and forces.
+        forces = None
+        if getattr(self.mlip_network.config, "direct_force", False):
+            node_energies, forces = jnp.split(node_features, [1], axis=-1)
+            node_energies = node_energies.squeeze(-1)
+        else:
+            node_energies = node_features
 
         total_energy = jnp.sum(node_energies)
 
@@ -147,6 +183,7 @@ class ForceFieldPredictor(nn.Module):
 
         prediction = Prediction(
             energy=graph_energies,
+            forces=forces,
         )
 
         return total_energy, prediction
@@ -156,6 +193,7 @@ class ForceFieldPredictor(nn.Module):
         positions: np.ndarray,
         strains: np.ndarray,
         graph: jraph.GraphsTuple,
+        training: bool,
     ) -> np.ndarray:
         """Evaluate node-wise outputs of `.mlip_network` on graph data.
 
@@ -186,6 +224,8 @@ class ForceFieldPredictor(nn.Module):
             graph.nodes.species,
             graph.senders,
             graph.receivers,
+            n_node=graph.n_node, # kwargs
+            training=training, # kwargs
         )
         padding_mask = jraph.get_node_padding_mask(graph)
         padding_mask = jnp.expand_dims(

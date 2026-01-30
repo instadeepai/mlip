@@ -19,6 +19,7 @@ import jax
 import optax
 from jax import Array
 from jraph import GraphsTuple
+from flax.typing import RNGSequences
 
 from mlip.models.predictor import ForceFieldPredictor
 from mlip.training.ema import EMAParameterTransformation
@@ -31,7 +32,7 @@ def _training_step(
     training_state: TrainingState,
     graph: GraphsTuple,
     epoch_number: int,
-    model_loss_fun: Callable[[ModelParameters, GraphsTuple, int], Array],
+    model_loss_fun: Callable[[ModelParameters, GraphsTuple, int, RNGSequences], Array],
     optimizer: optax.GradientTransformation,
     ema_fun: EMAParameterTransformation,
     avg_n_graphs_per_batch: float,
@@ -49,9 +50,10 @@ def _training_step(
     # Calculate gradients.
     grad_fun = jax.grad(model_loss_fun, argnums=0, has_aux=True)
 
-    key, _ = jax.random.split(key, 2)
+    key, dropout_key, rotation_key = jax.random.split(key, 3)
 
-    grads, aux_info = grad_fun(params, graph, epoch_number)
+    rngs = {"dropout": dropout_key, 'rotation': rotation_key}
+    grads, aux_info = grad_fun(params, graph, epoch_number, rngs)
 
     # Aggregrate over devices.
     if should_parallelize:
@@ -130,9 +132,9 @@ def make_train_step(
     """
 
     def model_loss(
-        params: ModelParameters, ref_graph: GraphsTuple, epoch: int
+        params: ModelParameters, ref_graph: GraphsTuple, epoch: int, rngs: RNGSequences
     ) -> Array:
-        predictions = predictor.apply(params, ref_graph)
+        predictions = predictor.apply(params, ref_graph, training=True, rngs=rngs)
         return loss_fun(predictions, ref_graph, epoch)
 
     training_step = functools.partial(

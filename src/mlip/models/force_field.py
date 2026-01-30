@@ -15,6 +15,7 @@
 from dataclasses import dataclass
 
 import jax
+from flax.typing import RNGSequences
 import jraph
 from pydantic import BaseModel
 from typing_extensions import Self

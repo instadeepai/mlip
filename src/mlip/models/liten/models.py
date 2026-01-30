@@ -48,6 +48,7 @@ class Liten(MLIPNetwork):
         node_species: jax.Array,
         senders: jax.Array,
         receivers: jax.Array,
+        **_kwargs, # ignore any additional kwargs
     ) -> jax.Array:
 
         r_max = self.dataset_info.cutoff_distance_angstrom

@@ -55,7 +55,7 @@ class So3kratesConfig(pydantic.BaseModel):
     activation: Activation = Activation.SILU
     radial_cutoff_fn: CutoffFunction = CutoffFunction.PHYS
     radial_basis_fn: RadialBasis = RadialBasis.BERNSTEIN
-    chi_irreps: str = "1o + 2o + 3o + 4o"
+    chi_irreps: str = "1e + 2e + 3e + 4e"
     sphc_normalization: float | None = None
     residual_mlp_1: bool = True
     residual_mlp_2: bool = False

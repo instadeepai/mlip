@@ -69,6 +69,7 @@ class Visnet(MLIPNetwork):
         node_species: jnp.ndarray,
         senders: jnp.ndarray,
         receivers: jnp.ndarray,
+        **_kwargs, # ignore any additional kwargs
     ) -> jnp.ndarray:
 
         r_max = self.dataset_info.cutoff_distance_angstrom

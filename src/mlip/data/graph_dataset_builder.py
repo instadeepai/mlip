@@ -158,6 +158,7 @@ class GraphDatasetBuilder:
                 self._config.graph_cutoff_angstrom,
                 z_table,
                 self._config.avg_num_neighbors,
+                self._config.avg_num_nodes,
                 self._config.avg_r_min_angstrom,
             )
 

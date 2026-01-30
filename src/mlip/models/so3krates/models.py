@@ -47,6 +47,7 @@ class So3krates(MLIPNetwork):
         node_species: jax.Array,
         senders: jax.Array,
         receivers: jax.Array,
+        **_kwargs, # ignore any additional kwargs
     ) -> jax.Array:
 
         r_max = self.dataset_info.cutoff_distance_angstrom
@@ -115,10 +116,10 @@ class So3kratesBlock(nn.Module):
     num_species: int
     num_rbf: int
     chi_irreps: str
-    fb_rad_filter_features: list[int]
-    gb_rad_filter_features: list[int]
-    fb_sph_filter_features: list[int]
-    gb_sph_filter_features: list[int]
+    fb_rad_filter_features: tuple[int, ...]
+    gb_rad_filter_features: tuple[int, ...]
+    fb_sph_filter_features: tuple[int, ...]
+    gb_sph_filter_features: tuple[int, ...]
     cutoff: float = 5.0
     radial_basis_fn: str = 'phys'
     sphc_normalization: float | None = None
@@ -191,10 +192,10 @@ class So3kratesBlock(nn.Module):
 
 
 class So3kratesLayer(nn.Module):
-    fb_rad_filter_features: list[int]
-    gb_rad_filter_features: list[int]
-    fb_sph_filter_features: list[int]
-    gb_sph_filter_features: list[int]
+    fb_rad_filter_features: tuple[int, ...]
+    gb_rad_filter_features: tuple[int, ...]
+    fb_sph_filter_features: tuple[int, ...]
+    gb_sph_filter_features: tuple[int, ...]
     activation: str = 'silu'
     num_heads: int = 4
     residual_mlp_1: bool = False

@@ -55,6 +55,7 @@ class GaussianBasis(nn.Module):
     cutoff: float
     num_rbf: int
     trainable: bool = True
+    rbf_width: float = 1.0
 
     def setup(self):
         offset, coeff = self._initial_params()
@@ -69,7 +70,7 @@ class GaussianBasis(nn.Module):
 
     def _initial_params(self):
         offset = jnp.linspace(0, self.cutoff, self.num_rbf)
-        coeff = -0.5 / (offset[1] - offset[0]) ** 2
+        coeff = -0.5 / (self.rbf_width * (offset[1] - offset[0])) ** 2
         return offset, coeff
 
     def __call__(self, dist: jax.Array) -> jax.Array:

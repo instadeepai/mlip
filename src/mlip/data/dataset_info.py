@@ -17,6 +17,7 @@ import time
 from typing import Optional
 
 import jraph
+import numpy as np
 import pydantic
 from ase import Atom
 
@@ -40,6 +41,7 @@ class DatasetInfo(pydantic.BaseModel):
         cutoff_distance_angstrom: The graph cutoff distance that was
                           used in the dataset in Angstrom.
         avg_num_neighbors: The mean number of neighbors an atom has in the dataset.
+        avg_num_nodes: The mean number of nodes a structure has in the dataset.
         avg_r_min_angstrom: The mean minimum edge distance for a structure in the
                             dataset.
         scaling_mean: The mean used for the rescaling of the dataset values, the
@@ -51,6 +53,7 @@ class DatasetInfo(pydantic.BaseModel):
     atomic_energies_map: dict[int, float]
     cutoff_distance_angstrom: float
     avg_num_neighbors: float = 1.0
+    avg_num_nodes: float = 1.0
     avg_r_min_angstrom: Optional[float] = None
     scaling_mean: float = 0.0
     scaling_stdev: float = 1.0
@@ -62,6 +65,7 @@ class DatasetInfo(pydantic.BaseModel):
         return (
             f"Atomic Energies: {atomic_energies_map_with_symbols}, "
             f"Avg. num. neighbors: {self.avg_num_neighbors:.2f}, "
+            f"Avg. num. nodes: {self.avg_num_nodes:.2f}, "
             f"Avg. r_min: {self.avg_r_min_angstrom:.2f}, "
             f"Graph cutoff distance: {self.cutoff_distance_angstrom}"
         )
@@ -72,6 +76,7 @@ def compute_dataset_info_from_graphs(
     cutoff_distance_angstrom: float,
     z_table: AtomicNumberTable,
     avg_num_neighbors: Optional[float] = None,
+    avg_num_nodes: Optional[float] = None,
     avg_r_min_angstrom: Optional[float] = None,
 ) -> DatasetInfo:
     """Computes the dataset info from graphs, typically training set graphs.
@@ -84,6 +89,8 @@ def compute_dataset_info_from_graphs(
                  map keys.
         avg_num_neighbors: The optionally pre-computed average number of neighbors. If
                            provided, we skip recomputing this.
+        avg_num_nodes: The optionally pre-computed average number of nodes. If
+                       provided, we skip recomputing this.
         avg_r_min_angstrom: The optionally pre-computed average miminum radius. If
                             provided, we skip recomputing this.
 
@@ -99,6 +106,10 @@ def compute_dataset_info_from_graphs(
         logger.debug("Computing average number of neighbors...")
         avg_num_neighbors = compute_avg_num_neighbors(graphs)
         logger.debug("Average number of neighbors: %.1f", avg_num_neighbors)
+    if avg_num_nodes is None:
+        logger.debug("Computing average number of nodes...")
+        avg_num_nodes = np.mean([i.item() for g in graphs for i in g.n_node])
+        logger.debug("Average number of nodes: %.1f", avg_num_nodes)
     if avg_r_min_angstrom is None:
         logger.debug("Computing average min neighbor distance...")
         avg_r_min_angstrom = compute_avg_min_neighbor_distance(graphs)
@@ -119,6 +130,7 @@ def compute_dataset_info_from_graphs(
         atomic_energies_map=atomic_energies_map,
         cutoff_distance_angstrom=cutoff_distance_angstrom,
         avg_num_neighbors=avg_num_neighbors,
+        avg_num_nodes=avg_num_nodes,
         avg_r_min_angstrom=avg_r_min_angstrom,
         scaling_mean=0.0,
         scaling_stdev=1.0,

@@ -19,3 +19,4 @@ from mlip.models.predictor import ForceFieldPredictor
 from mlip.models.visnet.models import Visnet
 from mlip.models.liten.models import Liten
 from mlip.models.so3krates.models import So3krates
+from mlip.models.equiformer_v2.models import EquiformerV2

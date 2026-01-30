@@ -72,6 +72,7 @@ class Mace(MLIPNetwork):
         node_species: jnp.ndarray,
         senders: jnp.ndarray,
         receivers: jnp.ndarray,
+        **_kwargs, # ignore any additional kwargs
     ) -> jnp.ndarray:
 
         e3nn.config("path_normalization", "path")

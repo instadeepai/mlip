@@ -126,6 +126,7 @@ class GraphDatasetBuilderConfig(pydantic.BaseModel):
                                 to ``True``, the models assume ``"zero"`` atomic
                                 energies as can be set in the model hyperparameters.
         avg_num_neighbors: The pre-computed average number of neighbors.
+        avg_num_nodes: The pre-computed average number of nodes.
         avg_r_min_angstrom: The pre-computed average minimum distance between nodes.
 
     """
@@ -140,4 +141,5 @@ class GraphDatasetBuilderConfig(pydantic.BaseModel):
 
     use_formation_energies: bool = False
     avg_num_neighbors: Optional[float] = None
+    avg_num_nodes: Optional[float] = None
     avg_r_min_angstrom: Optional[float] = None

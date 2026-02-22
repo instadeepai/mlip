@@ -10,7 +10,8 @@ from mlip.data.dataset_info import DatasetInfo
 from mlip.models.atomic_energies import get_atomic_energies
 from mlip.models.mlip_network import MLIPNetwork
 from mlip.models.so3krates.blocks import (
-    MLP, ResidualMLP, FeatureBlock, GeometricBlock, InteractionBlock, ZBLRepulsion
+    AlignedLinear, MLP, ResidualMLP, FeatureBlock, GeometricBlock, InteractionBlock,
+    ZBLRepulsion, aligned_norm
 )
 from mlip.models.so3krates.config import So3kratesConfig
 from mlip.models.cutoff import parse_cutoff
@@ -50,35 +51,43 @@ class So3krates(MLIPNetwork):
         **_kwargs, # ignore any additional kwargs
     ) -> jax.Array:
 
+        e3nn.config("gradient_normalization", "path")
+
         r_max = self.dataset_info.cutoff_distance_angstrom
 
         num_species = self.config.num_species
         if num_species is None:
             num_species = len(self.dataset_info.atomic_energies_map)
 
-        # Is it necessary to allow users to modify here?
-        rad_filter_features = [self.config.num_channels, self.config.num_channels]
-        sph_filter_features = [self.config.num_channels // 4, self.config.num_channels]
+        avg_num_neighbors = self.config.avg_num_neighbors
+        if avg_num_neighbors is None:
+            avg_num_neighbors = self.dataset_info.avg_num_neighbors
+
+        rad_filter_features = [self.config.rad_hidden_channels, self.config.num_channels]
+        sph_filter_features = [self.config.sph_hidden_channels, self.config.num_channels]
 
         so3krates_kwargs = dict(
             num_heads=self.config.num_heads,
             num_layers=self.config.num_layers,
             num_channels=self.config.num_channels,
             num_rbf=self.config.num_rbf,
-            chi_irreps=self.config.chi_irreps,
+            l_max=self.config.l_max,
+            irreps_mul=self.config.irreps_mul,
             fb_rad_filter_features=rad_filter_features,
             gb_rad_filter_features=rad_filter_features,
             fb_sph_filter_features=sph_filter_features,
             gb_sph_filter_features=sph_filter_features,
             radial_basis_fn=self.config.radial_basis_fn,
             sphc_normalization=self.config.sphc_normalization,
+            scalar_num_scale=self.config.scalar_num_scale,
+            num_ib_linear=self.config.num_ib_linear,
             residual_mlp_1=self.config.residual_mlp_1,
             residual_mlp_2=self.config.residual_mlp_2,
             normalization=self.config.normalization,
             activation=self.config.activation,
             cutoff=r_max,
             num_species=num_species,
-            avg_num_neighbors=self.dataset_info.avg_num_neighbors
+            avg_num_neighbors=avg_num_neighbors,
         )
 
         representation_model = So3kratesBlock(**so3krates_kwargs)
@@ -115,7 +124,8 @@ class So3kratesBlock(nn.Module):
     num_channels: int
     num_species: int
     num_rbf: int
-    chi_irreps: str
+    l_max: int
+    irreps_mul: int
     fb_rad_filter_features: tuple[int, ...]
     gb_rad_filter_features: tuple[int, ...]
     fb_sph_filter_features: tuple[int, ...]
@@ -123,6 +133,8 @@ class So3kratesBlock(nn.Module):
     cutoff: float = 5.0
     radial_basis_fn: str = 'phys'
     sphc_normalization: float | None = None
+    scalar_num_scale: int | None = None
+    num_ib_linear: int | None = None
     activation: str = 'silu'
     num_heads: int = 4
     residual_mlp_1: bool = False
@@ -142,7 +154,7 @@ class So3kratesBlock(nn.Module):
         receivers: jax.Array,
     ) -> jax.Array:
         edge_feats = parse_radial_basis(self.radial_basis_fn)(
-            self.cutoff, self.num_rbf
+            self.cutoff, self.num_rbf, trainable=False
         )(distances)
 
         # This implementation differs from the original So3krates repo: (1) the coefficents are
@@ -150,17 +162,17 @@ class So3kratesBlock(nn.Module):
         # (2) the output components follow a m-ordering in So3krates, while it is in Cartesian
         # here. These are equivalent.
         edge_vectors = e3nn.IrrepsArray('1e', edge_vectors)
-        chi_irreps = e3nn.Irreps(self.chi_irreps)
-        edge_sh = e3nn.spherical_harmonics(chi_irreps, edge_vectors, True)
+        edge_sh = e3nn.spherical_harmonics(range(1, self.l_max + 1), edge_vectors, True)
+        edge_sh = e3nn.concatenate([edge_sh] * self.irreps_mul)
 
         # Initalize node features and spherical harmonic coordinates (SPHCs)
         node_feats = nn.Embed(self.num_species, self.num_channels)(node_species)
-        if self.sphc_normalization is None:
-            chi = e3nn.zeros(chi_irreps, (node_species.shape[0],), dtype=edge_vectors.dtype)
-        else:
+        if self.sphc_normalization is not None:
             chi = e3nn.scatter_sum(
                 edge_sh * cutoffs[:, None], dst=receivers, output_size=node_species.shape[0]
             ) / self.sphc_normalization
+        else:
+            chi = None
 
         for _ in range(self.num_layers):
             node_feats, chi = So3kratesLayer(
@@ -173,6 +185,8 @@ class So3kratesBlock(nn.Module):
                 self.residual_mlp_1,
                 self.residual_mlp_2,
                 self.normalization,
+                self.scalar_num_scale,
+                self.num_ib_linear,
                 self.avg_num_neighbors
             )(
                 node_feats=node_feats,
@@ -201,21 +215,32 @@ class So3kratesLayer(nn.Module):
     residual_mlp_1: bool = False
     residual_mlp_2: bool = False
     normalization: bool = False
+    scalar_num_scale: int | None = None
+    num_ib_linear: int | None = None
     avg_num_neighbors: float = 1.0
 
     @nn.compact
     def __call__(
         self,
         node_feats: jax.Array,
-        chi: e3nn.IrrepsArray,
+        chi: e3nn.IrrepsArray | None,
         edge_feats: jax.Array,
         edge_sh: e3nn.IrrepsArray,
         cutoffs: jax.Array,
         senders: jax.Array,
         receivers: jax.Array
     ) -> tuple[jax.Array, e3nn.IrrepsArray]:
-        chi_ij = chi[senders] - chi[receivers]
-        chi_scalar = e3nn.norm(chi_ij, squared=True, per_irrep=True).array
+        if chi is not None:
+            if self.scalar_num_scale is not None:
+                chi_senders, chi_receivers = AlignedLinear(
+                    2 * chi.irreps.regroup().mul_gcd * self.scalar_num_scale, split=2
+                )(chi)
+                chi_ij = chi_senders[senders] - chi_receivers[receivers]
+            else:
+                chi_ij = chi[senders] - chi[receivers]
+            chi_scalar = aligned_norm(chi_ij)
+        else:
+            chi_scalar = None
 
         # first block
         node_feats_pre = nn.LayerNorm()(node_feats) if self.normalization else node_feats
@@ -235,6 +260,9 @@ class So3kratesLayer(nn.Module):
             receivers=receivers
         )
 
+        node_feats = node_feats + diff_node_feats
+        node_feats_pre = nn.LayerNorm()(node_feats) if self.normalization else node_feats
+
         diff_chi = GeometricBlock(
             rad_features=self.gb_rad_filter_features,
             sph_features=self.gb_sph_filter_features,
@@ -250,8 +278,10 @@ class So3kratesLayer(nn.Module):
             receivers=receivers
         )
 
-        node_feats = node_feats + diff_node_feats
-        chi = chi + diff_chi
+        if chi is None:
+            chi = diff_chi
+        else:
+            chi = chi + diff_chi
 
         # second block
         if self.residual_mlp_1:
@@ -259,7 +289,9 @@ class So3kratesLayer(nn.Module):
 
         node_feats_pre = nn.LayerNorm()(node_feats) if self.normalization else node_feats
 
-        diff_node_feats, diff_chi = InteractionBlock()(node_feats_pre, chi)
+        diff_node_feats, diff_chi = InteractionBlock(
+            self.scalar_num_scale, self.num_ib_linear
+        )(node_feats_pre, chi)
 
         node_feats = node_feats + diff_node_feats
         chi = chi + diff_chi

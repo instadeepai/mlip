@@ -82,6 +82,7 @@ class BesselBasis(nn.Module):
     """Bessel basis used in Mace and Nequip. This is not the same named function in So3krates."""
     cutoff: float
     num_rbf: int
+    trainable: bool = False # ignored
 
     @nn.compact
     def __call__(self, dist: jax.Array) -> jax.Array:
@@ -106,6 +107,7 @@ class BernsteinBasis(nn.Module):
     cutoff: float
     num_rbf: int
     gamma: float = 0.9448630629184640
+    trainable: bool = False # ignored
 
     @nn.compact
     def __call__(self, dist: jax.Array) -> jax.Array:
@@ -123,6 +125,7 @@ class PhysNetBasis(nn.Module):
     """Expand distances in the basis used in PhysNet (see https://arxiv.org/abs/1902.08408)"""
     cutoff: float
     num_rbf: int
+    trainable: bool = False # ignored
 
     @nn.compact
     def __call__(self, dist: jax.Array) -> jax.Array:
@@ -142,6 +145,7 @@ class FourierBasis(nn.Module):
     """
     cutoff: float
     num_rbf: int
+    trainable: bool = False # ignored
 
     def setup(self):
         self.offset = jnp.arange(0, self.num_rbf, 1)

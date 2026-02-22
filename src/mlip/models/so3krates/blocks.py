@@ -6,8 +6,121 @@ from flax.linen.initializers import constant
 import jax
 import jax.numpy as jnp
 import e3nn_jax as e3nn
+import numpy as np
 
 from mlip.models.options import parse_activation
+
+
+def _check_irreps_aligned(irreps: e3nn.Irreps) -> tuple[int, e3nn.Irreps]:
+    mul_in = set(m for m, _ in irreps.regroup())
+    assert len(mul_in) == 1, "Input irreps must have the same multiplicity."
+
+    mul_in, = mul_in
+    irreps_out = irreps.regroup() // mul_in
+    assert e3nn.Irreps([i for _ in range(mul_in) for i in irreps_out]) == irreps, (
+        "Input irreps must be in order `1e+2e+...+1e+2e+...`"
+    )
+
+    return mul_in, irreps_out
+
+
+class AlignedLinear(nn.Module):
+    r"""Aligned equivariant Linear. A fast version of e3nn.flax.Linear.
+
+    - input irreps = $mul \times (l, p)$
+    - output irreps = $mul_out \times (l, p)$
+    """
+    mul_out: int
+    split: int = 1
+
+    @nn.compact
+    def __call__(self, x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+        mul_in, irreps = _check_irreps_aligned(x.irreps)
+
+        gradient_normalization = e3nn.config("gradient_normalization")
+        if gradient_normalization == "element":
+            alpha = 1.0
+            initializer = nn.initializers.lecun_normal()
+        elif gradient_normalization == "path":
+            alpha = np.sqrt(1.0 / mul_in)
+            initializer = nn.initializers.normal(stddev=1.0)
+        else:
+            raise ValueError(f"Unknown gradient_normalization: {gradient_normalization}")
+
+        kernel = self.param(
+            "kernel", initializer, (len(irreps), mul_in, self.mul_out)
+        )
+        kernel = jnp.repeat(kernel, np.array([ir.dim for _, ir in irreps]), axis=0)
+
+        x_arr = x.array.reshape(*x.shape[:-1], mul_in, -1)
+
+        y = alpha * jnp.einsum(
+            "...im, mio -> ...om", x_arr, kernel
+        ).reshape(*x.shape[:-1], -1)
+
+        if self.split == 1:
+            return e3nn.IrrepsArray([i for _ in range(self.mul_out) for i in irreps], y)
+
+        assert self.split > 1, "split must be positive."
+        assert self.mul_out % self.split == 0, "mul_out must be divisible by split."
+
+        return (
+            e3nn.IrrepsArray([i for _ in range(self.mul_out // self.split) for i in irreps], y_i)
+            for y_i in jnp.split(y, self.split, axis=-1)
+        )
+
+
+def aligned_norm(x: e3nn.IrrepsArray) -> jax.Array:
+    r"""e3nn.norm for aligned irreps."""
+    mul_in, irreps = _check_irreps_aligned(x.irreps)
+
+    x_norm = jnp.square(x.array).reshape(*x.shape[:-1], mul_in, -1)
+
+    offset = 0
+    outs = []
+    for _, ir in irreps:
+        outs.append(
+            x_norm[..., offset:offset+ir.dim].sum(axis=-1)
+        )
+        offset += ir.dim
+    x_scalar = jnp.stack(outs, axis=-1)
+
+    return x_scalar.reshape(*x.shape[:-1], -1)
+
+
+def aligned_dot(x: e3nn.IrrepsArray, y: e3nn.IrrepsArray) -> jax.Array:
+    r"""e3nn.dot for aligned irreps."""
+    mul_in, irreps = _check_irreps_aligned(x.irreps)
+    mul_in_y, irreps_y = _check_irreps_aligned(y.irreps)
+
+    assert mul_in_y == mul_in, "Input irreps must have the same multiplicity."
+    assert irreps == irreps_y, "Input irreps must be the same."
+
+    x_norm = (x.array * y.array).reshape(*x.shape[:-1], mul_in, -1)
+
+    offset = 0
+    outs = []
+    for _, ir in irreps:
+        outs.append(
+            x_norm[..., offset:offset+ir.dim].sum(axis=-1)
+        )
+        offset += ir.dim
+    x_scalar = jnp.stack(outs, axis=-1)
+
+    return x_scalar.reshape(*x.shape[:-1], -1)
+
+
+def aligned_mul(x: e3nn.IrrepsArray, y: jax.Array) -> e3nn.IrrepsArray:
+    r"""e3nn.IrrepsArray.__mul__ for aligned irreps."""
+    mul_in, irreps = _check_irreps_aligned(x.irreps)
+    assert x.irreps.num_irreps == y.shape[-1], "Input irreps and array must have the same shape."
+
+    y_arr = y.reshape(*y.shape[:-1], mul_in, -1)
+    y_arr = jnp.repeat(y_arr, np.array([ir.dim for _, ir in irreps]), axis=-1)
+
+    x_arr = x.array.reshape(*x.shape[:-1], mul_in, -1)
+    x_arr = (x_arr * y_arr).reshape(*x.shape[:-1], -1)
+    return e3nn.IrrepsArray(x.irreps, x_arr)
 
 
 class MLP(nn.Module):
@@ -47,6 +160,9 @@ class ResidualMLP(nn.Module):
 
 
 class InteractionBlock(nn.Module):
+    scalar_num_scale: int | None = None
+    num_linear: int | None = None
+
     @nn.compact
     def __call__(
         self,
@@ -56,15 +172,30 @@ class InteractionBlock(nn.Module):
         num_features = node_feats.shape[-1]
 
         # Tensor product using CG coefficents has been removed for simplicity.
-        chi_scalar = e3nn.norm(chi, squared=True, per_irrep=True).array
+        if self.scalar_num_scale is not None:
+            chi_left, chi_right = AlignedLinear(
+                2 * chi.irreps.regroup().mul_gcd * self.scalar_num_scale, split=2
+            )(chi)
+            chi_scalar = aligned_dot(chi_left, chi_right)
+        else:
+            chi_scalar = aligned_norm(chi)
 
         feats = jnp.concatenate([node_feats, chi_scalar], axis=-1)
-        feats = nn.Dense(num_features + chi.irreps.num_irreps)(feats)
+        num_chi_coeffs = chi.irreps.num_irreps
+        if self.num_linear is not None:
+            num_chi_coeffs *= self.num_linear + 1
+        feats = nn.Dense(num_features + num_chi_coeffs)(feats)
 
         # node_feats: [n_nodes, num_features], chi_coeffs: [n_nodes, n_heads]
         node_feats, chi_coeffs = jnp.split(feats, [num_features], axis=-1)
 
-        return node_feats, chi_coeffs * chi
+        if self.num_linear is not None:
+            chi_coeffs = jnp.split(chi_coeffs, self.num_linear + 1, axis=-1)
+            for coeff in chi_coeffs[:-1]:
+                chi = AlignedLinear(chi.irreps.regroup().mul_gcd)(aligned_mul(chi, coeff))
+            return node_feats, aligned_mul(chi, chi_coeffs[-1])
+
+        return node_feats, aligned_mul(chi, chi_coeffs)
 
 
 class FeatureBlock(nn.Module):
@@ -79,7 +210,7 @@ class FeatureBlock(nn.Module):
         self,
         node_feats: jax.Array,
         edge_feats: jax.Array,
-        chi_scalar: jax.Array,
+        chi_scalar: jax.Array | None, # None for first layer
         cutoffs: jax.Array,
         senders: jax.Array,
         receivers: jax.Array
@@ -116,7 +247,7 @@ class GeometricBlock(nn.Module):
         edge_sh: e3nn.IrrepsArray,
         node_feats: jax.Array,
         edge_feats: jax.Array,
-        chi_scalar: jax.Array,
+        chi_scalar: jax.Array | None, # None for first layer
         cutoffs: jax.Array,
         senders: jax.Array,
         receivers: jax.Array
@@ -130,8 +261,9 @@ class GeometricBlock(nn.Module):
 
         alpha = alpha * cutoffs[:, None]
 
-        # e3nn supports directly multiply IrrepsArray with scalars.
-        chi = e3nn.scatter_sum(alpha * edge_sh, dst=receivers, output_size=node_feats.shape[0])
+        chi = e3nn.scatter_sum(
+            aligned_mul(edge_sh, alpha), dst=receivers, output_size=node_feats.shape[0]
+        )
         return chi / self.avg_num_neighbors
 
 
@@ -146,7 +278,7 @@ class FilterScaledAttentionMap(nn.Module):
         self,
         node_feats: jax.Array,
         edge_feats: jax.Array,
-        chi_scalar: jax.Array,
+        chi_scalar: jax.Array | None, # None for first layer
         senders: jax.Array,
         receivers: jax.Array
     ) -> jax.Array:
@@ -154,7 +286,8 @@ class FilterScaledAttentionMap(nn.Module):
 
         # Radial spherical filter
         w_ij = MLP(self.rad_features, self.activation)(edge_feats)
-        w_ij += MLP(self.sph_features, self.activation)(chi_scalar)
+        if chi_scalar is not None:
+            w_ij += MLP(self.sph_features, self.activation)(chi_scalar)
         w_ij = w_ij.reshape(-1, self.num_heads, head_dim)
 
         # Geometric attention coefficients

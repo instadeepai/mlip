@@ -17,15 +17,25 @@ class So3kratesConfig(pydantic.BaseModel):
         num_channels: The number of channels. Default is 128.
         num_heads: Number of heads in the attention block. Default is 4.
         num_rbf: Number of basis functions used in the embedding block. Default is 32.
+        rad_hidden_channels: The number of hidden channels in the MLP of RBF features.
+                             Default is 128.
+        sph_hidden_channels: The number of hidden channels in the MLP of SPHCs features.
+                             Default is 32.
         activation: Activation function for the output block. Options are "silu"
                     (default), "ssp" (which is shifted softplus), "tanh", "sigmoid", and
                     "swish".
         radial_cutoff_fn: The type of the cutoff / radial envelope function.
         radial_basis_fn: The type of the radial basis function.
-        chi_irreps: The irreps of the spherical harmonic coorindates (SPHCs).
+        l_max: Highest degree of SPHCs. SPHCs irreps is constructed as
+               ``irreps_mul * e3nn.Irreps(range(1, l_max+1))``.
+        irreps_mul: Multiplier for the number of SPHCs irreps.
         sphc_normalization: Normalization constant for initializing spherical harmonic
                             coordinates (SPHCs). If set to ``None``, SPHCs are initialized
                             to zero.
+        scalar_num_scale: Scaling factor for the number of scalars constructed from SPHCs.
+                          A e3nn.Linear layer is used. Default is None.
+        num_ib_linear: Number of output linear layers in the interaction block. Default is
+                       None.
         residual_mlp_1: Whether to apply a residual MLP after the first (feature + 
                         geometric) update block inside each So3krates layer.
         residual_mlp_2: Whether to apply a residual MLP after the interaction block inside
@@ -43,6 +53,9 @@ class So3kratesConfig(pydantic.BaseModel):
                          in the model. Lastly, one can also pass an atomic energies
                          dictionary via this parameter different from the one in the
                          dataset info, that is used.
+        avg_num_neighbors: The mean number of neighbors for atoms. If ``None``
+                           (default), use the value from the dataset info.
+                           It is used to rescale messages by this value.
         num_species: The number of elements (atomic species descriptors) allowed.
                      If ``None`` (default), infer the value from the atomic energies
                      map in the dataset info.
@@ -52,15 +65,21 @@ class So3kratesConfig(pydantic.BaseModel):
     num_channels: PositiveInt = 128
     num_heads: PositiveInt = 4
     num_rbf: PositiveInt = 32
+    rad_hidden_channels: PositiveInt = 128
+    sph_hidden_channels: PositiveInt = 32
     activation: Activation = Activation.SILU
     radial_cutoff_fn: CutoffFunction = CutoffFunction.PHYS
     radial_basis_fn: RadialBasis = RadialBasis.BERNSTEIN
-    chi_irreps: str = "1e + 2e + 3e + 4e"
+    l_max: PositiveInt = 4
+    irreps_mul: PositiveInt = 4
     sphc_normalization: float | None = None
+    scalar_num_scale: PositiveInt | None = None
+    num_ib_linear: PositiveInt | None = None
     residual_mlp_1: bool = True
     residual_mlp_2: bool = False
     normalization: bool = True
     zbl_repulsion: bool = True
     zbl_repulsion_shift: float = 0.0
     atomic_energies: str | dict[int, float] | None = None
+    avg_num_neighbors: float | None = None
     num_species: PositiveInt | None = None

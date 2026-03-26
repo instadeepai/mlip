@@ -14,6 +14,7 @@
 
 from copy import deepcopy
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from pydantic import ValidationError
@@ -21,6 +22,7 @@ from pydantic import ValidationError
 from mlip.simulation.ase.ase_simulation_engine import ASESimulationEngine
 from mlip.simulation.configs.ase_config import TemperatureScheduleConfig
 from mlip.simulation.enums import SimulationType, TemperatureScheduleMethod
+from mlip.typing.prediction import Prediction
 
 
 def test_md_can_be_run_with_ase_backend(setup_system_and_mace_model) -> None:
@@ -132,3 +134,59 @@ def test_ase_engine_sets_cell_from_config(
     engine = ASESimulationEngine(_atoms, mace_ff, md_config)
     assert (engine.atoms.get_cell() == target_cell).all()
     assert engine.atoms.get_pbc().all()
+
+
+def test_ase_engine_stops_exploded_simulation_early(setup_system_and_mace_model):
+    atoms, _, _, mace_ff = setup_system_and_mace_model
+    _atoms = deepcopy(atoms)
+    _mace_ff = deepcopy(mace_ff)
+
+    def exploding_force_field(model_params, batched_graph) -> Prediction:
+        return Prediction(
+            energy=jnp.inf, forces=batched_graph.nodes.positions * jnp.inf
+        )
+
+    md_config = ASESimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        num_steps=10,
+    )
+    _mace_ff.predictor.apply = exploding_force_field
+    engine = ASESimulationEngine(_atoms, _mace_ff, md_config)
+
+    engine.run()
+    # Stops after first step
+    assert engine.state.step == 1
+    assert engine.state.temperature.shape == (2,)
+    assert engine.state.kinetic_energy.shape == (2,)
+    assert engine.state.positions.shape == (2, 10, 3)
+    assert engine.state.forces.shape == (2, 10, 3)
+    assert engine.state.velocities.shape == (2, 10, 3)
+
+
+def test_ase_simulation_reproducible(setup_system_and_mace_model):
+    atoms, _, _, mace_ff = setup_system_and_mace_model
+
+    md_config = ASESimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        num_steps=5,
+    )
+
+    final_states = []
+    for _ in range(2):
+        _atoms = deepcopy(atoms)
+        _mace_ff = deepcopy(mace_ff)
+        engine = ASESimulationEngine(_atoms, _mace_ff, md_config)
+        engine.run()
+        final_states.append(engine.state)
+
+    for key in [
+        "positions",
+        "forces",
+        "velocities",
+        "kinetic_energy",
+        "temperature",
+        "step",
+    ]:
+        assert np.allclose(
+            getattr(final_states[0], key), getattr(final_states[1], key)
+        ), f"'{key}' does not match."

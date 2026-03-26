@@ -17,6 +17,11 @@ from typing import Callable, TypeAlias
 from jax import Array
 from jraph import GraphsTuple
 
+from mlip.data.helpers.data_prefetching import (
+    PrefetchIterator,
+    UnsqueezeGraphDatasetWrapper,
+)
+from mlip.data.helpers.graph_dataset import GraphDataset
 from mlip.typing.prediction import Prediction
 
 # ParameterDict from flax.linen
@@ -30,3 +35,7 @@ LossFunction: TypeAlias = Callable[
     [Prediction, GraphsTuple, int, bool],
     tuple[Array, dict[str, Array]],
 ]
+
+GraphDatasetLike: TypeAlias = (
+    GraphDataset | PrefetchIterator | UnsqueezeGraphDatasetWrapper
+)

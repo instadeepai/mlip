@@ -113,7 +113,8 @@ def parse_radial_basis(basis: RadialBasis | str) -> Callable:
 def parse_radial_envelope(envelope: RadialEnvelope | str) -> Callable:
     """Parse `RadialEnvelope` parameter among available options.
 
-    See :class:`~mlip.models.options.RadialEnvelope`."""
+    See :class:`~mlip.models.options.RadialEnvelope`.
+    """
     radial_envelope_map = {
         RadialEnvelope.POLYNOMIAL: polynomial_envelope_updated,
         RadialEnvelope.SOFT: soft_envelope,

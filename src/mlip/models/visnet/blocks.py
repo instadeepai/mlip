@@ -271,21 +271,19 @@ class GatedEquivariantBlock(nn.Module):
             self.out_channels, use_bias=False, kernel_init=initializers.xavier_uniform()
         )
 
-        self.update_net = nn.Sequential(
-            [
-                nn.Dense(
-                    intermediate_channels,
-                    kernel_init=initializers.xavier_uniform(),
-                    bias_init=initializers.zeros_init(),
-                ),
-                parse_activation(self.activation),
-                nn.Dense(
-                    self.out_channels * 2,
-                    kernel_init=initializers.xavier_uniform(),
-                    bias_init=initializers.zeros_init(),
-                ),
-            ]
-        )
+        self.update_net = nn.Sequential([
+            nn.Dense(
+                intermediate_channels,
+                kernel_init=initializers.xavier_uniform(),
+                bias_init=initializers.zeros_init(),
+            ),
+            parse_activation(self.activation),
+            nn.Dense(
+                self.out_channels * 2,
+                kernel_init=initializers.xavier_uniform(),
+                bias_init=initializers.zeros_init(),
+            ),
+        ])
 
         if self.scalar_activation:
             self.act = parse_activation(
@@ -323,21 +321,19 @@ class Scalar(OutputModel):
 
     def setup(self):
 
-        self.output_network = nn.Sequential(
-            [
-                nn.Dense(
-                    self.num_channels // 2,
-                    kernel_init=initializers.xavier_uniform(),
-                    bias_init=initializers.zeros_init(),
-                ),
-                parse_activation(self.activation),
-                nn.Dense(
-                    1,
-                    kernel_init=initializers.xavier_uniform(),
-                    bias_init=initializers.zeros_init(),
-                ),
-            ]
-        )
+        self.output_network = nn.Sequential([
+            nn.Dense(
+                self.num_channels // 2,
+                kernel_init=initializers.xavier_uniform(),
+                bias_init=initializers.zeros_init(),
+            ),
+            parse_activation(self.activation),
+            nn.Dense(
+                1,
+                kernel_init=initializers.xavier_uniform(),
+                bias_init=initializers.zeros_init(),
+            ),
+        ])
 
     def pre_reduce(self, x, v, z=None, pos=None, batch=None):
         return self.output_network(x)

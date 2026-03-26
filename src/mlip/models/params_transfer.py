@@ -19,28 +19,30 @@ from mlip.typing import ModelParameters
 
 class ParameterTransferImpossibleError(Exception):
     """Exception to be raised if the destination and source parameters deviate more
-    in their structures than just having some missing blocks in the source."""
+    in their structures than just having some missing blocks in the source.
+    """
 
 
 def _params_transfer_helper(
     dict_src: dict, dict_dst: dict, scale_factor: float, missing_keys: list[str]
 ) -> dict:
-    for key in dict_dst:
+    for key, val_dst in dict_dst.items():
         if key in dict_src:
-            if isinstance(dict_src[key], dict):
-                if not isinstance(dict_dst[key], dict):
+            val_src = dict_src[key]
+            if isinstance(val_src, dict):
+                if not isinstance(val_dst, dict):
                     raise ParameterTransferImpossibleError(
                         "Destination and source parameters have "
                         "incompatible structures."
                     )
                 dict_dst[key] = _params_transfer_helper(
-                    dict_src[key], dict_dst[key], scale_factor, missing_keys
+                    val_src, val_dst, scale_factor, missing_keys
                 )
             else:
-                dict_dst[key] = dict_src[key]
+                dict_dst[key] = val_src
         else:
             missing_keys.append(key)
-            dict_dst[key] = jax.tree.map(lambda x: x * scale_factor, dict_dst[key])
+            dict_dst[key] = jax.tree.map(lambda x: x * scale_factor, val_dst)
 
     return dict_dst
 

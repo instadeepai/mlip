@@ -15,7 +15,6 @@
 import random
 from pathlib import Path
 
-import jax
 import jraph
 import numpy as np
 import pytest
@@ -41,6 +40,7 @@ from mlip.data.helpers.data_split import (
     split_data_randomly_by_group,
 )
 from mlip.data.helpers.graph_creation import create_graph_from_chemical_system
+from mlip.utils.multihost import create_device_mesh
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 SMALL_ASPIRIN_DATASET_PATH = DATA_DIR / "small_aspirin_test.xyz"
@@ -141,7 +141,7 @@ def test_graph_dataset_builder_works_correctly(use_formation_energies):
     expected_e0s = {1: -875.4269754478838, 6: -984.8553473788693, 8: -437.7134877239419}
     assert dataset_info.atomic_energies_map == pytest.approx(expected_e0s)
 
-    expected_e = [-17618.0293, -17618.0474, -17617.8269, 0.0, 0.0, 0.0]
+    expected_e = [-17618.0474, -17617.8269, -17618.0293, 0.0, 0.0, 0.0]
     if use_formation_energies:
         to_subtract = 8 * expected_e0s[1] + 9 * expected_e0s[6] + 4 * expected_e0s[8]
         expected_e = [energy - to_subtract for energy in expected_e]
@@ -155,7 +155,7 @@ def test_graph_dataset_builder_works_correctly(use_formation_energies):
     assert dataset_info.scaling_mean == 0.0
     assert dataset_info.scaling_stdev == 1.0
 
-    splits = graph_dataset_builder.get_splits(prefetch=True, devices=jax.devices())
+    splits = graph_dataset_builder.get_splits(prefetch=True, mesh=create_device_mesh())
     for i in range(3):
         assert isinstance(splits[i], PrefetchIterator)
 
@@ -379,13 +379,11 @@ def test_correct_loading_of_stress():
     assert train_systems[2].forces[1][0] == pytest.approx(-0.01159171)
     assert np.allclose(
         train_systems[3].stress,
-        np.array(
-            [
-                [-0.00221682, -0.0, 0.0],
-                [-0.0, -0.00221682, -0.0],
-                [0.0, -0.0, 0.00115818],
-            ]
-        ),
+        np.array([
+            [-0.00221682, -0.0, 0.0],
+            [-0.0, -0.00221682, -0.0],
+            [0.0, -0.0, 0.00115818],
+        ]),
     )
 
 

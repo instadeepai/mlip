@@ -16,6 +16,7 @@ from copy import deepcopy
 from unittest.mock import Mock
 
 import ase
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from pydantic import ValidationError
@@ -23,6 +24,7 @@ from pydantic import ValidationError
 from mlip.simulation.configs.simulation_config import TemperatureScheduleConfig
 from mlip.simulation.enums import SimulationType, TemperatureScheduleMethod
 from mlip.simulation.jax_md.jax_md_simulation_engine import JaxMDSimulationEngine
+from mlip.typing.prediction import Prediction
 
 
 def test_md_can_be_run_with_jax_md_backend(setup_system_and_mace_model):
@@ -330,3 +332,63 @@ def test_empty_atoms_inputs_cannot_be_simulated():
         JaxMDSimulationEngine([proper_system, ase.Atoms()], force_field, md_config)
 
     assert "Empty 'ase.Atoms' detected in batch." in str(exc3.value)
+
+
+def test_jax_md_engine_stops_exploded_simulation_early(setup_system_and_mace_model):
+    atoms, _, _, mace_ff = setup_system_and_mace_model
+    _atoms = deepcopy(atoms)
+    _mace_ff = deepcopy(mace_ff)
+
+    def exploding_force_field(model_params, batched_graph) -> Prediction:
+        return Prediction(
+            energy=jnp.inf, forces=batched_graph.nodes.positions * jnp.inf
+        )
+
+    num_steps, num_episodes = 20, 5
+    md_config = JaxMDSimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        num_steps=num_steps,
+        snapshot_interval=1,
+        num_episodes=num_episodes,
+    )
+    _mace_ff.predictor.apply = exploding_force_field
+    engine = JaxMDSimulationEngine(_atoms, _mace_ff, md_config)
+
+    engine.run()
+    # Stops after first episode
+    expected_steps = num_steps // num_episodes
+    assert engine.state.step == expected_steps
+    assert engine.state.temperature.shape == (expected_steps,)
+    assert engine.state.kinetic_energy.shape == (expected_steps,)
+    assert engine.state.positions.shape == (expected_steps, 10, 3)
+    assert engine.state.forces.shape == (expected_steps, 10, 3)
+    assert engine.state.velocities.shape == (expected_steps, 10, 3)
+
+
+def test_jax_md_simulation_reproducible(setup_system_and_mace_model):
+    atoms, _, _, mace_ff = setup_system_and_mace_model
+
+    md_config = JaxMDSimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        num_steps=5,
+    )
+
+    final_states = []
+    for _ in range(2):
+        _atoms = deepcopy(atoms)
+        _mace_ff = deepcopy(mace_ff)
+        engine = JaxMDSimulationEngine(_atoms, _mace_ff, md_config)
+        engine.run()
+        final_states.append(engine.state)
+
+    for key in [
+        "positions",
+        "forces",
+        "velocities",
+        "kinetic_energy",
+        "temperature",
+        "step",
+    ]:
+        assert np.allclose(
+            getattr(final_states[0], key), getattr(final_states[1], key)
+        ), f"'{key}' does not match."

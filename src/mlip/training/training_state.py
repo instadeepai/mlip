@@ -17,7 +17,6 @@ import time
 from dataclasses import field
 from typing import Optional
 
-import chex
 import jax
 import optax
 from flax.struct import dataclass as flax_dataclass
@@ -30,8 +29,7 @@ logger = logging.getLogger("mlip")
 
 @flax_dataclass
 class TrainingState:
-    """
-    Represents the state of training.
+    """Represents the state of training.
 
     Attributes:
         params: Model parameters.
@@ -40,7 +38,6 @@ class TrainingState:
         num_steps: The number of training steps taken.
         acc_steps: The number of gradient accumulation steps taken; resets to 0 after
                    each optimizer step.
-        key: Pseudo-random number generator key.
         extras: Additional auxiliary information in form of a dictionary.
     """
 
@@ -49,7 +46,6 @@ class TrainingState:
     ema_state: EMAState
     num_steps: jax.Array
     acc_steps: jax.Array
-    key: chex.PRNGKey
     extras: Optional[dict] = field(default_factory=dict)
 
 
@@ -59,7 +55,6 @@ def _count_parameters(params: ModelParameters) -> int:
 
 def init_training_state(
     initial_params: ModelParameters,
-    random_key: chex.PRNGKey,
     optimizer: optax.GradientTransformation,
     ema_fun: EMAParameterTransformation,
 ) -> TrainingState:
@@ -67,14 +62,12 @@ def init_training_state(
 
     Args:
         initial_params: The initial parameters.
-        random_key: A jax-compatible random key.
         optimizer: The optimizer.
         ema_fun: The EMA parameter transformation function.
 
     Returns:
         The initialized training state.
     """
-    key, gnn_key = jax.random.split(random_key, 2)
     cpu_device = jax.devices("cpu")[0]
     start_time = time.perf_counter()
 
@@ -88,7 +81,6 @@ def init_training_state(
             ema_state=ema_state,
             num_steps=0,
             acc_steps=0,
-            key=key,
             extras={},
         )
 

@@ -3,56 +3,28 @@ default_language_version:
   python: python3.12
 
 repos:
-  - repo: https://github.com/timothycrosley/isort
-    rev: 5.12.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.8
     hooks:
-      - id: isort
-
-  - repo: https://github.com/psf/black
-    rev: 24.2.0
-    hooks:
-      - id: black
-        name: "Code formatter"
-        exclude: notebooks/
+      - id: ruff-check
+        types_or: [python, pyi, jupyter]
+        args: ["--config", "ruff.toml", "--fix"]
+      - id: ruff-format
+        types_or: [python, pyi, jupyter]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: end-of-file-fixer
-        name: "End of file fixer"
-        exclude: docker/template.env *.fasta
-      - id: debug-statements
-        name: "Debug imports and breakpoints checker"
+      - id: debug-statements # Check for debugger imports
+      - id: check-ast # Simply check whether the files parse as valid python
+      - id: check-case-conflict # Check for files that would conflict in case-insensitive filesystems
+      - id: check-builtin-literals # Require literal syntax when initializing empty or zero Python builtin types
+      - id: check-merge-conflict # Check for files that contain merge conflict strings
+      - id: check-yaml # Check yaml files
+      - id: end-of-file-fixer # Ensure that a file is either empty, or ends with one newline
+      - id: mixed-line-ending # Replace or checks mixed line ending
       - id: requirements-txt-fixer
-        name: "Requirements txt fixer"
-      - id: mixed-line-ending
-        name: "Mixed line ending fixer"
-      - id: check-yaml
-        name: "Yaml checker"
-        args: [ '--unsafe' ]
-      - id: trailing-whitespace
-        name: "Trailing whitespace fixer"
-
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
-    hooks:
-      - id: flake8
-        # E203 - ":" with whitespace before it
-        # W503 - line break before binary operator (conflicts with other pre-commit hooks).
-        # CCR001 - Cognitive complexity (it's too annoying - write the functions you want ;)).
-        # C408 - allow to write dict() instead of rewriting as literal
-        name: "Linter"
-        args:
-          - --config=setup.cfg
-          - --ignore=E203,W503,CCR001,C408
-          - --max-line-length=88
-        additional_dependencies:
-          - pep8-naming
-          - flake8-builtins
-          - flake8-comprehensions
-          - flake8-bugbear
-          - flake8-pytest-style
-          - flake8-cognitive-complexity
+      - id: trailing-whitespace # This hook trims trailing whitespace
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.3.0

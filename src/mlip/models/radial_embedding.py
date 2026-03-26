@@ -35,8 +35,7 @@ def bessel_basis(length: jax.Array, max_length: float, number: int) -> jax.Array
 
 
 def polynomial_envelope_updated(length: jax.Array, max_length: float, p: int = 5):
-    """
-    From the MACE torch version, referenced to:
+    """From the MACE torch version, referenced to:
     Klicpera, J.; Groß, J.; Günnemann, S.
     Directional Message Passing for Molecular Graphs; ICLR 2020.
     Equation (8)

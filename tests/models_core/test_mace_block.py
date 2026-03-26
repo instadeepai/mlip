@@ -24,7 +24,6 @@ from mlip.models.radial_embedding import bessel_basis, soft_envelope
 
 
 class _TestMaceBlock:
-
     # test parameters
     graph_sizes: tuple[int, int] = 128, 512
     key: jax.Array = random.key(42)
@@ -90,12 +89,10 @@ class _TestMaceBlock:
 
 
 class TestMaceBlockNodesGating(_TestMaceBlock):
-
     gate_nodes = True
     species_embedding_dim = None
 
 
 class TestMaceBlockSpeciesEmbedding(_TestMaceBlock):
-
     gate_nodes = False
     species_embedding_dim = 8

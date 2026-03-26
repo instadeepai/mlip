@@ -50,25 +50,21 @@ class MessagePassingConvolution(nn.Module):
         target_irreps = e3nn.Irreps(self.target_irreps)
 
         messages = node_feats[senders]
-        messages = e3nn.concatenate(
-            [
-                messages.filter(target_irreps),
-                e3nn.tensor_product(
-                    messages,
-                    e3nn.spherical_harmonics(range(1, self.l_max + 1), -vectors, True),
-                    filter_ir_out=target_irreps,
-                ),
-            ]
-        ).regroup()  # [n_edges, irreps]
+        messages = e3nn.concatenate([
+            messages.filter(target_irreps),
+            e3nn.tensor_product(
+                messages,
+                e3nn.spherical_harmonics(range(1, self.l_max + 1), -vectors, True),
+                filter_ir_out=target_irreps,
+            ),
+        ]).regroup()  # [n_edges, irreps]
 
         mix = e3nn.flax.MultiLayerPerceptron(
             3 * [64] + [messages.irreps.num_irreps],
             self.activation,
             gradient_normalization=1.0,
             output_activation=False,
-        )(
-            radial_embedding
-        )  # [n_edges, num_irreps]
+        )(radial_embedding)  # [n_edges, num_irreps]
 
         if self.species_embedding_dim is not None:
             mix_species = e3nn.flax.MultiLayerPerceptron(
@@ -77,9 +73,7 @@ class MessagePassingConvolution(nn.Module):
                 gradient_normalization=1.0,
                 output_activation=False,
                 with_bias=True,
-            )(
-                edge_species_feat
-            )  # [n_edges, num_irreps]
+            )(edge_species_feat)  # [n_edges, num_irreps]
             mix = jax.vmap(jnp.multiply)(mix.array, mix_species)
 
         messages = messages * mix  # [n_edges, irreps]

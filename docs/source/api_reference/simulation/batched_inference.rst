@@ -1,4 +1,4 @@
-.. _batched_inference:
+.. _batched_inference_api:
 
 .. module:: mlip.inference.batched_inference
 

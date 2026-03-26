@@ -46,7 +46,8 @@ DEFAULT_WEIGHT = 1.0
 
 class ExtxyzReader(ChemicalSystemsReader):
     """Implementation of a chemical systems reader that loads data from extxyz format
-    via the ``ase`` library."""
+    via the ``ase`` library.
+    """
 
     def load(
         self,
@@ -137,9 +138,9 @@ class ExtxyzReader(ChemicalSystemsReader):
             assert stress.shape == (3, 3)
 
         forces = self._get_extxyz_property(atoms.get_forces)  # eV / Ang
-        atomic_numbers = np.array(
-            [ase_atomic_numbers_map[symbol] for symbol in atoms.symbols]
-        )
+        atomic_numbers = np.array([
+            ase_atomic_numbers_map[symbol] for symbol in atoms.symbols
+        ])
 
         pbc = tuple(atoms.get_pbc())
         cell = np.array(atoms.get_cell())

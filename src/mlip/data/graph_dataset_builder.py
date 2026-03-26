@@ -14,6 +14,7 @@
 
 import functools
 import logging
+import warnings
 from typing import Optional, TypeAlias
 
 import jax
@@ -35,10 +36,12 @@ from mlip.data.helpers.atomic_number_table import AtomicNumberTable
 from mlip.data.helpers.data_prefetching import (
     ParallelGraphDataset,
     PrefetchIterator,
+    create_global_arrays,
     create_prefetch_iterator,
 )
 from mlip.data.helpers.graph_creation import create_graph_from_chemical_system
 from mlip.data.helpers.graph_dataset import GraphDataset
+from mlip.utils.multihost import create_device_mesh
 
 GraphDatasetsOrPrefetchedIterators: TypeAlias = (
     tuple[GraphDataset, GraphDataset, GraphDataset]
@@ -171,29 +174,47 @@ class GraphDatasetBuilder:
             self._convert_energies_to_formation_energies(z_table)
 
     def get_splits(
-        self, prefetch: bool = False, devices: Optional[list[jax.Device]] = None
+        self,
+        prefetch: bool = False,
+        mesh: Optional[jax.sharding.Mesh] = None,
+        devices: Optional[list[jax.Device]] = None,
     ) -> GraphDatasetsOrPrefetchedIterators:
         """Returns the training, validation, and test dataset splits.
 
         Args:
             prefetch: Whether to run the data prefetching and return PrefetchIterators.
-            devices: Devices for parallel prefetching. Must be given if prefetch=True.
+            mesh: Device mesh for data parallelism.  Each host stacks
+                  ``len(mesh.devices)`` batches and the prefetch pipeline creates
+                  global arrays via ``jax.make_array_from_single_device_arrays``.
+                  If mesh is None, the global arrays will be created on a default mesh
+                  with all available devices.
+            devices: Deprecated. Previously used for parallel prefetching.
+                     Use ``mesh`` instead. This parameter is ignored.
 
         Returns:
             A tuple of training, validation, and test datasets. If prefetch=False,
             these are of type GraphDataset, otherwise of type PrefetchIterator.
         """
+        if devices is not None:
+            warnings.warn(
+                "The 'devices' parameter is deprecated and will be removed in a "
+                "future release. Use the 'mesh' parameter instead. "
+                "The 'devices' parameter is ignored; a default mesh with all "
+                "available devices will be used if 'mesh' is not provided.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         if self._datasets is None:
             raise DatasetsHaveNotBeenProcessedError(
                 "Datasets are not available yet. Run prepare_datasets() first."
             )
 
         if prefetch:
-            if devices is None:
-                raise DevicesNotProvidedForPrefetchingError(
-                    "Please provide the devices argument when prefetch=True."
-                )
-            return self._get_prefetched_iterators(devices)
+            if mesh is None:
+                mesh = create_device_mesh()
+            return self._get_prefetched_iterators(mesh=mesh)
+
         return (
             self._datasets["train"],
             self._datasets["valid"],
@@ -305,15 +326,13 @@ class GraphDatasetBuilder:
         )
 
     def _get_prefetched_iterators(
-        self, devices: list[jax.Device]
+        self,
+        mesh: jax.sharding.Mesh,
     ) -> tuple[PrefetchIterator, PrefetchIterator, PrefetchIterator]:
         _cfg = self._config
-        num_devices = len(devices)
+        num_devices = len(mesh.devices)
 
-        device_shard_fn = functools.partial(
-            jax.tree.map,
-            lambda x: jax.device_put_sharded(list(x), devices),
-        )
+        device_fn = functools.partial(create_global_arrays, mesh=mesh)
 
         prefetched_iterators = {}
 
@@ -325,7 +344,7 @@ class GraphDatasetBuilder:
                     prefetch_count=_cfg.num_batch_prefetch,
                 ),
                 prefetch_count=_cfg.batch_prefetch_num_devices,
-                preprocess_fn=device_shard_fn,
+                preprocess_fn=device_fn,
             )
             prefetched_iterators[key] = prefetched_iterator
 

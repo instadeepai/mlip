@@ -99,6 +99,8 @@ def log_metrics_to_table(
         table = _build_rich_table(
             _to_log, "Test set metrics", epoch_number, "blue_violet"
         )
+    elif category == LogCategory.SYSTEM_METRICS:
+        table = _build_rich_table(_to_log, "System metrics", epoch_number, "yellow")
 
     if table is not None:
         table_print(table)
@@ -112,7 +114,7 @@ def _metrics_to_str(metrics: dict[str, Any]) -> str:
         result += str(v if isinstance(v, int) else f"{float(v):.3f}")
         result += " | "
 
-    if result == "":
+    if result == "":  # noqa: PLC1901
         return result
     return result[:-3]  # remove final separator
 
@@ -152,3 +154,6 @@ def log_metrics_to_line(
 
     elif category == LogCategory.TEST_METRICS:
         logger.info("Testing: %s", _metrics_to_str(_to_log))
+
+    elif category == LogCategory.SYSTEM_METRICS:
+        logger.info("%-11s %s", "System:", _metrics_to_str(_to_log))

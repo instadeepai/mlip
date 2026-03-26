@@ -61,8 +61,7 @@ class WeightedEFSLoss(Loss, abc.ABC):
         stress_weight_schedule: Callable[[int], float] = lambda _: 0.0,
         extended_metrics: bool = False,
     ) -> None:
-        """
-        Loss averaging energy, forces and stress errors with epoch-dependent weights.
+        """Loss averaging energy, forces and stress errors with epoch-dependent weights.
 
         Args:
             energy_weight_schedule: The schedule function for the energy weight.
@@ -155,13 +154,11 @@ class WeightedEFSLoss(Loss, abc.ABC):
 
         # Optionally append loss weights, but as training metrics only
         if self.extended_metrics and not eval_metrics:
-            metrics.update(
-                {
-                    "energy_weight": self.energy_weight_schedule(epoch),
-                    "forces_weight": self.forces_weight_schedule(epoch),
-                    "stress_weight": self.stress_weight_schedule(epoch),
-                }
-            )
+            metrics.update({
+                "energy_weight": self.energy_weight_schedule(epoch),
+                "forces_weight": self.forces_weight_schedule(epoch),
+                "stress_weight": self.stress_weight_schedule(epoch),
+            })
 
         if eval_metrics:
             metrics |= self._compute_eval_metrics(prediction, ref_graph)

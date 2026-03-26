@@ -58,7 +58,7 @@ def save_model_to_zip(
         hyperparams_path = Path(tmpdir) / MODEL_HYPERPARAMS_FILENAME
         params_path = Path(tmpdir) / MODEL_PARAMETERS_FILENAME
 
-        with open(hyperparams_path, "w") as json_file:
+        with open(hyperparams_path, "w", encoding="utf-8") as json_file:
             json.dump(hyperparams, json_file)
 
         np.savez(params_path, **params_flattened)
@@ -87,14 +87,12 @@ def load_model_from_zip(
             hyperparams_raw = json.load(json_file)
         with zip_object.open(MODEL_PARAMETERS_FILENAME, "r") as params_file:
             params_raw = np.load(params_file)
-            params = unflatten_dict(
-                {
-                    tuple(key.split(PARAMETER_MODULE_DELIMITER)): jnp.asarray(
-                        params_raw[key]
-                    )
-                    for key in params_raw.files
-                }
-            )
+            params = unflatten_dict({
+                tuple(key.split(PARAMETER_MODULE_DELIMITER)): jnp.asarray(
+                    params_raw[key]
+                )
+                for key in params_raw.files
+            })
 
     model_config = model_type.Config(**hyperparams_raw["config"])
     model = model_type(

@@ -16,6 +16,7 @@ from typing import Callable
 
 import ase
 import jax
+import jax.numpy as jnp
 import jraph
 import numpy as np
 
@@ -26,6 +27,20 @@ from mlip.typing.graph_definition import (
     GraphNodes,
     ShiftVectors,
 )
+
+EXPLODED_TEMPERATURE_THRESHOLD = 1e6
+
+
+def has_simulation_exploded(temperatures: np.ndarray | float) -> bool:
+    """Whether a simulation has exploded based on its temperature."""
+    if isinstance(temperatures, float):
+        temperatures = np.array([temperatures])
+
+    if jnp.isnan(temperatures).any() or jnp.any(
+        jnp.abs(temperatures) > EXPLODED_TEMPERATURE_THRESHOLD
+    ):
+        return True
+    return False
 
 
 def create_graph_from_atoms(

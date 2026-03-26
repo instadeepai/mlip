@@ -203,7 +203,6 @@ def compute_eval_metrics(
     extended_metrics: bool = False,
 ) -> dict[str, jnp.ndarray]:
     """Compute (extended) evaluation metrics dictionary."""
-
     graph_mask = jraph.get_graph_padding_mask(ref_graph)  # [n_graphs,]
     node_mask = jraph.get_node_padding_mask(ref_graph)  # [n_nodes,]
 
@@ -275,51 +274,43 @@ def compute_eval_metrics(
         delta_es = jnp.concatenate(delta_es_list, axis=0)
         delta_es_per_atom = jnp.concatenate(delta_es_per_atom_list, axis=0)
 
-        metrics.update(
-            {
-                # Mean absolute error
-                "mae_e": compute_mae(delta_es, graph_mask),
-                # Mean-square error
-                "mse_e": compute_mse(delta_es, graph_mask),
-            }
-        )
+        metrics.update({
+            # Mean absolute error
+            "mae_e": compute_mae(delta_es, graph_mask),
+            # Mean-square error
+            "mse_e": compute_mse(delta_es, graph_mask),
+        })
         if extended_metrics:
-            metrics.update(
-                {
-                    # Mean absolute error
-                    "mae_e_per_atom": compute_mae(delta_es_per_atom, graph_mask),
-                    # Mean-square error
-                    "mse_e_per_atom": compute_mse(delta_es_per_atom, graph_mask),
-                }
-            )
+            metrics.update({
+                # Mean absolute error
+                "mae_e_per_atom": compute_mae(delta_es_per_atom, graph_mask),
+                # Mean-square error
+                "mse_e_per_atom": compute_mse(delta_es_per_atom, graph_mask),
+            })
 
     if len(delta_fs_list) > 0:
         delta_fs = jnp.concatenate(delta_fs_list, axis=0)
-        metrics.update(
-            {
-                # Mean absolute error
-                "mae_f": compute_mae_f(delta_fs, node_mask),
-                # Mean-square error
-                "mse_f": compute_mse_f(delta_fs, node_mask),
-            }
-        )
+        metrics.update({
+            # Mean absolute error
+            "mae_f": compute_mae_f(delta_fs, node_mask),
+            # Mean-square error
+            "mse_f": compute_mse_f(delta_fs, node_mask),
+        })
 
     if len(delta_stress_list) > 0 and extended_metrics:
         delta_stress = jnp.concatenate(delta_stress_list, axis=0)
         delta_stress_per_atom = jnp.concatenate(delta_stress_per_atom_list, axis=0)
-        metrics.update(
-            {
-                # Mean absolute error
-                "mae_stress": compute_mae_stress(delta_stress, graph_mask),
-                "mae_stress_per_atom": compute_mae_stress(
-                    delta_stress_per_atom, graph_mask
-                ),
-                # Mean-square error
-                "mse_stress": compute_mse_stress(delta_stress, graph_mask),
-                "mse_stress_per_atom": compute_mse_stress(
-                    delta_stress_per_atom, graph_mask
-                ),
-            }
-        )
+        metrics.update({
+            # Mean absolute error
+            "mae_stress": compute_mae_stress(delta_stress, graph_mask),
+            "mae_stress_per_atom": compute_mae_stress(
+                delta_stress_per_atom, graph_mask
+            ),
+            # Mean-square error
+            "mse_stress": compute_mse_stress(delta_stress, graph_mask),
+            "mse_stress_per_atom": compute_mse_stress(
+                delta_stress_per_atom, graph_mask
+            ),
+        })
 
     return metrics

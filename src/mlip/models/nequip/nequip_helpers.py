@@ -29,7 +29,6 @@ tree_map = functools.partial(
 
 
 class BetaSwish(nn.Module):
-
     @nn.compact
     def __call__(self, x):
         features = x.shape[-1]

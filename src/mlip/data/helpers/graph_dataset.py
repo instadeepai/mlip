@@ -24,7 +24,8 @@ logger = logging.getLogger("mlip")
 
 class GraphsDiscardedError(Exception):
     """Exception to be raised if some graphs are invalid due to the given parameters
-    for batch size, max. number of nodes, and max. number of edges."""
+    for batch size, max. number of nodes, and max. number of edges.
+    """
 
 
 class GraphDataset:
@@ -106,10 +107,10 @@ class GraphDataset:
         self.graphs = keep_graphs
         self.total_num_graphs = len(self.graphs)
 
+        self._rng = random.Random(len(self.graphs))
         if self.should_shuffle:
-            random.seed(len(self.graphs))
             logger.debug("Shuffling data now...")
-            random.shuffle(self.graphs)
+            self._rng.shuffle(self.graphs)
 
     def __iter__(self):
         """Batch over the dataset, according to a batching strategy."""
@@ -117,7 +118,7 @@ class GraphDataset:
 
         if self.should_shuffle and self._should_shuffle_between_epochs:
             logger.debug("Shuffling data now...")
-            random.shuffle(graphs)
+            self._rng.shuffle(graphs)
 
         for batched_graph in dynamically_batch(
             graphs,
@@ -141,7 +142,7 @@ class GraphDataset:
         self.should_shuffle = copy_should_shuffle
         return self._length
 
-    def subset(self, i: slice | int | list | float):
+    def subset(self, i: slice | int | list | float) -> "GraphDataset":
         """Constructs and returns a new graph dataset containing a subset of
         graphs of the current one with given slicing information ``i``.
 

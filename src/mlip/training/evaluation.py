@@ -13,20 +13,19 @@
 # limitations under the License.
 
 import functools
-from typing import Callable, Optional, TypeAlias
+from typing import Callable, Optional, TypeAlias, Union
 
-import flax
 import jax
 import jax.numpy as jnp
 import jraph
 import numpy as np
+from jax.sharding import NamedSharding
 
-from mlip.data.helpers.data_prefetching import PrefetchIterator
-from mlip.data.helpers.graph_dataset import GraphDataset
 from mlip.models.predictor import ForceFieldPredictor
 from mlip.training.metrics_reweighting import reweight_metrics_by_number_of_graphs
 from mlip.training.training_io_handler import LogCategory, TrainingIOHandler
-from mlip.typing import LossFunction, ModelParameters
+from mlip.typing import GraphDatasetLike, LossFunction, ModelParameters
+from mlip.utils.multihost import DATA_PARALLELISM_AXIS_NAME
 
 EvaluationStepFun: TypeAlias = Callable[
     [ModelParameters, jraph.GraphsTuple, int], dict[str, np.ndarray]
@@ -39,28 +38,36 @@ def _evaluation_step(
     training_epoch: int,
     predictor: ForceFieldPredictor,
     eval_loss_fun: LossFunction,
-    should_parallelize: bool,
     avg_n_graphs_per_batch: float,
 ) -> dict[str, np.ndarray]:
 
-    predictions = predictor.apply(params, graph)
-    _, metrics = eval_loss_fun(predictions, graph, training_epoch)
+    def _single_eval(
+        params: ModelParameters,
+        single_graph: jraph.GraphsTuple,
+        epoch: int,
+    ) -> dict[str, jax.Array]:
+        predictions = predictor.apply(params, single_graph)
+        _, metrics = eval_loss_fun(predictions, single_graph, epoch)
+        metrics = reweight_metrics_by_number_of_graphs(
+            metrics, single_graph, avg_n_graphs_per_batch
+        )
+        return metrics
 
-    # Reweight metrics to account for different number of real graphs per batch
-    metrics = reweight_metrics_by_number_of_graphs(
-        metrics, graph, avg_n_graphs_per_batch
-    )
+    all_metrics: dict[str, jax.Array] = jax.vmap(
+        _single_eval,
+        in_axes=(None, 0, None),
+        spmd_axis_name=DATA_PARALLELISM_AXIS_NAME,
+    )(params, graph, training_epoch)
 
-    if should_parallelize:
-        metrics = jax.lax.pmean(metrics, axis_name="device")
-    return metrics
+    return jax.tree.map(lambda m: jnp.mean(m, axis=0), all_metrics)
 
 
 def make_evaluation_step(
     predictor: ForceFieldPredictor,
     eval_loss_fun: LossFunction,
     avg_n_graphs_per_batch: float,
-    should_parallelize: bool = True,
+    in_shardings: Optional[Union[NamedSharding, tuple[NamedSharding, ...]]] = None,
+    out_shardings: Optional[Union[NamedSharding, tuple[NamedSharding, ...]]] = None,
 ) -> EvaluationStepFun:
     """Creates the evaluation step function.
 
@@ -69,8 +76,8 @@ def make_evaluation_step(
         eval_loss_fun: The loss function for the evaluation.
         avg_n_graphs_per_batch: Average number of graphs per batch used for
                                 reweighting of metrics.
-        should_parallelize: Whether to apply data parallelization across
-                            multiple devices.
+        in_shardings: Optional in_shardings for `jax.jit`.
+        out_shardings: Optional out_shardings for `jax.jit`.
 
     Returns:
         The evaluation step function.
@@ -79,24 +86,22 @@ def make_evaluation_step(
         _evaluation_step,
         predictor=predictor,
         eval_loss_fun=eval_loss_fun,
-        should_parallelize=should_parallelize,
         avg_n_graphs_per_batch=avg_n_graphs_per_batch,
     )
-
-    if should_parallelize:
-        return jax.pmap(
-            evaluation_step, axis_name="device", static_broadcasted_argnums=2
-        )
-    return jax.jit(evaluation_step)
+    jit_kwargs = {}
+    if in_shardings is not None:
+        jit_kwargs["in_shardings"] = in_shardings
+    if out_shardings is not None:
+        jit_kwargs["out_shardings"] = out_shardings
+    return jax.jit(evaluation_step, **jit_kwargs)
 
 
 def run_evaluation(
     evaluation_step: EvaluationStepFun,
-    eval_dataset: GraphDataset | PrefetchIterator,
+    eval_dataset: GraphDatasetLike,
     params: ModelParameters,
     epoch_number: int,
     io_handler: TrainingIOHandler,
-    devices: Optional[list[jax.Device]] = None,
     is_test_set: bool = False,
 ) -> float:
     """Runs a model evaluation on a given dataset.
@@ -107,23 +112,16 @@ def run_evaluation(
         params: The parameters to use for the evaluation.
         epoch_number: The current epoch number.
         io_handler: The IO handler class that handles the logging of the result.
-        devices: The jax devices. It can be None if not run in parallel (default).
         is_test_set: Whether the evaluation is done on the test set, i.e.,
                      not during a training run. By default, this is false.
 
     Returns:
         The mean loss.
     """
-    should_unreplicate_batches = devices is None and isinstance(
-        eval_dataset, PrefetchIterator
-    )
-
     metrics = []
     for batch in eval_dataset:
-        if should_unreplicate_batches:
-            batch = flax.jax_utils.unreplicate(batch)
         _metrics = evaluation_step(params, batch, epoch_number)
-        metrics.append(jax.device_get(_metrics))
+        metrics.append(_metrics)
 
     to_log = {}
     for metric_name in metrics[0].keys():

@@ -1,6 +1,6 @@
 [project]
 name = "mlip"
-version = "0.1.8"
+version = "0.1.9"
 description = "Machine Learning Interatomic Potentials in JAX"
 license-files = [
     "LICENSE"
@@ -26,15 +26,15 @@ requires-python = ">=3.11,<3.14"
 dependencies = [
     "numpy >1.26.0,<3",
     "ase >=3.22.1",
-    "orbax-checkpoint ==0.5.2",
+    "orbax-checkpoint >=0.11",
     "omegaconf >=2.3.0",
     "dm-haiku >=0.0.14",
     "dm-tree >=0.1.8",
     "e3nn-jax >=0.20.7",
     "flax >=0.9.0",
+    "jax >=0.4.32, !=0.9.0",
     "jax-md >=0.2.26",
     "jraph",
-    "orbax >=0.1.9",
     "roundmantissa >=0.2.1",
     "matscipy >=1.1.0",
     "pydantic >=2.10.2",
@@ -53,7 +53,6 @@ cuda = [
 dev = [
     "pytest >=7.4.0",
     "pytest-cov >=4.1.0",
-    "black >=24.2.0",
     "pre-commit >=4.0.1",
     "sphinx >=8.1.3",
     "furo >=2024.8.6"

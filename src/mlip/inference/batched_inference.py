@@ -159,6 +159,7 @@ def run_batched_inference(
                     edges, as the remaining ones are filled up with dummy edges.
                     The default is `None` which means an optimal number is automatically
                     computed for the dataset.
+
     Returns:
         A list of predictions for each structure. These dataclasses will hold a float
         for energy, a numpy array for forces of shape `(num_atoms, 3)`, and optionally

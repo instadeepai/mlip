@@ -101,9 +101,9 @@ class ForceFieldPredictor(nn.Module):
         graph: jraph.GraphsTuple,
         pseudo_stress: np.ndarray,
     ) -> Prediction:
-        assert (
-            graph.edges.shifts is not None
-        ), "without shifts, the computed pseudo_stress is incorrect"
+        assert graph.edges.shifts is not None, (
+            "without shifts, the computed pseudo_stress is incorrect"
+        )
 
         det = jnp.linalg.det(graph.globals.cell)[:, None, None]  # [n_graphs, 1, 1]
         det = jnp.where(det > 0.0, det, 1.0)  # dummy graphs have det = 0
@@ -196,8 +196,8 @@ class ForceFieldPredictor(nn.Module):
     def _apply_strains(
         self, positions: np.ndarray, strains: np.ndarray, graph: jraph.GraphsTuple
     ) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Virtually applies strains to the positions and cell for the energy derivative.
+        """Virtually applies strains to the positions and cell for
+        the energy derivative.
 
         Cell is updated by:
             new_cell = cell @ (I + strains)

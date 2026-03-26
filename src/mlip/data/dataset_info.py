@@ -19,6 +19,7 @@ from typing import Optional
 import jraph
 import pydantic
 from ase import Atom
+from pydantic import field_validator
 
 from mlip.data.helpers.atomic_energies import compute_average_e0s_from_graphs
 from mlip.data.helpers.atomic_number_table import AtomicNumberTable
@@ -51,18 +52,33 @@ class DatasetInfo(pydantic.BaseModel):
     atomic_energies_map: dict[int, float]
     cutoff_distance_angstrom: float
     avg_num_neighbors: float = 1.0
-    avg_r_min_angstrom: Optional[float] = None
+    avg_r_min_angstrom: float | None = None
     scaling_mean: float = 0.0
     scaling_stdev: float = 1.0
+
+    @field_validator("atomic_energies_map")
+    @classmethod
+    def validate_atomic_numbers(cls, v: dict[int, float]) -> dict[int, float]:
+        for z in v.keys():
+            try:
+                Atom(z).symbol
+            except IndexError:
+                raise ValueError("%s is not a valid atomic number" % z)
+        return v
 
     def __str__(self):
         atomic_energies_map_with_symbols = {
             Atom(num).symbol: value for num, value in self.atomic_energies_map.items()
         }
+        r_min = (
+            f"{self.avg_r_min_angstrom:.2f}"
+            if self.avg_r_min_angstrom is not None
+            else "N/A"
+        )
         return (
             f"Atomic Energies: {atomic_energies_map_with_symbols}, "
             f"Avg. num. neighbors: {self.avg_num_neighbors:.2f}, "
-            f"Avg. r_min: {self.avg_r_min_angstrom:.2f}, "
+            f"Avg. r_min: {r_min}, "
             f"Graph cutoff distance: {self.cutoff_distance_angstrom}"
         )
 

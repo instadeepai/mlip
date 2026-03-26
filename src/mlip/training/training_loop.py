@@ -11,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import logging
 import time
+import warnings
 from functools import partial
 from typing import Callable, Optional, TypeAlias
 
-import flax
 import jax
 import jraph
 import numpy as np
 import optax
+from jax.sharding import Mesh
 
-from mlip.data.helpers.data_prefetching import PrefetchIterator
+from mlip.data.helpers.data_prefetching import UnsqueezeGraphDatasetWrapper
 from mlip.data.helpers.graph_dataset import GraphDataset
 from mlip.models import ForceField
 from mlip.models.loss import Loss
@@ -34,15 +34,19 @@ from mlip.training.training_loggers import log_metrics_to_line
 from mlip.training.training_loop_config import TrainingLoopConfig
 from mlip.training.training_state import TrainingState, init_training_state
 from mlip.training.training_step import make_train_step
-from mlip.typing import ModelParameters
+from mlip.typing import GraphDatasetLike, ModelParameters
+from mlip.utils.multihost import (
+    DATA_PARALLELISM_AXIS_NAME,
+    create_device_mesh,
+    create_dp_sharding,
+    create_replicated_sharding,
+)
 
 Optimizer: TypeAlias = optax.GradientTransformation
-GraphDatasetOrPrefetchIterator: TypeAlias = GraphDataset | PrefetchIterator
 TrainingStepFun: TypeAlias = Callable[
     [TrainingState, jraph.GraphsTuple],
     tuple[TrainingState, dict],
 ]
-
 logger = logging.getLogger("mlip")
 
 
@@ -61,22 +65,22 @@ class TrainingLoop:
 
     def __init__(
         self,
-        train_dataset: GraphDatasetOrPrefetchIterator,
-        validation_dataset: GraphDatasetOrPrefetchIterator,
+        train_dataset: GraphDatasetLike,
+        validation_dataset: GraphDatasetLike,
         force_field: ForceField,
         loss: Loss,
         optimizer: Optimizer,
         config: TrainingLoopConfig,
         io_handler: Optional[TrainingIOHandler] = None,
-        should_parallelize: bool = False,
+        mesh: Optional[Mesh] = None,
+        should_parallelize: Optional[bool] = None,
     ) -> None:
         """Constructor.
 
         Args:
-            train_dataset: The training dataset as either a GraphDataset or
-                           a PrefetchIterator.
-            validation_dataset: The validation dataset as either a GraphDataset or
-                                a PrefetchIterator.
+            train_dataset: The training dataset (GraphDataset or PrefetchIterator).
+            validation_dataset: The validation dataset (GraphDataset or
+                PrefetchIterator).
             force_field: The force field model holding at least the initial parameters
                          and a dataset info object.
             loss: The loss, which it is derived from the `Loss` base class.
@@ -87,10 +91,27 @@ class TrainingLoop:
                         The default is `None`, which means that a default IO handler
                         will be set up which does not include checkpointing but some
                         very basic metrics logging.
-            should_parallelize: Whether to parallelize (using data parallelization)
-                                across multiple devices. The default is ``False``.
+            mesh: The device mesh to use for training and evaluation. If not provided,
+                    a device mesh will be created automatically based on the available
+                    devices.
+            should_parallelize: Deprecated. Use ``mesh`` instead. This parameter
+                                is ignored; SPMD sharding is always enabled via
+                                the device mesh.
         """
-        self.should_parallelize = should_parallelize
+        if should_parallelize is not None:
+            warnings.warn(
+                "The 'should_parallelize' parameter is deprecated and will be "
+                "removed in a future release. Use the 'mesh' parameter instead. "
+                "SPMD sharding is now always enabled via the device mesh. "
+                "This parameter is ignored.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if mesh is None:
+            mesh = create_device_mesh()
+        train_dataset, mesh = self._maybe_wrap_dataset(train_dataset, mesh)
+        validation_dataset, mesh = self._maybe_wrap_dataset(validation_dataset, mesh)
 
         self.train_dataset = train_dataset
         self.validation_dataset = (
@@ -121,19 +142,31 @@ class TrainingLoop:
         self._loss_train = partial(loss, eval_metrics=False)
         self._loss_eval = partial(loss, eval_metrics=True)
 
+        self.mesh: Mesh = mesh
+        self.replicated_sharding = create_replicated_sharding(self.mesh)
+        self.sharded_sharding = create_dp_sharding(self.mesh)
+
         self._prepare_training_state_and_ema()
         # Note: Because we shuffle the training data between epochs, the following
         # value may slightly fluctuate during training, however, we assume
         # it being fixed, which is a solid approximation for datasets of typical size.
         _avg_n_graphs_train = self.total_num_graphs / len(self.train_dataset)
+        _out_shardings = (self.replicated_sharding, self.replicated_sharding)
+        _in_shardings = (
+            self.replicated_sharding,
+            self.sharded_sharding,
+            self.replicated_sharding,
+        )
+
         self.training_step = make_train_step(
             force_field.predictor,
             self._loss_train,
             self.optimizer,
             self.ema_fun,
             _avg_n_graphs_train,
-            config.num_gradient_accumulation_steps,
-            should_parallelize,
+            num_gradient_accumulation_steps=config.num_gradient_accumulation_steps,
+            in_shardings=_in_shardings,
+            out_shardings=_out_shardings,
         )
         self.metrics = None
         _avg_n_graphs_validation = (
@@ -142,27 +175,29 @@ class TrainingLoop:
             )[0]
             / len(self.validation_dataset)
         )
+        _eval_in_shardings = (
+            self.replicated_sharding,
+            self.sharded_sharding,
+            self.replicated_sharding,
+        )
+        _eval_out_shardings = self.replicated_sharding
         self.eval_step = make_evaluation_step(
             force_field.predictor,
             self._loss_eval,
             _avg_n_graphs_validation,
-            should_parallelize,
+            in_shardings=_eval_in_shardings,
+            out_shardings=_eval_out_shardings,
         )
 
-        self.best_evaluation_step = -1
+        self.best_evaluation_epoch = 0
         self.best_evaluation_loss = float("inf")
         self._best_params = None
-
-        self._should_unreplicate_train_batches = (
-            not should_parallelize
-        ) and isinstance(self.train_dataset, PrefetchIterator)
-
         self.num_batches = len(self.train_dataset)
-        self.steps_per_epoch = self.num_batches
-        if should_parallelize:
-            self.steps_per_epoch = (
-                self.num_batches // len(jax.devices())
-            ) // config.num_gradient_accumulation_steps
+        # Each host stacks n_local_devices batches, so the iterator
+        # yields num_batches // n_local_devices stacked batches per host.
+        self.steps_per_epoch = (
+            self.num_batches // len(self.mesh.local_devices)
+        ) // config.num_gradient_accumulation_steps
         self.epoch_number = self._get_epoch_number_from_training_state()
 
         logger.debug(
@@ -210,7 +245,10 @@ class TrainingLoop:
                 self.epoch_number,
                 t_after_train - t_before_train,
             )
-            logger.debug("Time for evaluation: %.2f sec.", t_after_eval - t_after_train)
+            logger.debug(
+                "Time for evaluation: %.2f sec.",
+                t_after_eval - t_after_train,
+            )
 
         self.io_handler.wait_until_finished()
 
@@ -221,28 +259,34 @@ class TrainingLoop:
         metrics = []
 
         for batch in self.train_dataset:
-            if self._should_unreplicate_train_batches:
-                batch = flax.jax_utils.unreplicate(batch)
             updated_training_state, _metrics = self.training_step(
                 self.training_state, batch, self.epoch_number
             )
-            self.training_state = updated_training_state
-            metrics.append(jax.device_get(_metrics))
 
+            self.training_state = updated_training_state
+            metrics.append(_metrics)
+
+        # Ensure all training computations are complete before measuring time
+        jax.tree.map(lambda x: x.block_until_ready(), self.training_state)
         epoch_time_in_seconds = time.perf_counter() - start_time
+
+        # Transfer all metrics to host once at the end of epoch
+        logging_start_time = time.perf_counter()
         self._log_after_training_epoch(
             metrics, self.epoch_number, epoch_time_in_seconds
         )
+        logging_time = time.perf_counter() - logging_start_time
+        logger.debug(
+            "Logging after epoch %s done in %.2f sec.", self.epoch_number, logging_time
+        )
 
     def _run_evaluation(self) -> None:
-        devices = jax.devices() if self.should_parallelize else None
         eval_loss = run_evaluation(
             self.eval_step,
             self.validation_dataset,
             self._eval_params_from_current_training_state(),
             self.epoch_number,
             self.io_handler,
-            devices,
         )
 
         if self.epoch_number == 0:
@@ -259,14 +303,9 @@ class TrainingLoop:
             self.best_evaluation_epoch = self.epoch_number
             self._best_params = self._eval_params_from_current_training_state()
 
-            self.io_handler.save_checkpoint(
-                (
-                    flax.jax_utils.unreplicate(self.training_state)
-                    if self.should_parallelize
-                    else self.training_state
-                ),
-                self.epoch_number,
-            )
+            if jax.process_index() == 0:
+                checkpoint_state = jax.device_get(self.training_state)
+                self.io_handler.save_checkpoint(checkpoint_state, self.epoch_number)
 
         to_log = {
             "best_loss": self.best_evaluation_loss,
@@ -274,14 +313,15 @@ class TrainingLoop:
         }
         self.io_handler.log(LogCategory.BEST_MODEL, to_log, self.epoch_number)
 
-    def test(self, test_dataset: GraphDatasetOrPrefetchIterator) -> None:
+    def test(self, test_dataset: GraphDatasetLike) -> None:
         """Run the evaluation on the test dataset with the best parameters seen so far.
 
         Args:
-            test_dataset: The test dataset as either a GraphDataset or
-                          a PrefetchIterator.
+            test_dataset: The test dataset (GraphDataset or PrefetchIterator).
         """
-        devices = jax.devices() if self.should_parallelize else None
+        test_dataset, test_mesh = self._maybe_wrap_dataset(test_dataset, self.mesh)
+        replicated = create_replicated_sharding(test_mesh)
+        sharded = create_dp_sharding(test_mesh)
 
         # The following part needs to be recomputed each time as different test
         # sets could be passed in
@@ -292,7 +332,8 @@ class TrainingLoop:
             self.force_field.predictor,
             self._loss_eval,
             avg_n_graphs,
-            self.should_parallelize,
+            in_shardings=(replicated, sharded, replicated),
+            out_shardings=replicated,
         )
 
         run_evaluation(
@@ -301,53 +342,56 @@ class TrainingLoop:
             self._best_params,
             self.epoch_number,
             self.io_handler,
-            devices,
             is_test_set=True,
         )
 
-    def _prepare_training_state_and_ema(self) -> None:
-        key = jax.random.PRNGKey(self.config.random_seed)
-        self.ema_fun = exponentially_moving_average(self.config.ema_decay)
-        key, init_key = jax.random.split(key, 2)
+    @staticmethod
+    def _maybe_wrap_dataset(
+        dataset: GraphDatasetLike, mesh: Mesh
+    ) -> tuple[GraphDatasetLike, Mesh]:
+        """Wrap a GraphDataset for vmap compatibility; pass others through."""
+        if not isinstance(dataset, GraphDataset):
+            return dataset, mesh
 
-        training_state = init_training_state(
-            self.initial_params, init_key, self.optimizer, self.ema_fun
+        if len(mesh.devices.flat) > 1:
+            logger.warning(
+                "GraphDataset only supports single-device training. "
+                "Auto-restricting to 1 device. "
+                "Request prefetching during data processing for multi-device training."
+            )
+            mesh = jax.make_mesh((1,), (DATA_PARALLELISM_AXIS_NAME,))
+
+        return UnsqueezeGraphDatasetWrapper(dataset), mesh
+
+    def _prepare_training_state_and_ema(self) -> None:
+        self.ema_fun = exponentially_moving_average(self.config.ema_decay)
+
+        logger.debug(
+            "Device mesh: %s, devices=%s, sharded_sharding=%s",
+            self.mesh,
+            self.mesh.devices,
+            self.sharded_sharding,
         )
 
-        # The following line only restores the training state if the associated
-        # setting in self.io_handler is set to true.
-        training_state = self.io_handler.restore_training_state(training_state)
-
-        training_state = jax.device_put(training_state)
-
-        # Note: DISABLED AS IT'S MEMORY INTENSIVE AND BUT LEFT FOR VALIDATION PURPOSES.
-        # assert_pytrees_match_across_hosts(training_state)
-        # logger.debug(f"Training state is identical across all workers.")
-
-        if self.should_parallelize:
-            # Distribute training state
-            start_time = time.perf_counter()
-            training_state = flax.jax_utils.replicate(training_state)
-            logger.debug(
-                "Distributed training state in %.2f sec.",
-                time.perf_counter() - start_time,
+        # Use jit with out_shardings to replicate across ALL devices,
+        # including non-addressable devices in multi-host setups.
+        @partial(jax.jit, out_shardings=self.replicated_sharding)
+        def _init_and_replicate_training_state():
+            training_state = init_training_state(
+                self.initial_params, self.optimizer, self.ema_fun
             )
 
-            # Distribute keys
-            start_time = time.perf_counter()
-            key, key_state = jax.random.split(key, 2)
-            devices = jax.local_devices()
-            keys = jax.device_put_sharded(
-                list(jax.random.split(key_state, len(devices))),
-                devices,
-            )
-            training_state = training_state.replace(
-                key=keys,
-                acc_steps=flax.jax_utils.replicate(0),
-            )
-            logger.debug(
-                "Distributed keys in %.2f sec.", time.perf_counter() - start_time
-            )
+            # The following line only restores the training state if the associated
+            # setting in self.io_handler is set to true.
+            training_state = self.io_handler.restore_training_state(training_state)
+            return training_state
+
+        start_time = time.perf_counter()
+        training_state = _init_and_replicate_training_state()
+        logger.debug(
+            "Replicated training state in %.2f sec.",
+            time.perf_counter() - start_time,
+        )
 
         self.training_state = training_state
 
@@ -355,9 +399,7 @@ class TrainingLoop:
         return self._get_num_steps_from_training_state() // self.steps_per_epoch
 
     def _get_num_steps_from_training_state(self) -> int:
-        if self.should_parallelize:
-            return int(self.training_state.num_steps[0].squeeze().block_until_ready())
-        return int(self.training_state.num_steps.squeeze().block_until_ready())
+        return int(self.training_state.num_steps.squeeze())
 
     def _log_after_training_epoch(
         self,
@@ -370,24 +412,24 @@ class TrainingLoop:
             _metrics[metric_name] = np.mean([m[metric_name] for m in metrics])
 
         try:
-            opt_hyperparams = jax.device_get(
-                self.training_state.optimizer_state.hyperparams
-            )
-            if self.should_parallelize:
-                opt_hyperparams = flax.jax_utils.unreplicate(opt_hyperparams)
+            opt_hyperparams = self.training_state.optimizer_state.hyperparams
             if self.extended_metrics:
                 _metrics["learning_rate"] = float(opt_hyperparams["lr"])
         except AttributeError:
             pass
 
-        _metrics["runtime_in_seconds"] = epoch_time_in_seconds
+        self.io_handler.log(LogCategory.TRAIN_METRICS, _metrics, epoch_number)
+
+        system_metrics = {"runtime_in_seconds": epoch_time_in_seconds}
         if self.extended_metrics:
-            _metrics["nodes_per_second"] = self.total_num_nodes / epoch_time_in_seconds
-            _metrics["graphs_per_second"] = (
+            system_metrics["nodes_per_second"] = (
+                self.total_num_nodes / epoch_time_in_seconds
+            )
+            system_metrics["graphs_per_second"] = (
                 self.total_num_graphs / epoch_time_in_seconds
             )
 
-        self.io_handler.log(LogCategory.TRAIN_METRICS, _metrics, epoch_number)
+        self.io_handler.log(LogCategory.SYSTEM_METRICS, system_metrics, epoch_number)
 
         logger.debug(
             "Total number of steps after epoch %s: %s",
@@ -396,23 +438,29 @@ class TrainingLoop:
         )
 
     def _get_total_number_of_graphs_and_nodes_in_dataset(
-        self, dataset: GraphDataset | PrefetchIterator
+        self, dataset: GraphDatasetLike
     ) -> tuple[int, int]:
         total_num_graphs = 0
         total_num_nodes = 0
 
-        def _batch_generator():
-            if isinstance(dataset, PrefetchIterator):
-                for stacked_batch in dataset:
-                    for i in range(stacked_batch.n_node.shape[0]):
-                        yield jax.tree.map(lambda x, idx=i: x[idx], stacked_batch)
-            else:
-                for batch in dataset:
-                    yield batch
+        # In multi-host mode, global arrays only expose local shards.
+        # Use a JIT-compiled function to count across ALL devices so
+        # every host gets identical totals.
+        @jax.jit
+        def _count_all(stacked_batch):
+            def _count_single(batch):
+                return (
+                    jraph.get_graph_padding_mask(batch).sum(),
+                    jraph.get_node_padding_mask(batch).sum(),
+                )
 
-        for _batch in _batch_generator():
-            total_num_graphs += jraph.get_graph_padding_mask(_batch).sum()
-            total_num_nodes += jraph.get_node_padding_mask(_batch).sum()
+            g, n = jax.vmap(_count_single)(stacked_batch)
+            return g.sum(), n.sum()
+
+        for stacked_batch in dataset:
+            n_graphs, n_nodes = _count_all(stacked_batch)
+            total_num_graphs += int(jax.device_get(n_graphs))
+            total_num_nodes += int(jax.device_get(n_nodes))
 
         return total_num_graphs, total_num_nodes
 
@@ -420,32 +468,18 @@ class TrainingLoop:
         ema_decay = (
             self.config.ema_decay if self.config.use_ema_params_for_eval else None
         )
-        devices = jax.devices() if self.should_parallelize else None
 
         if ema_decay is not None and self.epoch_number > 0:
-            if devices is not None:
-                return jax.pmap(
-                    get_debiased_params,
-                    axis_name="device",
-                    static_broadcasted_argnums=(1,),
-                )(self.training_state.ema_state, ema_decay)
-
             return get_debiased_params(self.training_state.ema_state, ema_decay)
 
         return self.training_state.params
 
     @property
     def best_model(self) -> ForceField:
-        """Returns the current state of the force field model with the best
-        parameters so far. The parameters are unreplicated before being returned if
-        training is run on multiple GPUs.
+        """Returns the force field model with the best parameters seen so far.
 
         Returns:
             The force field model with the best parameters so far.
         """
-        params = (
-            flax.jax_utils.unreplicate(self._best_params)
-            if self.should_parallelize
-            else self._best_params
-        )
+        params = jax.device_get(self._best_params)
         return ForceField(self.force_field.predictor, params)

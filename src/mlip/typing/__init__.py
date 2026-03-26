@@ -17,6 +17,7 @@ from mlip.typing.fields import Irreps, NonNegativeInt, PositiveFloat, PositiveIn
 from mlip.typing.graph_definition import GraphEdges, GraphGlobals, GraphNodes
 from mlip.typing.prediction import Prediction
 from mlip.typing.signatures import (
+    GraphDatasetLike,
     GraphsTuple,
     LossFunction,
     ModelParameters,

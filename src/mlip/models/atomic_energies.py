@@ -66,16 +66,16 @@ def get_atomic_energies(
             z_table.z_to_index(z): energy
             for z, energy in dataset_info.atomic_energies_map.items()
         }
-        atomic_energies = jnp.array(
-            [atomic_energies_dict[i] for i in range(len(z_table.zs))]
-        )
+        atomic_energies = jnp.array([
+            atomic_energies_dict[i] for i in range(len(z_table.zs))
+        ])
     elif atomic_energies_input == "zero":
         atomic_energies = jnp.zeros(num_species)
     elif isinstance(atomic_energies_input, dict):
         atomic_energies_dict = atomic_energies_input
-        atomic_energies = jnp.array(
-            [atomic_energies_dict.get(z, 0.0) for z in range(num_species)]
-        )
+        atomic_energies = jnp.array([
+            atomic_energies_dict.get(z, 0.0) for z in range(num_species)
+        ])
     else:
         raise ValueError(
             f"The requested strategy for atomic energies "

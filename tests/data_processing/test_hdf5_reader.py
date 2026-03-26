@@ -15,7 +15,6 @@
 import random
 from pathlib import Path
 
-import jax
 import jraph
 import numpy as np
 import pytest
@@ -29,6 +28,7 @@ from mlip.data.graph_dataset_builder import (
     GraphDatasetBuilder,
     PrefetchIterator,
 )
+from mlip.utils.multihost import create_device_mesh
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 SPICE_SMALL_HDF5_PATH = DATA_DIR / "spice2-1000_429_md_0-1.hdf5"
@@ -157,6 +157,10 @@ def test_builder_works_correctly(use_formation_energies):
     assert dataset_info.scaling_mean == 0.0
     assert dataset_info.scaling_stdev == 1.0
 
-    splits = builder.get_splits(prefetch=True, devices=jax.devices())
+    splits = builder.get_splits(prefetch=True, mesh=create_device_mesh())
+    for i in range(n_examples):
+        assert isinstance(splits[i], PrefetchIterator)
+
+    splits = builder.get_splits(prefetch=True, mesh=None)
     for i in range(n_examples):
         assert isinstance(splits[i], PrefetchIterator)

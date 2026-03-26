@@ -9,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-       image: python:3.12-slim-bullseye
+       image: python:3.12-slim
 
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -21,7 +21,7 @@ jobs:
         run: apt-get update && apt-get install -y coreutils
 
       - name: install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: build and publish
         run: |

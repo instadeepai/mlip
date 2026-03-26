@@ -67,9 +67,9 @@ class SymmetricContraction(nn.Module):
             ]
 
         def fn(features: e3nn.IrrepsArray, index: jnp.ndarray):
-            # - This operation is parallel on the feature dimension (but each feature has its own parameters)
+            # - This operation is parallel on the feature dimension (but each feature has its own parameters) # noqa: E501
             # This operation is an efficient implementation of
-            # vmap(lambda w, x: FunctionalLinear(irreps_out)(w, concatenate([x, tensor_product(x, x), tensor_product(x, x, x), ...])))(w, x)
+            # vmap(lambda w, x: FunctionalLinear(irreps_out)(w, concatenate([x, tensor_product(x, x), tensor_product(x, x, x), ...])))(w, x)  # noqa: E501
             # up to x power self.correlation
             assert features.ndim == 2  # [num_features, irreps_x.dim]
             assert index.ndim == 0  # int
@@ -88,8 +88,8 @@ class SymmetricContraction(nn.Module):
                         [features.irreps] * order, keep_ir=self._keep_irrep_out
                     )
 
-                for (mul, ir_out), u in zip(U.irreps, U.chunks):
-                    u = u.astype(x_.dtype)
+                for (mul, ir_out), u_ in zip(U.irreps, U.chunks):
+                    u = u_.astype(x_.dtype)
                     # u: ndarray [(irreps_x.dim)^order, multiplicity, ir_out.dim]
                     w = self.param(
                         f"w{order}_{ir_out}",
@@ -98,9 +98,7 @@ class SymmetricContraction(nn.Module):
                         ),
                         (self.num_species, mul, features.shape[0]),
                         dtype=jnp.float32,
-                    )[
-                        index
-                    ]  # [multiplicity, num_features]
+                    )[index]  # [multiplicity, num_features]
                     w = w * (mul**-0.5) ** gradient_normalization  # normalize weights
                     if ir_out not in out:
                         out[ir_out] = (
@@ -114,12 +112,12 @@ class SymmetricContraction(nn.Module):
                 # ((w3 x + w2) x + w1) x
                 #  \----------------/
                 #         out (in the normal case)
-                for ir_out in out:
-                    if isinstance(out[ir_out], tuple):
-                        out[ir_out] = out[ir_out][1]
+                for ir_out, val in out.items():
+                    if isinstance(val, tuple):
+                        out[ir_out] = val[1]
                         continue  # already done (special case optimization above)
                     out[ir_out] = jnp.einsum(
-                        "c...ji,cj->c...i", out[ir_out], x_
+                        "c...ji,cj->c...i", val, x_
                     )  # [num_features, (irreps_x.dim)^(oder-1), ir_out.dim]
                 # ((w3 x + w2) x + w1) x
                 #  \-------------------/

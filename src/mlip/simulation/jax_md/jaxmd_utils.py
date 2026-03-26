@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Contents of this file:
+"""Contents of this file:
 ----------------------
 This file copies a few functions from
 https://github.com/jax-md/jax-md/blob/main/jax_md/simulate.py and modifies a few lines

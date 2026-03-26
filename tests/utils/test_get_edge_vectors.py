@@ -129,9 +129,12 @@ def test_graph_with_shifts_and_graph_from_atoms_is_equal(
 
 def test_edge_relative_vectors_with_shifts(graph_manually_created_with_shifts):
     graph = graph_manually_created_with_shifts
-    expect = jnp.array(
-        [[-0.1, 0.0, 0.0], [0.1, 0.0, 0.0], [0.0, -0.1, 0.0], [0.0, 0.1, 0.0]]
-    )
+    expect = jnp.array([
+        [-0.1, 0.0, 0.0],
+        [0.1, 0.0, 0.0],
+        [0.0, -0.1, 0.0],
+        [0.0, 0.1, 0.0],
+    ])
     result = get_edge_relative_vectors(
         graph.nodes.positions,
         graph.senders,

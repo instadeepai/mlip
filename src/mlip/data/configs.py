@@ -26,7 +26,7 @@ PositiveFloat = Annotated[float, pydantic.Field(gt=0)]
 
 class ChemicalSystemsReaderConfig(pydantic.BaseModel):
     """Pydantic-based config related to data preprocessing and loading into
-    `ChemicalSystem`s.
+    ``ChemicalSystem``\\s.
 
     Attributes:
         train_dataset_paths: Path(s) to where the training set(s) are located.
@@ -74,7 +74,8 @@ class ChemicalSystemsReaderConfig(pydantic.BaseModel):
         cls, value: str | Path | list[str | Path] | ListConfig | None
     ) -> list[str | Path]:
         """Support single element input for a list field, by converting it to a list
-        internally to simplify usage."""
+        internally to simplify usage.
+        """
         if value is None:
             return []
         if isinstance(value, (str, Path)):

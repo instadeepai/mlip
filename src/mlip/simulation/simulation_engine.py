@@ -79,7 +79,8 @@ class SimulationEngine(abc.ABC):
     def run(self) -> None:
         """Runs the simulation and populates the simulation state during the run.
         Note that this method should only be called once and its behaviour will not
-        be defined if called a second time."""
+        be defined if called a second time.
+        """
         pass
 
     def attach_logger(self, logger: Callable[[SimulationState], None]) -> None:

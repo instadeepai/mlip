@@ -16,36 +16,28 @@ import os
 from typing import Any, Mapping, Union
 
 import jax
+import jax.numpy as jnp
 import orbax.checkpoint as ocp
 from orbax.checkpoint import CheckpointManager
 
-from mlip.training.training_state import TrainingState
 from mlip.typing import ModelParameters
 from mlip.utils.multihost import single_host_jax_and_orbax
 
 
-def _restored_state_from_initial_params(
-    initial_params: ModelParameters,
+def _restored_state(
     ckpt_manager: CheckpointManager,
     epoch_to_load: int,
     load_ema_params: bool,
 ) -> Union[Any, Mapping[str, Any]]:
-    training_state_template = TrainingState(
-        params=initial_params,
-        optimizer_state=None,
-        ema_state=None,
-        num_steps=0,
-        acc_steps=0,
-        key=None,
-        extras={},
-    )
-    to_restore = {"training_state": ocp.args.PyTreeRestore(training_state_template)}
+    # Restore without templates - let Orbax infer structure from checkpoint.
+    # This avoids type mismatch issues with optimizer states between different runs.
+    to_restore = {"training_state": ocp.args.PyTreeRestore()}
     if load_ema_params:
-        to_restore["params_ema"] = ocp.args.PyTreeRestore(initial_params)
+        to_restore["params_ema"] = ocp.args.PyTreeRestore()
+
     restored_state = ckpt_manager.restore(
         epoch_to_load, args=ocp.args.Composite(**to_restore)
     )
-
     return restored_state
 
 
@@ -70,35 +62,40 @@ def load_parameters_from_checkpoint(
     Returns:
         The loaded model parameters.
     """
-
     item_names = ["training_state"]
     if load_ema_params:
         item_names.append("params_ema")
+
+    is_old_params_version = False
     with single_host_jax_and_orbax():
         ckpt_manager = CheckpointManager(
             local_checkpoint_dir,
             item_names=item_names,
         )
 
-    is_old_params_version = False
-    cpu_device = jax.devices("cpu")[0]
-    with jax.default_device(cpu_device):
-        try:
-            restored_state = _restored_state_from_initial_params(
-                initial_params, ckpt_manager, epoch_to_load, load_ema_params
-            )
-        except KeyError:
-            initial_params = {"params": initial_params["params"]["mlip_network"]}
-            restored_state = _restored_state_from_initial_params(
-                initial_params, ckpt_manager, epoch_to_load, load_ema_params
-            )
-            is_old_params_version = True
+        cpu_device = jax.devices("cpu")[0]
+        with jax.default_device(cpu_device):
+            try:
+                restored_state = _restored_state(
+                    ckpt_manager, epoch_to_load, load_ema_params
+                )
+            except KeyError:
+                initial_params = {"params": initial_params["params"]["mlip_network"]}
+                restored_state = _restored_state(
+                    ckpt_manager, epoch_to_load, load_ema_params
+                )
+                is_old_params_version = True
 
     if load_ema_params:
         params = restored_state["params_ema"]
     else:
-        params = restored_state["training_state"].params
+        # When restoring without template, Orbax returns a dict
+        training_state_dict = restored_state["training_state"]
+        if isinstance(training_state_dict, dict):
+            params = training_state_dict["params"]
+        else:
+            params = training_state_dict.params
 
     if is_old_params_version:
-        return {"params": {"mlip_network": params["params"]}}
-    return params
+        return jax.tree.map(jnp.asarray, {"params": {"mlip_network": params["params"]}})
+    return jax.tree.map(jnp.asarray, params)

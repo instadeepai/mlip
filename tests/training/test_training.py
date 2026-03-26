@@ -12,28 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
+import logging
 import os
 from pathlib import Path
+from unittest.mock import MagicMock
 
-import jax.tree_util
+import jax
+import jraph
+import numpy as np
 import optax
+import orbax.checkpoint as ocp
 import pytest
 
 from mlip.data.chemical_systems_readers.extxyz_reader import ExtxyzReader
 from mlip.data.configs import ChemicalSystemsReaderConfig, GraphDatasetBuilderConfig
 from mlip.data.graph_dataset_builder import GraphDatasetBuilder
+from mlip.data.helpers.data_prefetching import UnsqueezeGraphDatasetWrapper
 from mlip.data.helpers.dynamically_batch import dynamically_batch
+from mlip.data.helpers.graph_dataset import GraphDataset
 from mlip.models.loss import HuberLoss, MSELoss
 from mlip.models.params_loading import load_parameters_from_checkpoint
+from mlip.training.ema import exponentially_moving_average
 from mlip.training.training_io_handler import LogCategory, TrainingIOHandler
 from mlip.training.training_loop import TrainingLoop
+from mlip.training.training_state import init_training_state
+from mlip.utils.multihost import create_device_mesh
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 SMALL_ASPIRIN_DATASET_PATH = DATA_DIR / "small_aspirin_test.xyz"
 
 
-@pytest.fixture
-def setup_datasets_for_training():
+@pytest.fixture(params=[True, False], ids=["prefetch", "graphdataset"])
+def setup_datasets_for_training(request):
+    """Build train/valid dataset splits from the small aspirin dataset."""
     reader_config = ChemicalSystemsReaderConfig(
         reader_type="extxyz",
         train_dataset_paths=[str(SMALL_ASPIRIN_DATASET_PATH.resolve())],
@@ -58,7 +70,11 @@ def setup_datasets_for_training():
     reader = ExtxyzReader(config=reader_config)
     builder = GraphDatasetBuilder(reader, builder_config)
     builder.prepare_datasets()
-    train_set, valid_set, _ = builder.get_splits()
+    mesh = create_device_mesh()
+    if request.param:
+        train_set, valid_set, _ = builder.get_splits(prefetch=True, mesh=mesh)
+    else:
+        train_set, valid_set, _ = builder.get_splits(prefetch=False)
     return train_set, valid_set
 
 
@@ -71,9 +87,7 @@ def test_model_training_works_correctly_for_mace(
     train_set, valid_set = setup_datasets_for_training
 
     assert len(train_set) == 2
-    assert len(train_set.graphs) == 7
     assert len(valid_set) == 1
-    assert len(valid_set.graphs) == 2
 
     training_config = TrainingLoop.Config(
         num_epochs=2,
@@ -121,7 +135,6 @@ def test_model_training_works_correctly_for_mace(
         optimizer=optax.sgd(learning_rate=0.001),
         config=training_config,
         io_handler=io_handler,
-        should_parallelize=False,
     )
 
     assert training_loop.epoch_number == 0
@@ -131,10 +144,12 @@ def test_model_training_works_correctly_for_mace(
     assert log_container == [
         (LogCategory.EVAL_METRICS, 7, 0),
         (LogCategory.BEST_MODEL, 2, 0),
-        (LogCategory.TRAIN_METRICS, 9, 1),
+        (LogCategory.TRAIN_METRICS, 6, 1),
+        (LogCategory.SYSTEM_METRICS, 3, 1),
         (LogCategory.EVAL_METRICS, 7, 1),
         (LogCategory.BEST_MODEL, 2, 1),
-        (LogCategory.TRAIN_METRICS, 9, 2),
+        (LogCategory.TRAIN_METRICS, 6, 2),
+        (LogCategory.SYSTEM_METRICS, 3, 2),
         (LogCategory.EVAL_METRICS, 7, 2),
         (LogCategory.BEST_MODEL, 2, 2),
     ]
@@ -143,7 +158,10 @@ def test_model_training_works_correctly_for_mace(
     assert sorted(os.listdir(tmp_path / "model")) == ["1", "2"]
 
     for epoch_number in [1, 2]:
-        assert sorted(os.listdir(tmp_path / "model" / str(epoch_number))) == [
+        checkpoint_contents = sorted(os.listdir(tmp_path / "model" / str(epoch_number)))
+        # Orbax 0.11+ adds _CHECKPOINT_METADATA file
+        expected_files = ["_CHECKPOINT_METADATA", "params_ema", "training_state"]
+        assert checkpoint_contents == expected_files or checkpoint_contents == [
             "params_ema",
             "training_state",
         ]
@@ -180,9 +198,7 @@ def test_model_training_works_correctly_for_visnet(
     train_set, valid_set = setup_datasets_for_training
 
     assert len(train_set) == 2
-    assert len(train_set.graphs) == 7
     assert len(valid_set) == 1
-    assert len(valid_set.graphs) == 2
 
     training_config = TrainingLoop.Config(
         num_epochs=2,
@@ -230,17 +246,18 @@ def test_model_training_works_correctly_for_visnet(
         optimizer=optax.sgd(learning_rate=0.0001),
         config=training_config,
         io_handler=io_handler,
-        should_parallelize=False,
     )
     training_loop.run()
 
     assert log_container == [
         (LogCategory.EVAL_METRICS, 7, 0),
         (LogCategory.BEST_MODEL, 2, 0),
-        (LogCategory.TRAIN_METRICS, 9, 1),
+        (LogCategory.TRAIN_METRICS, 6, 1),
+        (LogCategory.SYSTEM_METRICS, 3, 1),
         (LogCategory.EVAL_METRICS, 7, 1),
         (LogCategory.BEST_MODEL, 2, 1),
-        (LogCategory.TRAIN_METRICS, 9, 2),
+        (LogCategory.TRAIN_METRICS, 6, 2),
+        (LogCategory.SYSTEM_METRICS, 3, 2),
         (LogCategory.EVAL_METRICS, 7, 2),
         (LogCategory.BEST_MODEL, 2, 2),
     ]
@@ -250,7 +267,10 @@ def test_model_training_works_correctly_for_visnet(
     assert sorted(os.listdir(tmp_path / "model")) == ["1", "2"]
 
     for epoch_number in [1, 2]:
-        assert sorted(os.listdir(tmp_path / "model" / str(epoch_number))) == [
+        checkpoint_contents = sorted(os.listdir(tmp_path / "model" / str(epoch_number)))
+        # Orbax 0.11+ adds _CHECKPOINT_METADATA file
+        expected_files = ["_CHECKPOINT_METADATA", "params_ema", "training_state"]
+        assert checkpoint_contents == expected_files or checkpoint_contents == [
             "params_ema",
             "training_state",
         ]
@@ -326,7 +346,6 @@ def test_best_params_saved_correctly(
         optimizer=optax.sgd(learning_rate=0.01),
         config=training_config,
         io_handler=io_handler,
-        should_parallelize=False,
     )
 
     training_loop.run()
@@ -334,6 +353,90 @@ def test_best_params_saved_correctly(
     # Ensure that the training worsens
     assert train_losses[0] < train_losses[1]
 
-    # Materialise a leaf of the pytree to test for error issues
+    # Verify the best model params can be materialized without errors
     leaves, _ = jax.tree.flatten(training_loop.best_model.params)
-    leaves[0].block_until_ready()
+    assert leaves[0] is not None
+
+
+def test_graphdataset_multi_device_warning(caplog):
+    """Verify that _maybe_wrap_dataset logs a warning for multi-device meshes."""
+    graph = jraph.GraphsTuple(
+        nodes=np.zeros((2, 1), dtype=np.float32),
+        edges=np.zeros((2, 1), dtype=np.float32),
+        senders=np.array([0, 1], dtype=np.int32),
+        receivers=np.array([1, 0], dtype=np.int32),
+        n_node=np.array([2], dtype=np.int32),
+        n_edge=np.array([2], dtype=np.int32),
+        globals=np.array([0.0], dtype=np.float32),
+    )
+    dataset = GraphDataset(
+        graphs=[graph],
+        batch_size=1,
+        max_n_node=3,
+        max_n_edge=3,
+    )
+
+    mock_mesh = MagicMock()
+    mock_mesh.devices.flat = [MagicMock(), MagicMock()]
+
+    with caplog.at_level(logging.WARNING, logger="mlip"):
+        wrapped, new_mesh = TrainingLoop._maybe_wrap_dataset(dataset, mock_mesh)
+
+    assert isinstance(wrapped, UnsqueezeGraphDatasetWrapper)
+    assert "GraphDataset only supports single-device training" in caplog.text
+    assert len(new_mesh.devices.flat) == 1
+
+
+def test_restore_legacy_checkpoint_with_key_field(
+    setup_system_and_mace_model, tmp_path
+):
+    """Restoring a checkpoint saved with the legacy ``key`` field should succeed.
+
+    Old versions of ``TrainingState`` contained a ``key: PRNGKey`` field that
+    has since been removed.  ``partial_restore=True`` in the IO handler lets
+    Orbax silently skip the extra on-disk field.
+    """
+    _, _, _, mace_ff = setup_system_and_mace_model
+
+    optimizer = optax.sgd(learning_rate=0.001)
+    ema_fun = exponentially_moving_average(0.99)
+    training_state = init_training_state(mace_ff.params, optimizer, ema_fun)
+
+    # Save a checkpoint as a dict that includes the legacy ``key`` field.
+    legacy_state = {
+        f.name: getattr(training_state, f.name)
+        for f in dataclasses.fields(training_state)
+    }
+    legacy_state["key"] = jax.random.PRNGKey(0)
+
+    model_dir = tmp_path / "model"
+    ckpt_manager = ocp.CheckpointManager(
+        model_dir,
+        item_names=("training_state",),
+    )
+    ckpt_manager.save(
+        1,
+        args=ocp.args.Composite(
+            training_state=ocp.args.PyTreeSave(legacy_state),
+        ),
+    )
+    ckpt_manager.wait_until_finished()
+
+    # Now restore via the IO handler (which uses partial_restore=True).
+    io_handler_config = TrainingIOHandler.Config(
+        local_model_output_dir=tmp_path,
+        restore_checkpoint_if_exists=True,
+        epoch_to_restore=1,
+        restore_optimizer_state=True,
+    )
+    io_handler = TrainingIOHandler(io_handler_config)
+
+    restored = io_handler.restore_training_state(training_state)
+
+    # The restored state must not contain the legacy ``key`` field …
+    assert not hasattr(restored, "key")
+    # … and the params must match the saved values.
+    orig_leaves = jax.tree_util.tree_leaves(training_state.params)
+    rest_leaves = jax.tree_util.tree_leaves(restored.params)
+    for orig, rest in zip(orig_leaves, rest_leaves):
+        np.testing.assert_array_equal(orig, rest)

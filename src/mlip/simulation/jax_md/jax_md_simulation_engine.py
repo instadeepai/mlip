@@ -47,7 +47,7 @@ from mlip.simulation.jax_md.helpers import (
 from mlip.simulation.jax_md.states import EpisodeLog, JaxMDSimulationState, SystemState
 from mlip.simulation.simulation_engine import ForceField, SimulationEngine
 from mlip.simulation.temperature_scheduling import get_temperature_schedule
-from mlip.simulation.utils import create_graph_from_atoms
+from mlip.simulation.utils import create_graph_from_atoms, has_simulation_exploded
 from mlip.typing.graph_definition import GraphEdges
 
 SIMULATION_RANDOM_SEED = 42
@@ -63,10 +63,10 @@ class JaxMDSimulationEngine(SimulationEngine):
 
     For MD, the NVT-Langevin algorithm is used
     (see `here <https://jax-md.readthedocs.io/en/main/
-    jax_md.simulate.html#jax_md.simulate.nvt_langevin>`_).
+    jax_md.simulate.html#jax_md.simulate.nvt_langevin>`__).
     For energy minimization, the FIRE algorithm is used
     (see `here <https://jax-md.readthedocs.io/en/main/
-    jax_md.minimize.html#jax_md.minimize.fire_descent>`_).
+    jax_md.minimize.html#jax_md.minimize.fire_descent>`__).
 
     Batched MD simulations are supported. Just pass a list of `ase.Atoms` objects
     to the constructor. See deep-dive tutorials on simulations for more information.
@@ -96,7 +96,6 @@ class JaxMDSimulationEngine(SimulationEngine):
             force_field: The force field to use in the simulation.
             config: The configuration/settings of the simulation.
         """
-
         logger.debug("Initialization of simulation begins...")
         self._config = config
         self._atoms = atoms
@@ -212,6 +211,10 @@ class JaxMDSimulationEngine(SimulationEngine):
             for _logger in self.loggers:
                 _logger(self.state)
 
+            if self._has_simulation_exploded(new_internal_state):
+                logger.warning("Simulation exploded. Stopping simulation.")
+                break
+
             episode_idx += 1
 
         logger.info("Simulation completed.")
@@ -269,11 +272,22 @@ class JaxMDSimulationEngine(SimulationEngine):
             )
 
     @staticmethod
+    def _has_simulation_exploded(internal_state: JaxMDSimulationState) -> bool:
+        """Whether the simulation has exploded."""
+        has_exploded = tree_map(
+            lambda log: has_simulation_exploded(log.temperature),
+            internal_state.episode_log,
+            is_leaf=is_episode_log,
+        )
+        return np.any(has_exploded)
+
+    @staticmethod
     def _get_model_calculate_fun(
         graph: jraph.GraphsTuple, force_field_model: ForceField, is_batched_sim: bool
     ) -> ModelEnergyFun | ModelForcesFun:
         """This function returns the core force calculate function compatible with
-        JAX-MD and also compatible with batched simulations if requested."""
+        JAX-MD and also compatible with batched simulations if requested.
+        """
 
         def calc_func(
             positions: np.ndarray,
@@ -322,7 +336,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             args = [jax.random.PRNGKey(SIMULATION_RANDOM_SEED)]
 
         positions = tree_map(lambda a: a.get_positions(), atoms)
-        masses = tree_map(lambda a: get_masses(a), atoms)
+        masses = tree_map(get_masses, atoms)
         args += [positions, masses]
         return sim_init_fun(*args, system_state=system_state)
 
@@ -350,7 +364,8 @@ class JaxMDSimulationEngine(SimulationEngine):
         """This function is the implementation of the core simulation step.
 
         Needs to be wrapped around `functools.partial` with some arguments fixed so
-        that it can be jitted later on."""
+        that it can be jitted later on.
+        """
         log = internal_state.episode_log
         jax_md_state = internal_state.jax_md_state
 
@@ -446,7 +461,8 @@ class JaxMDSimulationEngine(SimulationEngine):
     ) -> None:
         """Updates the simulation state that is publicly accessed by users of
         this class. This means taking the logged data from the episode log and
-        concatenating it to the existing arrays in the state."""
+        concatenating it to the existing arrays in the state.
+        """
         episode_log = self._internal_state.episode_log
         snapshot_interval = self._config.snapshot_interval
 
@@ -465,6 +481,7 @@ class JaxMDSimulationEngine(SimulationEngine):
                          the state's attributes.
                 new: The array representing one of the state's attributes in
                      the last episode.
+
             Returns:
                 The updated array.
             """
@@ -599,7 +616,8 @@ class JaxMDSimulationEngine(SimulationEngine):
         self, neighbors: jax_md.partition.NeighborList
     ) -> None:
         """After reallocation of neighbors, the simulation step function needs to
-        be updated because the `graph.n_edge` attribute has changed."""
+        be updated because the `graph.n_edge` attribute has changed.
+        """
         senders = tree_map(lambda n: n.idx[1, :], neighbors, is_leaf=is_neighbor_list)
         receivers = tree_map(lambda n: n.idx[0, :], neighbors, is_leaf=is_neighbor_list)
         new_base_graph = self._init_base_graph(

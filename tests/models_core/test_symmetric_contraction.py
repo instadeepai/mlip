@@ -26,7 +26,6 @@ Params: TypeAlias = dict
 
 
 class TestSymmetricContraction:
-
     # test parameters
     key = random.key(123)
     batch_size = 32

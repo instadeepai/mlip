@@ -33,6 +33,7 @@ from mlip.simulation.enums import SimulationType
 from mlip.simulation.simulation_engine import ForceField, SimulationEngine
 from mlip.simulation.state import SimulationState
 from mlip.simulation.temperature_scheduling import get_temperature_schedule
+from mlip.simulation.utils import has_simulation_exploded
 
 SIMULATION_RANDOM_SEED = 42
 
@@ -43,9 +44,9 @@ class ASESimulationEngine(SimulationEngine):
     """Simulation engine handling simulations with the ASE backend.
 
     For MD, the NVT-Langevin algorithm is used
-    (see `here <https://wiki.fysik.dtu.dk/ase/ase/md.html#module-ase.md.langevin>`_).
+    (see `here <https://wiki.fysik.dtu.dk/ase/ase/md.html#module-ase.md.langevin>`__).
     For energy minimization, the BFGS algorithm is used
-    (see `here <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#ase.optimize.BFGS>`_).
+    (see `here <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#ase.optimize.BFGS>`__).
     """
 
     Config = ASESimulationConfig
@@ -116,12 +117,12 @@ class ASESimulationEngine(SimulationEngine):
         Important: The state of the simulation is updated and the loggers are called
         during this function.
         """
-
         is_md_simulation = self._config.simulation_type == SimulationType.MD
 
         logger.info("Starting simulation...")
         self.atoms.calc = self.model_calculator
         random.seed(SIMULATION_RANDOM_SEED)
+        _rng = np.random.default_rng(SIMULATION_RANDOM_SEED)
 
         if is_md_simulation:
             if self.atoms.get_velocities() is None or np.all(
@@ -129,15 +130,19 @@ class ASESimulationEngine(SimulationEngine):
             ):
                 # Set random velocities according to Maxwell-Boltzmann distribution
                 MaxwellBoltzmannDistribution(
-                    self.atoms, temperature_K=self._config.temperature_kelvin
+                    self.atoms,
+                    temperature_K=self._config.temperature_kelvin,
+                    rng=_rng,
                 )
                 Stationary(self.atoms)
                 ZeroRotation(self.atoms)
+
             dyn = Langevin(
                 self.atoms,
                 timestep=self._config.timestep_fs * units.fs,
                 temperature_K=self._config.temperature_kelvin,
                 friction=self._config.friction,
+                rng=_rng,
             )
         elif self._config.simulation_type == SimulationType.MINIMIZATION:
             dyn = BFGS(self.atoms, logfile=None)
@@ -190,12 +195,22 @@ class ASESimulationEngine(SimulationEngine):
         begin_new_log_interval()
 
         if is_md_simulation:
-            dyn.run(self._config.num_steps)
+            run_args = {"steps": self._config.num_steps}
         elif self._config.simulation_type == SimulationType.MINIMIZATION:
-            dyn.run(
-                steps=self._config.num_steps,
-                fmax=self._config.max_force_convergence_threshold,
-            )
+            run_args = {
+                "steps": self._config.num_steps,
+                "fmax": self._config.max_force_convergence_threshold,
+            }
+
+        for _ in dyn.irun(**run_args):
+            if self._has_simulation_exploded(is_md_simulation):
+                logger.warning("Simulation exploded. Stopping simulation early.")
+                # Update state and call loggers before exiting
+                update_state()
+                log_to_console()
+                self._call_loggers()
+                break
+
         logger.info("Simulation completed.")
 
     def _call_loggers(self) -> None:
@@ -270,3 +285,9 @@ class ASESimulationEngine(SimulationEngine):
             _update_state_array("temperature")
             _update_state_array("kinetic_energy")
             _update_state_array("velocities")
+
+    def _has_simulation_exploded(self, is_md_simulation: bool) -> bool:
+        """Check if the simulation has exploded."""
+        if not is_md_simulation:
+            return False
+        return has_simulation_exploded(self.atoms.get_temperature())

@@ -28,6 +28,12 @@ and the last snapshot corresponds to the *N-1*-th logging step. In contrast,
 ASE logs *N+1* snapshots, the first of which corresponds to the initial (zero-th) state
 and the last snapshot corresponds to the *N*-th logging step.
 
+**Important note on early stopping**: If a simulation is unstable, it may "explode",
+meaning that its temperature becomes ``nan`` or larger than ``1e6``.
+In this case, the simulation will be stopped early, and the
+simulation state will be logged before exiting. For the ASE backend, the simulation
+stops immediately, for JAX-MD, after the current episode.
+
 Simulations with JAX-MD
 -----------------------
 
@@ -53,7 +59,7 @@ The config class for JAX-MD simulations is
 :py:class:`JaxMDSimulationConfig <mlip.simulation.configs.jax_md_config.JaxMDSimulationConfig>`
 and can also be accessed via `JaxMDSimulationEngine.Config` for the sake of needing
 fewer imports. The format for the input structure is the commonly used ``ase.Atoms``
-class (see the ASE docs `here <https://wiki.fysik.dtu.dk/ase/ase/atoms.html>`_).
+class (see the ASE docs `here <https://wiki.fysik.dtu.dk/ase/ase/atoms.html>`__).
 
 The result of the simulation is stored in the
 :py:class:`SimulationState <mlip.simulation.state.SimulationState>`, which can
@@ -89,9 +95,9 @@ class for more details. Most importantly, the `simulation_type` needs to be set 
     `SimulationType.MINIMIZATION` mode with the JAX-MD backend.
 
 **Algorithms**: For MD, the NVT-Langevin algorithm is used
-(see `here <https://jax-md.readthedocs.io/en/main/jax_md.simulate.html#jax_md.simulate.nvt_langevin>`_).
+(see `here <https://jax-md.readthedocs.io/en/main/jax_md.simulate.html#jax_md.simulate.nvt_langevin>`__).
 For energy minimization, the FIRE algorithm is used
-(see `here <https://jax-md.readthedocs.io/en/main/jax_md.minimize.html#jax_md.minimize.fire_descent>`_).
+(see `here <https://jax-md.readthedocs.io/en/main/jax_md.minimize.html#jax_md.minimize.fire_descent>`__).
 We plan to provide more options in future versions of the library.
 
 Furthermore, for MD simulations, we support running them in a **batched manner**.
@@ -126,7 +132,7 @@ The config class for ASE simulations is
 :py:class:`ASESimulationConfig <mlip.simulation.configs.ase_config.ASESimulationConfig>`
 (accessible via `ASESimulationEngine.Config`).
 As in the JAX-MD case, the format for the input structure is the ``ase.Atoms`` class
-(see the ASE docs `here <https://wiki.fysik.dtu.dk/ase/ase/atoms.html>`_).
+(see the ASE docs `here <https://wiki.fysik.dtu.dk/ase/ase/atoms.html>`__).
 
 The results of the simulation are stored in the
 :py:class:`SimulationState <mlip.simulation.state.SimulationState>` object as
@@ -141,9 +147,9 @@ class. Most importantly, the `simulation_type` needs to be set to
 :py:class:`SimulationType <mlip.simulation.enums.SimulationType>`).
 
 **Algorithms**: For MD, the NVT-Langevin algorithm is used
-(see `here <https://wiki.fysik.dtu.dk/ase/ase/md.html#module-ase.md.langevin>`_).
+(see `here <https://wiki.fysik.dtu.dk/ase/ase/md.html#module-ase.md.langevin>`__).
 For energy minimization, the BFGS algorithm is used
-(see `here <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#ase.optimize.BFGS>`_).
+(see `here <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#ase.optimize.BFGS>`__).
 We plan to provide more options in future versions of the library.
 
 Temperature Scheduling

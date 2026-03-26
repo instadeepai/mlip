@@ -95,6 +95,7 @@ class LogCategory(Enum):
         TRAIN_METRICS: Metrics for the training set are logged.
         EVAL_METRICS: Metrics for the validation set are logged.
         TEST_METRICS: Metrics for the test set are logged.
+        SYSTEM_METRICS: Per-process system metrics (runtime, throughput) are logged.
         CLEANUP_AFTER_CKPT_RESTORATION: Allows the logger to clean itself up after a
                                         checkpoint has been restored.
     """
@@ -102,8 +103,9 @@ class LogCategory(Enum):
     BEST_MODEL = 0
     TRAIN_METRICS = 1
     EVAL_METRICS = 2
-    TEST_METRICS = 4
-    CLEANUP_AFTER_CKPT_RESTORATION = 3
+    TEST_METRICS = 3
+    SYSTEM_METRICS = 4
+    CLEANUP_AFTER_CKPT_RESTORATION = 5
 
 
 class TrainingIOHandler:
@@ -226,13 +228,16 @@ class TrainingIOHandler:
 
         with single_host_jax_and_orbax():
             self.ckpt_manager.save(epoch_number, args=ocp.args.Composite(**ckpt))
+            self.ckpt_manager.wait_until_finished()
 
         if self._data_upload_fun is not None:
-            self.ckpt_manager.wait_until_finished()
             logger.info("Uploading checkpoint at epoch %s...", epoch_number)
             self._future = self._data_upload_fun(self.config.local_model_output_dir)
 
-    def restore_training_state(self, training_state: TrainingState) -> TrainingState:
+    def restore_training_state(
+        self,
+        training_state: TrainingState,
+    ) -> TrainingState:
         """Restores a training state from disk locally.
 
         Note that if one wants to restore from a remote location, first download the
@@ -260,11 +265,15 @@ class TrainingIOHandler:
             epoch_to_restore = self.ckpt_manager.latest_step()
 
         logger.info("Restoring checkpoint from epoch %s.", epoch_to_restore)
+
         with single_host_jax_and_orbax():
             ckpt = self.ckpt_manager.restore(
                 epoch_to_restore,
                 args=ocp.args.Composite(
-                    training_state=ocp.args.PyTreeRestore(training_state)
+                    training_state=ocp.args.PyTreeRestore(
+                        training_state,
+                        partial_restore=True,  # ignore old keys
+                    )
                 ),
             )
 
@@ -285,7 +294,8 @@ class TrainingIOHandler:
 
     def wait_until_finished(self) -> None:
         """Waits until the local checkpoint and `upload_fun` is finished due
-        to their asynchronous nature. To be called at the end of a training run."""
+        to their asynchronous nature. To be called at the end of a training run.
+        """
         if self._local_model_output_dir is None:
             return
 
@@ -302,6 +312,11 @@ class TrainingIOHandler:
             max_to_keep=self.config.max_checkpoints_to_keep,
             create=True,
             cleanup_tmp_directories=True,
+            # Disabled due to our orbax patch for JAX distributed
+            # (see mlip.utils.multihost.single_host_jax_and_orbax).
+            # Async checkpointing causes checkpoint restoration issues
+            # in multi-host setups.
+            enable_async_checkpointing=False,
         )
 
         self._handle_already_existing_checkpoint_dir()

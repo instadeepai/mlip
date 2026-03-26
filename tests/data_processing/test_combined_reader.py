@@ -49,9 +49,10 @@ def test_combined_data_reader_supports_hdf5_and_extxyz(train_num_to_load):
         test_num_to_load=None,
     )
 
-    reader = CombinedReader(
-        [Hdf5Reader(hdf5_reader_config), ExtxyzReader(extxyz_reader_config)]
-    )
+    reader = CombinedReader([
+        Hdf5Reader(hdf5_reader_config),
+        ExtxyzReader(extxyz_reader_config),
+    ])
     train_systems, valid_systems, test_systems = reader.load()
 
     assert len(valid_systems) == 0

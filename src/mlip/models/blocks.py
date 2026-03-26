@@ -128,7 +128,6 @@ class LinearNodeEmbeddingBlock(nn.Module):
             nn.initializers.normal(stddev=1.0, dtype=jnp.float32),
             (self.num_species, irreps_out.dim),
         )
-
         return e3nn.IrrepsArray(irreps_out, w[node_specie])
 
 

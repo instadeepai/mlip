@@ -46,6 +46,9 @@ This repository currently supports implementations of:
 As the backend for equivariant operations, the current version of the code relies
 on the [e3nn](https://zenodo.org/records/6459381) library.
 
+To then validate and benchmark your trained models, make sure to check out our
+latest project [MLIPAudit](https://github.com/instadeepai/mlipaudit/tree/main)!
+
 ## 📦 Installation
 
 *mlip* can be installed via pip like this:

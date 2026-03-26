@@ -42,7 +42,6 @@ the training run:
         optimizer=optimizer,
         config=config,
         io_handler=io_handler,  # also has a default, does not need to be set
-        should_parallelize=len(jax.devices()) > 1,  # has a default of False
     )
 
     # Start the model training
@@ -193,7 +192,7 @@ In this location, it is recommended to also save other metadata manually,
 such as the applied model config.
 
 For advanced logging, e.g., to an experiment tracking platform (such as
-`Neptune <https://neptune.ai>`_), one can also attach custom logging functions to the
+`MLflow <https://mlflow.org>`_), one can also attach custom logging functions to the
 IO handler:
 
 .. code-block:: python
@@ -233,3 +232,44 @@ a default IO handler is set up internally and used. This IO handler does not inc
 checkpointing, but it does have the
 :py:func:`log_metrics_to_line() <mlip.training.training_loggers.log_metrics_to_line>`
 logging function attached by default.
+
+.. _training_multihost:
+
+Multi-host training
+-------------------
+
+The mlip library supports multi-host (multi-node) training via JAX's built-in distributed
+runtime. When training across multiple hosts, each host manages its own local devices
+and coordinates with other hosts through a designated coordinator process. The training
+loop automatically handles data-parallel sharding of batches across all global devices.
+
+To run multi-host training, you need to initialize the JAX distributed runtime
+**before** any other JAX calls. This is done via
+`jax.distributed.initialize() <https://jax.readthedocs.io/en/latest/_autosummary/jax.distributed.initialize.html>`_.
+Below is a minimal example:
+
+.. code-block:: python
+
+    import jax
+
+    # Option 1: Automatic discovery (e.g. on SLURM clusters)
+    jax.distributed.initialize()
+
+    # Option 2: Explicit coordinator (e.g. on Kubernetes / custom setups)
+    jax.distributed.initialize(
+        coordinator_address="host0:1234",
+        num_processes=4,
+        process_id=0,  # unique per process
+    )
+
+    # After initialization, jax.devices() returns all global devices
+    # and jax.local_devices() returns only this host's devices.
+
+Once JAX distributed is initialized, the rest of the training code (dataset creation,
+training loop, checkpointing) works the same as in the single-host case — the library
+handles the data sharding internally.
+
+For more details, see the
+`JAX multi-process documentation <https://jax.readthedocs.io/en/latest/multi_process.html>`_
+and the
+`Flax distributed training guide <https://flax.readthedocs.io/en/latest/guides/parallel_training/index.html>`_.

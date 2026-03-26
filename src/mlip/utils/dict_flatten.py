@@ -62,6 +62,7 @@ def flatten_dict(
       sep: if specified, then the keys of the returned
         dictionary will be `sep`-joined strings (if
         `None`, then keys will be tuples).
+
     Returns:
       The flattened dictionary.
     """
@@ -111,16 +112,16 @@ def unflatten_dict(xs: dict, sep: Optional[str] = None):
     Args:
       xs: a flattened dictionary
       sep: separator (same as used with `flatten_dict()`).
+
     Returns:
       The nested dictionary.
     """
     assert isinstance(xs, dict), "input is not a dict"
     result = {}
-    for path, value in xs.items():
-        if sep is not None:
-            path = path.split(sep)
-        if value is empty_node:
-            value = {}
+    for raw_path, raw_value in xs.items():
+        path = raw_path.split(sep) if sep is not None else raw_path
+        value = {} if raw_value is empty_node else raw_value
+
         cursor = result
         for key in path[:-1]:
             if key not in cursor:

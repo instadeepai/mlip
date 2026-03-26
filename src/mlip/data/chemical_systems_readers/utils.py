@@ -102,7 +102,8 @@ def apply_flatten(
     **kwargs,
 ) -> list[Out]:
     """Applies a function to each element in a list and flattens the results into
-    a list."""
+    a list.
+    """
     if not elements:
         return []
     return [x for elem in elements for x in fun(elem, *args, **kwargs)]

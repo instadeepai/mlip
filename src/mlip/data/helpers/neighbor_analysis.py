@@ -14,7 +14,6 @@
 
 import logging
 
-import jax
 import jraph
 import numpy as np
 from tqdm_loggable.auto import tqdm
@@ -59,14 +58,14 @@ def compute_avg_min_neighbor_distance(graphs: list[jraph.GraphsTuple]) -> float:
     log_interval = max(1, len(graphs) // LOG_PROPORTION)
 
     for i, graph in enumerate(graphs):
-        jit_get_edge_relative_vectors = jax.jit(get_edge_relative_vectors)
-        vectors = jit_get_edge_relative_vectors(
+        vectors = get_edge_relative_vectors(
             graph.nodes.positions,
             graph.senders,
             graph.receivers,
             graph.edges.shifts,
             graph.globals.cell,
             graph.n_edge,
+            use_np=True,
         )
         length = np.linalg.norm(vectors, axis=-1)
         min_neighbor_distances.append(length.min())

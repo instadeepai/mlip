@@ -1,5 +1,11 @@
 # Changelog
 
+## Release 0.1.10
+
+- Enhancing performance of dataset preprocessing by removing JIT compilation as well
+  as using numpy instead of jax.numpy in edge vector function inside
+  the neighbor analysis code.
+
 ## Release 0.1.9
 
 - Migrating training pipeline from `pmap` to SPMD `jax.jit` with `NamedSharding`,

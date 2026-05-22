@@ -13,61 +13,67 @@
 # limitations under the License.
 
 import functools
-from typing import Callable, Optional, TypeAlias, Union
+from typing import Callable, TypeAlias, Union
 
 import jax
 import jax.numpy as jnp
-import jraph
 import numpy as np
 from jax.sharding import NamedSharding
 
-from mlip.models.predictor import ForceFieldPredictor
+from mlip.data.helpers.type_aliases import GraphDatasetLike
+from mlip.graph import Graph
+from mlip.models.predictors import ForceFieldPredictor
 from mlip.training.metrics_reweighting import reweight_metrics_by_number_of_graphs
 from mlip.training.training_io_handler import LogCategory, TrainingIOHandler
-from mlip.typing import GraphDatasetLike, LossFunction, ModelParameters
+from mlip.typing import LossFunction, ModelParameters
 from mlip.utils.multihost import DATA_PARALLELISM_AXIS_NAME
 
 EvaluationStepFun: TypeAlias = Callable[
-    [ModelParameters, jraph.GraphsTuple, int], dict[str, np.ndarray]
+    [ModelParameters, Graph, int], dict[str, np.ndarray]
 ]
 
 
 def _evaluation_step(
     params: ModelParameters,
-    graph: jraph.GraphsTuple,
+    graph: Graph,
     training_epoch: int,
     predictor: ForceFieldPredictor,
     eval_loss_fun: LossFunction,
     avg_n_graphs_per_batch: float,
+    should_parallelize: bool = False,
 ) -> dict[str, np.ndarray]:
 
     def _single_eval(
         params: ModelParameters,
-        single_graph: jraph.GraphsTuple,
+        single_input_graph: Graph,
         epoch: int,
     ) -> dict[str, jax.Array]:
-        predictions = predictor.apply(params, single_graph)
-        _, metrics = eval_loss_fun(predictions, single_graph, epoch)
+        single_pred_graph = predictor.apply(params, single_input_graph)
+        _, metrics = eval_loss_fun(single_pred_graph, single_input_graph, epoch)
         metrics = reweight_metrics_by_number_of_graphs(
-            metrics, single_graph, avg_n_graphs_per_batch
+            metrics, single_input_graph, avg_n_graphs_per_batch
         )
         return metrics
 
-    all_metrics: dict[str, jax.Array] = jax.vmap(
-        _single_eval,
-        in_axes=(None, 0, None),
-        spmd_axis_name=DATA_PARALLELISM_AXIS_NAME,
-    )(params, graph, training_epoch)
+    if should_parallelize:
+        _eval = jax.vmap(
+            _single_eval,
+            in_axes=(None, 0, None),
+            spmd_axis_name=DATA_PARALLELISM_AXIS_NAME,
+        )
+        all_metrics = _eval(params, graph, training_epoch)
+        return jax.tree.map(lambda m: jnp.mean(m, axis=0), all_metrics)
 
-    return jax.tree.map(lambda m: jnp.mean(m, axis=0), all_metrics)
+    return _single_eval(params, graph, training_epoch)
 
 
 def make_evaluation_step(
     predictor: ForceFieldPredictor,
     eval_loss_fun: LossFunction,
     avg_n_graphs_per_batch: float,
-    in_shardings: Optional[Union[NamedSharding, tuple[NamedSharding, ...]]] = None,
-    out_shardings: Optional[Union[NamedSharding, tuple[NamedSharding, ...]]] = None,
+    should_parallelize: bool = False,
+    in_shardings: Union[NamedSharding, tuple[NamedSharding, ...]] | None = None,
+    out_shardings: Union[NamedSharding, tuple[NamedSharding, ...]] | None = None,
 ) -> EvaluationStepFun:
     """Creates the evaluation step function.
 
@@ -87,6 +93,7 @@ def make_evaluation_step(
         predictor=predictor,
         eval_loss_fun=eval_loss_fun,
         avg_n_graphs_per_batch=avg_n_graphs_per_batch,
+        should_parallelize=should_parallelize,
     )
     jit_kwargs = {}
     if in_shardings is not None:
@@ -103,6 +110,7 @@ def run_evaluation(
     epoch_number: int,
     io_handler: TrainingIOHandler,
     is_test_set: bool = False,
+    subset_name: str | None = None,
 ) -> float:
     """Runs a model evaluation on a given dataset.
 
@@ -114,6 +122,8 @@ def run_evaluation(
         io_handler: The IO handler class that handles the logging of the result.
         is_test_set: Whether the evaluation is done on the test set, i.e.,
                      not during a training run. By default, this is false.
+        subset_name: Subset name for that dataset. If given, then the metric names
+                     will be prefixed by it.
 
     Returns:
         The mean loss.
@@ -125,11 +135,17 @@ def run_evaluation(
 
     to_log = {}
     for metric_name in metrics[0].keys():
-        metrics_values = [m[metric_name] for m in metrics]
-        if not any(jnp.isnan(val).any() for val in metrics_values):
-            to_log[metric_name] = np.mean(metrics_values)
+        metrics_values = np.array([m[metric_name] for m in metrics])
+        if np.any(metrics_values != 0.0) and not any(
+            jnp.isnan(val).any() for val in metrics_values
+        ):
+            to_log[metric_name] = np.mean(metrics_values[metrics_values != 0.0])
 
     mean_eval_loss = float(to_log.get("loss", jnp.nan))
+
+    # Prefix by subset name; skips if None or empty string
+    if subset_name:
+        to_log = {f"{subset_name}_{metric}": value for metric, value in to_log.items()}
 
     if is_test_set:
         io_handler.log(LogCategory.TEST_METRICS, to_log, epoch_number)

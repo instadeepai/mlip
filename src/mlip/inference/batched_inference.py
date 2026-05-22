@@ -14,167 +14,184 @@
 
 import logging
 import time
-from typing import Callable, Optional
+from typing import Callable
 
 import ase
 import jax
-import jraph
-import numpy as np
+from jax import Array
 
-from mlip.data import ChemicalSystem
-from mlip.data.helpers import (
-    AtomicNumberTable,
-    GraphDataset,
-    create_graph_from_chemical_system,
+from mlip.data import (
+    ASEAtomsReader,
+    GraphDatasetBuilderConfig,
+    SingleGraphDatasetBuilder,
 )
+from mlip.data.helpers.hessian_utils import single_graph_hessian_from_batch
+from mlip.data.helpers.type_aliases import (
+    GraphDatasetLike,
+)
+from mlip.graph import Graph
 from mlip.models import ForceField
 from mlip.typing import Prediction
 
 logger = logging.getLogger("mlip")
 
 
-def _run_inference_on_a_single_batch(
-    jitted_force_field_fun: Callable[[jraph.GraphsTuple], Prediction],
-    batch: jraph.GraphsTuple,
-) -> tuple[list[float], list[np.ndarray], list[np.ndarray]]:
+def check_for_single_atom_systems(structures: list[ase.Atoms] | GraphDatasetLike):
+    """Raise an error if a single-atom system is found within structures."""
+
+    if isinstance(structures, list) and isinstance(structures[0], ase.Atoms):
+        if any(len(struct) == 1 for struct in structures):
+            raise ValueError("Single atom systems are not supported yet.")
+
+    elif isinstance(structures, GraphDatasetLike):
+        struct_lengths = []
+        for batch in structures:
+            mask = batch.graph_mask()
+            struct_lengths.extend(batch.n_node[mask])
+        if min(struct_lengths) <= 1:
+            raise ValueError("Single atom systems are not supported yet.")
+
+
+def run_inference_on_a_single_batch(
+    jitted_force_field_fun: Callable[[Graph], Prediction],
+    batch: Graph,
+) -> tuple[list[float], list[Array], list[Array], list[Array], list[Array]]:
     """Runs inference on a single batch with a given already-jitted force field."""
     batch_energies = []
     batch_forces = []
     batch_stress = []
+    batch_hessians = []
+    batch_partial_charges = []
 
+    # Requesting full Hessian explicitly will
+    # result in computing full Hessian matrices
+    # in case `HessianPredictor` is used. If a different
+    # predictor class (e.g., ConservativePredictor) is used,
+    # this won't have any impact.
+    batch = batch.request_full_hessian()
     output = jitted_force_field_fun(batch)
-    mask = jraph.get_graph_padding_mask(batch)
+    mask = batch.graph_mask()
 
     node_idx = 0
     for i in range(output.energy.shape[0]):
+        graph_start = node_idx
+        graph_end = node_idx + batch.n_node[i]
         if mask[i]:
-            batch_energies.append(float(output.energy[i]))
-            graph_forces = output.forces[node_idx : node_idx + batch.n_node[i]]
-            node_idx += batch.n_node[i]
+            graph_forces = output.forces[graph_start:graph_end]
             batch_forces.append(graph_forces)
+            batch_energies.append(float(output.energy[i]))
+
+            if output.hessian is not None:
+                graph_hessian = single_graph_hessian_from_batch(
+                    output.hessian, graph_start, graph_end
+                )
+
+                batch_hessians.append(graph_hessian)
+
             if output.stress is not None:
                 batch_stress.append(output.stress[i])
 
-    return batch_energies, batch_forces, batch_stress
+            if output.partial_charges is not None:
+                graph_partial_charges = output.partial_charges[graph_start:graph_end]
+                batch_partial_charges.append(graph_partial_charges)
 
+            node_idx += batch.n_node[i]
 
-def _get_optimal_max_n_node(graphs: list[jraph.GraphsTuple]) -> int:
-    """Finds optimal max. number of nodes setting for given graphs."""
-    num_atoms = [graph.nodes.positions.shape[0] for graph in graphs]
-    max_n_node = int(np.ceil(np.median(num_atoms)))
-    logger.debug("Setting max_n_node to %s.", max_n_node)
-    return max_n_node
-
-
-def _get_optimal_max_n_edge(graphs: list[jraph.GraphsTuple], max_n_node: int) -> int:
-    """Finds optimal max. number of edges setting for given graphs."""
-    num_neighbors = []
-    for graph in graphs:
-        _, counts = np.unique(graph.receivers, return_counts=True)
-        num_neighbors.append(counts)
-    median = int(np.ceil(np.median(np.concatenate(num_neighbors)).item()))
-    max_n_edge = (median * max_n_node) // 2
-    logger.debug("Setting max_n_edge to %s.", max_n_edge)
-    return max_n_edge
-
-
-def _prepare_graphs(
-    structures: list[ase.Atoms],
-    allowed_atomic_numbers: set[int],
-    cutoff_distance: float,
-) -> list[jraph.GraphsTuple]:
-    """Prepares graphs from list of `ase.Atoms` objects."""
-    z_table = AtomicNumberTable(sorted(allowed_atomic_numbers))
-
-    chemical_systems = [
-        ChemicalSystem(
-            atomic_numbers=atoms.numbers,
-            atomic_species=np.asarray([z_table.z_to_index(z) for z in atoms.numbers]),
-            positions=atoms.get_positions(),
-            cell=np.array(atoms.get_cell()),
-            pbc=atoms.pbc,
-        )
-        for atoms in structures
-    ]
-
-    return [
-        create_graph_from_chemical_system(system, cutoff_distance)
-        for system in chemical_systems
-    ]
-
-
-def _prepare_graph_dataset(
-    graphs: list[jraph.GraphsTuple],
-    batch_size: int,
-    max_n_node: Optional[int],
-    max_n_edge: Optional[int],
-) -> GraphDataset:
-    """Initializes the graph dataset object from jraph graphs."""
-    if max_n_node is None:
-        max_n_node = _get_optimal_max_n_node(graphs)
-    if max_n_edge is None:
-        max_n_edge = _get_optimal_max_n_edge(graphs, max_n_node)
-
-    return GraphDataset(
-        graphs=graphs,
-        batch_size=batch_size,
-        max_n_node=max_n_node,
-        max_n_edge=max_n_edge,
-        should_shuffle=False,
-        skip_last_batch=False,
-        raise_exc_if_graphs_discarded=True,
+    return (
+        batch_energies,
+        batch_forces,
+        batch_stress,
+        batch_hessians,
+        batch_partial_charges,
     )
 
 
 def run_batched_inference(
-    structures: list[ase.Atoms],
+    structures: list[ase.Atoms] | GraphDatasetLike,
     force_field: ForceField,
     batch_size: int = 16,
-    max_n_node: Optional[int] = None,
-    max_n_edge: Optional[int] = None,
+    max_n_node: int | None = None,
+    max_n_edge: int | None = None,
+    set_none_charges_to_zero: bool = True,
 ) -> list[Prediction]:
     """Runs a batched inference on given structures.
 
     Computes energies, forces, and if available with the given force field,
-    stress tensors. Result will be returned as a list of `Prediction` objects, one
-    for each input structure.
+    stress tensors. Result will be returned as a list
+    of `Prediction` objects, one for each input structure.
 
-    Note: When using ``batch_size=1``, we recommend to set ``max_n_node`` and
-    ``max_n_edge`` explicitly to avoid edge cases in the automated computation of these
+    Note: When using `batch_size=1`, we recommend to set `max_n_node` and
+    `max_n_edge` explicitly to avoid edge cases in the automated computation of these
     parameters that may cause errors.
 
     Args:
-        structures: The structures to batch and then compute predictions for.
+        structures: The list of `ase.Atoms` to iterate over and then compute
+                    predictions for. Optionally, an already processed `GraphDataset`
+                    or `PrefetchIterator` object may be passed.
         force_field: The force field object to compute the predictions with.
-        batch_size: The batch size. Default is 16.
+        batch_size: The batch size. Default is 16. Ignored if structures are passed
+                    as a `GraphDataset` or `PrefetchIterator`.
         max_n_node: This value will be multiplied with the batch size to determine the
                     maximum number of nodes we allow in a batch.
                     Note that a batch will always contain max_n_node * batch_size
                     nodes, as the remaining ones are filled up with dummy nodes.
                     The default is `None` which means an optimal number is automatically
-                    computed for the dataset.
+                    computed for the dataset. Ignored if structures are passed as
+                    a `GraphDataset` or `PrefetchIterator`.
         max_n_edge: This value will be multiplied with the batch size to determine the
                     maximum number of edges we allow in a batch.
                     Note that a batch will always contain max_n_edge * batch_size
                     edges, as the remaining ones are filled up with dummy edges.
                     The default is `None` which means an optimal number is automatically
-                    computed for the dataset.
+                    computed for the dataset. Ignored if structures are passed as
+                    a `GraphDataset` or `PrefetchIterator`.
+        set_none_charges_to_zero: Whether to set None total charges to zero during
+                    preprocessing. Default is `True`. Ignored if structures are
+                    passed as a `GraphDataset` or `PrefetchIterator`.
 
     Returns:
-        A list of predictions for each structure. These dataclasses will hold a float
-        for energy, a numpy array for forces of shape `(num_atoms, 3)`, and optionally
-        one for stress of shape `(3, 3)`.
+        A list of predictions for each structure. These dataclasses will hold
+        a float for energy, a numpy array for forces of shape `(num_atoms, 3)`.
+        Optionally, will also contain a stress array of shape `(3, 3)` and a
+        partial charge array of shape `(num_atoms,)`.
 
     Raises:
         ValueError: if any of the input systems has only one atom.
     """
-    if any(len(struct) == 1 for struct in structures):
-        raise ValueError("Single atom systems are not supported yet.")
+    check_for_single_atom_systems(structures)
 
-    graphs = _prepare_graphs(
-        structures, force_field.allowed_atomic_numbers, force_field.cutoff_distance
-    )
-    graph_dataset = _prepare_graph_dataset(graphs, batch_size, max_n_node, max_n_edge)
+    if isinstance(structures, list) and isinstance(structures[0], ase.Atoms):
+        if batch_size is None:
+            raise ValueError("Batch size must be set when passing ase.Atoms")
+
+        if set_none_charges_to_zero and getattr(
+            force_field.config, "use_total_charge_embedding", False
+        ):
+            logger.warning(
+                "`set_none_charges_to_zero=True` and the model uses total charge "
+                "embedding. Structures without an explicit charge will be assigned "
+                "charge 0, which may affect prediction quality. Consider setting "
+                "charges explicitly for each structure as `atoms.info['charge']`."
+            )
+
+        builder_config = GraphDatasetBuilderConfig(
+            graph_cutoff_angstrom=force_field.cutoff_distance,
+            long_range_cutoff_angstrom=force_field.long_range_cutoff_distance,
+            max_n_node=max_n_node,
+            max_n_edge=max_n_edge,
+            batch_size=batch_size,
+            set_none_charges_to_zero=set_none_charges_to_zero,
+        )
+
+        reader = ASEAtomsReader(structures)
+        builder = SingleGraphDatasetBuilder(
+            reader, builder_config, dataset_info=force_field.dataset_info
+        )
+
+        graph_dataset = builder.get_dataset(prefetch=False)
+
+    else:
+        graph_dataset = structures
 
     logger.info(
         "Graphs preparation done. Now running inference "
@@ -188,15 +205,23 @@ def run_batched_inference(
     energies = []
     forces = []
     stress = []
+    hessians = []
+    partial_charges = []
 
     for batch_idx, batch in enumerate(graph_dataset):
         start_time = time.perf_counter()
-        energies_batch, forces_batch, stress_batch = _run_inference_on_a_single_batch(
-            jitted_force_field_fun, batch
-        )
+        (
+            energies_batch,
+            forces_batch,
+            stress_batch,
+            hessians_batch,
+            partial_charges_batch,
+        ) = run_inference_on_a_single_batch(jitted_force_field_fun, batch)
         energies.extend(energies_batch)
         forces.extend(forces_batch)
         stress.extend(stress_batch)
+        hessians.extend(hessians_batch)
+        partial_charges.extend(partial_charges_batch)
 
         end_time = time.perf_counter()
         logger.info(
@@ -208,7 +233,13 @@ def run_batched_inference(
     if len(stress) == 0:
         stress = [None] * len(energies)
 
+    if len(hessians) == 0:
+        hessians = [None] * len(energies)
+
+    if len(partial_charges) == 0:
+        partial_charges = [None] * len(energies)
+
     return [
-        Prediction(energy=e, forces=f, stress=s)
-        for e, f, s in zip(energies, forces, stress)
+        Prediction(energy=e, forces=f, stress=s, hessian=h, partial_charges=pc)
+        for e, f, s, h, pc in zip(energies, forces, stress, hessians, partial_charges)
     ]

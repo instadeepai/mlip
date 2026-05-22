@@ -12,23 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
+import logging
 
 import ase
-import jax
 import jax.numpy as jnp
-import jraph
 import numpy as np
 
-from mlip.data.helpers.atomic_number_table import AtomicNumberTable
-from mlip.typing.graph_definition import (
-    GraphEdges,
-    GraphGlobals,
-    GraphNodes,
-    ShiftVectors,
-)
+from mlip.models import ForceField
 
 EXPLODED_TEMPERATURE_THRESHOLD = 1e6
+logger = logging.getLogger("mlip")
 
 
 def has_simulation_exploded(temperatures: np.ndarray | float) -> bool:
@@ -43,81 +36,59 @@ def has_simulation_exploded(temperatures: np.ndarray | float) -> bool:
     return False
 
 
-def create_graph_from_atoms(
-    atoms: ase.Atoms,
-    senders: np.ndarray,
-    receivers: np.ndarray,
-    displacement_fun: Callable[[np.ndarray, np.ndarray], np.ndarray] | None,
-    allowed_atomic_numbers: set[int],
-    cell: np.ndarray | None = None,
-    shifts: ShiftVectors | None = None,
-) -> jraph.GraphsTuple:
-    """Creates a graph for a group of atoms (i.e., a chemical system).
-
-    This function will leave the shifts of the graph empty and will populate the
-    displacement function in the graph object instead.
-
-    Note: Only one of the two arguments "shifts" and "displacement_fun" should be passed
-    to this function, the other one should be None.
+def resolve_atoms_charge_for_model(
+    atoms: ase.Atoms | list[ase.Atoms],
+    force_field: ForceField,
+    set_none_charge_to_zero: bool,
+) -> ase.Atoms | list[ase.Atoms]:
+    """Resolve the total charge on one or more `ase.Atoms` for a charge-embedding model.
 
     Args:
-        atoms: The atoms of the system.
-        senders: The sender indexes of the edges for the graph.
-        receivers: The receiver indexes of the edges for the graph.
-        displacement_fun: Optional function that takes in two position vectors and
-                          returns the displacement vector between them.
-        allowed_atomic_numbers: A set of allowed atomic numbers known to a model
-                                such that the atomic species can be correctly assigned
-                                in the graph.
-        cell: The structure's box.
-        shifts: Vectors defining which periodic box each node is in, so that one can
-                compute the edge vectors from the positions.
+        atoms: The atomic structure(s) whose charge may be resolved.
+        force_field: The force field used in the simulation.
+        set_none_charge_to_zero: Whether to treat missing charge as 0.
 
     Returns:
-        The graph representing the system.
+        The atoms object(s), with `atoms.info['charge']` resolved when needed.
+
+    Raises:
+        ValueError: If the force field uses total charge embedding and no charge
+            can be resolved for any of the structures.
     """
-    if shifts is None:
-        if displacement_fun is None:
-            raise ValueError(
-                "Both shifts and displacement_fun are None when creating graph."
-                " One and only one should be passed."
+    if isinstance(atoms, list):
+        return [
+            _resolve_single_atoms_charge(a, force_field, set_none_charge_to_zero)
+            for a in atoms
+        ]
+    return _resolve_single_atoms_charge(atoms, force_field, set_none_charge_to_zero)
+
+
+def _resolve_single_atoms_charge(
+    atoms: ase.Atoms,
+    force_field: ForceField,
+    set_none_charge_to_zero: bool,
+) -> ase.Atoms:
+    if not getattr(force_field.config, "use_total_charge_embedding", False):
+        return atoms
+
+    charge = atoms.info.get("charge")
+    if charge is None:
+        if atoms.info.get("partial_charges") is not None:
+            charge = int(np.round(np.sum(atoms.info["partial_charges"])))
+        elif set_none_charge_to_zero:
+            logger.warning(
+                "Input system has no charge assigned, but the model uses total "
+                "charge embedding. Setting to 0 as `set_none_charge_to_zero=True`, "
+                "however this may affect simulation quality if not correct. "
+                "Consider setting the charge explicitly as `atoms.info['charge']`."
             )
-        vmapped_displ_fun = jax.tree_util.Partial(jax.vmap(displacement_fun))
-    elif displacement_fun is None:
-        vmapped_displ_fun = None
-    else:
-        raise ValueError(
-            "Both shifts and displacement_fun are not None when creating"
-            " graph. One and only one should be passed."
-        )
+            charge = 0
+        else:
+            raise ValueError(
+                "The model uses total charge embedding, but the input system has "
+                "no charge assigned. Either assign an explicit charge as "
+                "`atoms.info['charge']`, or set `set_none_charge_to_zero=True`."
+            )
 
-    positions = atoms.get_positions()
-    if cell is None:
-        cell = np.identity(3, dtype=float)
-        assert shifts is None or np.all(shifts == 0)
-
-    z_table = AtomicNumberTable(sorted(allowed_atomic_numbers))
-    z_map = z_table.z_to_index_map(max_atomic_number=120)
-    atomic_species = z_map[atoms.numbers]
-
-    return jraph.GraphsTuple(
-        nodes=GraphNodes(
-            positions=positions,
-            forces=None,
-            species=atomic_species,
-        ),
-        edges=GraphEdges(shifts=shifts, displ_fun=vmapped_displ_fun),
-        globals=jax.tree.map(
-            lambda x: x[None, ...],
-            GraphGlobals(
-                cell=cell,
-                energy=np.array(0.0),
-                stress=None,
-                weight=np.asarray(1.0),
-            ),
-        ),
-        receivers=receivers,
-        senders=senders,
-        n_edge=np.array([len(senders)]),
-        n_node=np.array([len(atomic_species)]),
-    )
+    atoms.info["charge"] = charge
+    return atoms

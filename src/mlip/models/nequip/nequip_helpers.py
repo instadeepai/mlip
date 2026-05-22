@@ -1,4 +1,9 @@
-# Copyright 2025 InstaDeep Ltd
+# Copyright (c) 2021 The President and Fellows of Harvard College
+# Copyright (c) 2025 The NequIP Developers
+#
+# Licensed under the MIT License (https://opensource.org/licenses.MIT)
+#
+# Copyright (c) 2026 InstaDeep Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,44 +17,71 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-import operator
-from typing import Optional
-
 import e3nn_jax as e3nn
-import flax.linen as nn
-import jax
-from jax.nn import initializers
-
-from mlip.models.options import parse_activation
-
-tree_map = functools.partial(
-    jax.tree.map, is_leaf=lambda x: isinstance(x, e3nn.IrrepsArray)
-)
 
 
-class BetaSwish(nn.Module):
-    @nn.compact
-    def __call__(self, x):
-        features = x.shape[-1]
-        beta = self.param("Beta", nn.initializers.ones, (features,))
-        return x * nn.sigmoid(beta * x)
+def split_target_node_irreps(
+    source_node_irreps: e3nn.Irreps,
+    spherical_embedding_irreps: e3nn.Irreps,
+    target_irreps: e3nn.Irreps,
+) -> tuple[e3nn.Irreps, e3nn.Irreps, e3nn.Irreps]:
+    """Split target node irreps into the three components required by the NequIP gate.
+
+    Splits `target_irreps` into scalars (l=0) and non-scalars (l>0), retaining
+    only those reachable via a tensor product path from `source_node_irreps` ×
+    `spherical_embedding_irreps`.
+
+    Args:
+        source_node_irreps: Irreps of the current node feature representations.
+        spherical_embedding_irreps: Irreps of the spherical harmonic edge embeddings.
+        target_irreps: The desired output irreps of the layer.
+
+    Returns:
+        A tuple `(irreps_scalars, irreps_gate_scalars, irreps_nonscalars)`, where:
+            - `irreps_scalars`: reachable l=0 irreps from target_irreps.
+            - `irreps_gate_scalars`: one scalar per non-scalar channel, used to gate
+              the non-scalar outputs. e3nn.gate requires these between scalars and
+              non-scalars: `irreps_scalars + irreps_gate_scalars + irreps_nonscalars`.
+            - `irreps_nonscalars`: reachable l>0 irreps from target_irreps.
+    """
+    irreps_scalars = []
+    irreps_nonscalars = []
+
+    for multiplicity, irrep in e3nn.Irreps(target_irreps):
+        if not tp_path_exists(source_node_irreps, spherical_embedding_irreps, irrep):
+            continue
+        # NOTE: e3nn.Irrep(irrep) is needed here although irrep is already `Irrep`.
+        if e3nn.Irrep(irrep).l == 0:
+            irreps_scalars.append((multiplicity, irrep))
+        else:
+            irreps_nonscalars.append((multiplicity, irrep))
+
+    irreps_scalars = e3nn.Irreps(irreps_scalars)
+    irreps_nonscalars = e3nn.Irreps(irreps_nonscalars)
+
+    gate_scalar_irreps_type = (
+        "0e"
+        if tp_path_exists(source_node_irreps, spherical_embedding_irreps, "0e")
+        else "0o"
+    )
+    irreps_gate_scalars = e3nn.Irreps([
+        (mul, gate_scalar_irreps_type) for mul, _ in irreps_nonscalars
+    ])
+
+    return irreps_scalars, irreps_gate_scalars, irreps_nonscalars
 
 
-def normal(var):
-    return initializers.variance_scaling(var, "fan_in", "normal")
+def tp_path_exists(
+    arg_in1: e3nn.Irreps | str,
+    arg_in2: e3nn.Irreps | str,
+    arg_out: e3nn.Irrep | str,
+) -> bool:
+    """Determine whether a tensor product path exists.
 
-
-def prod(xs):
-    """From e3nn_jax/util/__init__.py."""
-    return functools.reduce(operator.mul, xs, 1)
-
-
-def tp_path_exists(arg_in1, arg_in2, arg_out):
-    """Check if a tensor product path is viable.
-
-    This helper function is similar to the one used in:
-    https://github.com/e3nn/e3nn
+    A path is allowed by the Clebsch-Gordan (CG) selection rule if `arg_out`
+    appears in the CG decomposition of at least one pair of irreps drawn from
+    `arg_in1` and `arg_in2`, i.e. if `|l_in1 - l_in2| <= l_out <= l_in1 + l_in2`
+    holds for some pair. Similar to the helper in https://github.com/e3nn/e3nn.
     """
     arg_in1 = e3nn.Irreps(arg_in1).simplify()
     arg_in2 = e3nn.Irreps(arg_in2).simplify()
@@ -60,32 +92,3 @@ def tp_path_exists(arg_in1, arg_in2, arg_out):
             if arg_out in irreps_1 * irreps_2:
                 return True
     return False
-
-
-class MLP(nn.Module):
-    """Multilayer Perceptron."""
-
-    features: tuple[int, ...]
-    nonlinearity: str
-
-    use_bias: bool = True
-    scalar_mlp_std: Optional[float] = None
-
-    @nn.compact
-    def __call__(self, x):
-        features = self.features
-
-        dense = functools.partial(nn.Dense, use_bias=self.use_bias)
-
-        phi = (
-            BetaSwish()
-            if self.nonlinearity == "beta_swish"
-            else parse_activation(self.nonlinearity)
-        )
-
-        kernel_init = normal(self.scalar_mlp_std)
-
-        for h in features[:-1]:
-            x = phi(dense(h, kernel_init=kernel_init)(x))
-
-        return dense(features[-1], kernel_init=normal(1.0))(x)

@@ -23,9 +23,9 @@ from mlip.simulation.jax_md.jax_md_simulation_engine import JaxMDSimulationEngin
 
 @pytest.mark.parametrize("is_batched", [True, False])
 def test_minimization_can_be_run_with_jax_md_backend(
-    setup_system_and_mace_model, is_batched
+    quadratic_force_field, setup_system, is_batched
 ):
-    atoms, _, _, mace_ff = setup_system_and_mace_model
+    atoms, _ = setup_system
 
     md_config = JaxMDSimulationEngine.Config(
         simulation_type=SimulationType.MINIMIZATION,
@@ -46,10 +46,10 @@ def test_minimization_can_be_run_with_jax_md_backend(
 
     if is_batched:
         engine = JaxMDSimulationEngine(
-            [atoms, deepcopy(atoms), deepcopy(atoms)], mace_ff, md_config
+            [atoms, deepcopy(atoms), deepcopy(atoms)], quadratic_force_field, md_config
         )
     else:
-        engine = JaxMDSimulationEngine(atoms, mace_ff, md_config)
+        engine = JaxMDSimulationEngine(atoms, quadratic_force_field, md_config)
 
     engine.attach_logger(_mock_logger)
 
@@ -62,7 +62,7 @@ def test_minimization_can_be_run_with_jax_md_backend(
     assert engine.state.velocities is None
     assert intermediate_steps == [10, 20]
 
-    expected_first_atom_forces = np.array([0.0498, -0.0216, 0.0118])
+    expected_first_atom_forces = np.array([-0.04018, -0.00971, -0.00414])
 
     if is_batched:
         assert len(engine.state.forces) == 3

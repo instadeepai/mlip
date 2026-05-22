@@ -19,6 +19,7 @@ from typing_extensions import Self
 
 from mlip.simulation.configs.simulation_config import (
     SimulationConfig,
+    SimulationLogOutputs,
     TemperatureScheduleConfig,
 )
 from mlip.typing import PositiveFloat, PositiveInt
@@ -41,19 +42,30 @@ class ASESimulationConfig(SimulationConfig):
     and for minimization, respectively.
 
     Attributes:
-        log_interval: The interval in ``num_steps`` at which the loggers
+        log_interval: The interval in `num_steps` at which the loggers
                       will be called. If not set, an appropriate value will
                       be attempted to be selected. For fewer than 1000 steps,
                       it will default to 10. For more than 1000 steps, it will
                       default to 1000.
+        log_outputs: A dataclass specifying which of the simulation state fields to
+                     populate during the simulation. By default, all possible ones.
         timestep_fs: The simulation timestep in femtoseconds. The default is
                      1.0.
         temperature_kelvin: The temperature in Kelvin, set to 300 by default. Must be
-                            set to ``None`` for energy minimizations.
+                            set to `None` for energy minimizations.
         friction: Friction coefficient for the simulation. Default is 0.1.
         temperature_schedule_config: The temperature schedule config to use for the
                                    simulation. Default is the constant schedule in
-                                   which case ``temperature_kelvin`` will be applied.
+                                   which case `temperature_kelvin` will be applied.
+        pressure_bar: The target pressure in bar, for NPT simulations.
+                      Default is 1.01325 bar = 1 atm.
+        barostat_update_interval: The number of steps between volume updates using the
+                                  MonteCarloBarostat in `NPT_MC_LANGEVIN` simulations.
+                                  Default is 25.
+        molecule_indices: List defining which atoms belong to which molecules, required
+                          for `NPT_MC_LANGEVIN` simulations. For example, for a system
+                          of two consecutive water molecules, this would be
+                          `[0, 0, 0, 1, 1, 1]`. Default is None.
         max_force_convergence_threshold: The convergence threshold for minimizations
                                          w.r.t. the sum of the force norms. See the
                                          ASE docs for more information. If not set,
@@ -67,6 +79,7 @@ class ASESimulationConfig(SimulationConfig):
     """
 
     log_interval: PositiveInt | None = None
+    log_outputs: SimulationLogOutputs = Field(default=SimulationLogOutputs())
 
     # MD Only
     timestep_fs: PositiveFloat | None = 1.0
@@ -77,6 +90,11 @@ class ASESimulationConfig(SimulationConfig):
     temperature_schedule_config: TemperatureScheduleConfig = Field(
         default=TemperatureScheduleConfig(temperature=temperature_kelvin)
     )
+
+    # NPT_MC_LANGEVIN only
+    pressure_bar: PositiveFloat | None = 1.01325
+    barostat_update_interval: PositiveInt | None = 25
+    molecule_indices: list[int] | None = None
 
     # Minimization only
     max_force_convergence_threshold: PositiveFloat | None = None

@@ -7,14 +7,10 @@ Model options: Enum classes
 
 .. autoclass:: Activation
 
-.. autoclass:: RadialBasis
-
 .. autoclass:: RadialEnvelope
 
-.. autoclass:: VecNormType
+.. autoclass:: RadialBasis
 
 .. autofunction:: parse_activation
-
-.. autofunction:: parse_radial_basis
 
 .. autofunction:: parse_radial_envelope

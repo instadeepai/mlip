@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from mlip.models.esen.network import Esen
 from mlip.models.force_field import ForceField
-from mlip.models.mace.models import Mace
-from mlip.models.nequip.models import Nequip
-from mlip.models.predictor import ForceFieldPredictor
-from mlip.models.visnet.models import Visnet
+from mlip.models.inference_context import InferenceContext
+from mlip.models.mace.network import Mace
+from mlip.models.nequip.network import Nequip
+from mlip.models.visnet.network import Visnet

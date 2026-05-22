@@ -13,12 +13,13 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-from jraph import GraphsTuple, get_graph_padding_mask
+
+from mlip.graph import Graph
 
 
 def reweight_metrics_by_number_of_graphs(
     metrics: dict[str, jnp.ndarray],
-    batch: GraphsTuple,
+    batch: Graph,
     avg_n_graphs_per_batch: float,
 ) -> dict[str, jnp.ndarray]:
     """Reweights the metrics dictionary to account for different number of real
@@ -37,7 +38,7 @@ def reweight_metrics_by_number_of_graphs(
     Returns:
         The scaled metrics dictionary.
     """
-    n_graphs = jnp.sum(get_graph_padding_mask(batch))
+    n_graphs = batch.graph_mask().sum()
     scaling_factor = n_graphs / avg_n_graphs_per_batch
 
     def _apply_factor(value: jnp.array, metric_name: str) -> jnp.array:

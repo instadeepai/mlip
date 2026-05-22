@@ -5,11 +5,11 @@
 Loss
 ====
 
-.. autoclass:: Loss
+.. autoclass:: LossTerm
 
     .. automethod:: __call__
 
-.. autoclass:: WeightedEFSLoss
+.. autoclass:: Loss
 
     .. automethod:: __init__
 
@@ -26,3 +26,7 @@ Loss
     .. automethod:: __init__
 
     .. automethod:: __call__
+
+.. module:: mlip.models.loss.eval_metrics
+
+    .. autofunction:: compute_eval_metrics

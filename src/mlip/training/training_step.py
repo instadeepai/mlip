@@ -13,16 +13,16 @@
 # limitations under the License.
 
 import functools
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 
 import jax
 import jax.numpy as jnp
 import optax
 from jax import Array
 from jax.sharding import NamedSharding
+from jraph import GraphsTuple
 
-from mlip.graph import Graph
-from mlip.models.predictors import ForceFieldPredictor
+from mlip.models.predictor import ForceFieldPredictor
 from mlip.training.ema import EMAParameterTransformation
 from mlip.training.metrics_reweighting import reweight_metrics_by_number_of_graphs
 from mlip.training.training_state import TrainingState
@@ -32,14 +32,13 @@ from mlip.utils.multihost import DATA_PARALLELISM_AXIS_NAME
 
 def _training_step(
     training_state: TrainingState,
-    graph: Graph,
+    graph: GraphsTuple,
     epoch_number: int,
-    model_loss_fun: Callable[[ModelParameters, Graph, int], Array],
+    model_loss_fun: Callable[[ModelParameters, GraphsTuple, int], Array],
     optimizer: optax.GradientTransformation,
     ema_fun: EMAParameterTransformation,
     avg_n_graphs_per_batch: float,
-    num_gradient_accumulation_steps: int | None,
-    should_parallelize: bool = False,
+    num_gradient_accumulation_steps: Optional[int],
 ) -> tuple[TrainingState, dict]:
     # Fetch params and optimizer state from training state.
     params = training_state.params
@@ -55,18 +54,14 @@ def _training_step(
         )
         return loss, metrics
 
-    def sharded_loss_fn(params, stacked_graph, epoch):
+    def mean_loss_fn(params, stacked_graph, epoch):
         losses, metrics = jax.vmap(
             single_loss_with_reweight,
             in_axes=(None, 0, None),
             spmd_axis_name=DATA_PARALLELISM_AXIS_NAME,
         )(params, stacked_graph, epoch)
-        return (
-            jnp.mean(losses),
-            jax.tree.map(lambda m: jnp.mean(m, axis=0), metrics),
-        )
 
-    mean_loss_fn = sharded_loss_fn if should_parallelize else single_loss_with_reweight
+        return jnp.mean(losses), jax.tree.map(lambda m: jnp.mean(m, axis=0), metrics)
 
     grad_fn = jax.grad(mean_loss_fn, argnums=0, has_aux=True)
     grads, metrics = grad_fn(params, graph, epoch_number)
@@ -105,10 +100,9 @@ def make_train_step(
     optimizer: optax.GradientTransformation,
     ema_fun: EMAParameterTransformation,
     avg_n_graphs_per_batch: float,
-    num_gradient_accumulation_steps: int | None = 1,
-    should_parallelize: bool = False,
-    in_shardings: Union[NamedSharding, tuple[NamedSharding, ...]] | None = None,
-    out_shardings: Union[NamedSharding, tuple[NamedSharding, ...]] | None = None,
+    num_gradient_accumulation_steps: Optional[int] = 1,
+    in_shardings: Optional[Union[NamedSharding, tuple[NamedSharding, ...]]] = None,
+    out_shardings: Optional[Union[NamedSharding, tuple[NamedSharding, ...]]] = None,
 ) -> Callable:
     """Create a training step function to optimize model params using gradients.
 
@@ -133,7 +127,7 @@ def make_train_step(
     """
 
     def model_loss(
-        params: ModelParameters, ref_graph: Graph, epoch: int
+        params: ModelParameters, ref_graph: GraphsTuple, epoch: int
     ) -> tuple[Array, dict[str, Array]]:
         predictions = predictor.apply(params, ref_graph)
         return loss_fun(predictions, ref_graph, epoch)
@@ -145,7 +139,6 @@ def make_train_step(
         ema_fun=ema_fun,
         avg_n_graphs_per_batch=avg_n_graphs_per_batch,
         num_gradient_accumulation_steps=num_gradient_accumulation_steps,
-        should_parallelize=should_parallelize,
     )
     jit_kwargs = {}
     if in_shardings is not None:

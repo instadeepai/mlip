@@ -19,12 +19,11 @@ https://github.com/jax-md/jax-md/blob/main/jax_md/simulate.py and modifies a few
 inside them to enable batched simulations.
 """
 
-# ruff: noqa: N803, N806, B008
+# flake8: noqa=N803,N806,B008
 
-import jax
 import jax.numpy as jnp
 from jax import jit, random
-from jax.tree_util import tree_leaves
+from jax.tree_util import tree_leaves, tree_map
 from jax_md.simulate import (
     Array,
     Normal,
@@ -53,9 +52,9 @@ def _stochastic_step(state, dt, kT, gamma):
         key, split = random.split(state.rng)
         return TupleLeaf([momentum_dist.sample(split), key])
 
-    step_result = jax.tree.map(_step_impl, state.momentum, state.mass)
-    new_momentum = jax.tree.map(lambda x: x[0], step_result)
-    new_rng = tree_leaves(jax.tree.map(lambda x: x[1], step_result))[0]
+    step_result = tree_map(_step_impl, state.momentum, state.mass)
+    new_momentum = tree_map(lambda x: x[0], step_result)
+    new_rng = tree_leaves(tree_map(lambda x: x[1], step_result))[0]
 
     return state.set(momentum=new_momentum, rng=new_rng)
 
@@ -74,7 +73,7 @@ class _NVTLangevinState:
 
     @property
     def velocity(self) -> Array:
-        return jax.tree.map(lambda mom, mass: mom / mass, self.momentum, self.mass)
+        return tree_map(lambda mom, mass: mom / mass, self.momentum, self.mass)
 
 
 @dispatch_by_state

@@ -15,13 +15,10 @@
 from typing import Any
 
 import flax.linen as nn
+import jax
+import pydantic
 
 from mlip.data.dataset_info import DatasetInfo
-from mlip.graph import Graph
-from mlip.models.config import MLIPNetworkConfig
-from mlip.models.inference_context import InferenceContext
-from mlip.typing import ModelParameters
-from mlip.typing.properties import Properties
 
 
 class MLIPNetwork(nn.Module):
@@ -36,55 +33,32 @@ class MLIPNetwork(nn.Module):
     their `.Config` class describing the set of hyperparameters.
     """
 
-    Config = MLIPNetworkConfig  # Must be overridden by the child classes
+    Config = pydantic.BaseModel  # Must be overridden by the child classes
 
-    config: MLIPNetworkConfig
+    config: pydantic.BaseModel
     dataset_info: DatasetInfo
 
-    @property
-    def available_properties(self) -> Properties:
-        """Default available properties."""
-        return Properties(
-            stress=True,
-            hessian=True,
-        )
-
-    @property
-    def is_moe_model(self) -> bool:
-        """Whether this model uses mixture-of-experts parameters."""
-        return False
-
-    @nn.compact
-    def __call__(self, graph: Graph) -> Graph:
-        """Calculate node-wise energy contributions and update the input Graph.
-
-        Args:
-            graph: Input Graph object containing edge vectors, node species, senders,
-                   receivers, and node mask.
-
-        Returns:
-            The updated Graph with per-node energy contributions stored in the
-            "energy" node feature.
+    def __call__(
+        self,
+        edge_vectors: jax.Array,
+        node_species: jax.Array,
+        senders: jax.Array,
+        receivers: jax.Array,
+    ) -> jax.Array:
+        """Compute node-wise energy summands. This function must be overridden by the
+        implementation of `MLIPNetwork`.
         """
         raise NotImplementedError(
-            "The base 'MLIPNetwork' model does not implement a call function."
+            "No energy model defined by MLIPNetwork.__call__, "
+            "but must be overridden by its child classes."
         )
-
-    @nn.nowrap
-    def prepare_experts_for_inference(
-        self,
-        params: ModelParameters,
-        inference_context: InferenceContext,
-    ) -> tuple["MLIPNetwork", ModelParameters]:
-        """No-op base; MoE subclasses override to contract expert kernels."""
-        return self, params
 
     def __init_subclass__(cls, **kwargs: Any):
         """This enforces that child classes will
         need to override the `Config` attribute.
         """
         super().__init_subclass__(**kwargs)
-        if cls.Config is MLIPNetworkConfig and cls.__name__ != "MLIPNetworkV1":
+        if cls.Config is pydantic.BaseModel:
             raise NotImplementedError(
                 f"{cls.__name__} must override the `Config` attribute."
             )

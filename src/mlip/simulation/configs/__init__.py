@@ -14,9 +14,7 @@
 
 from mlip.simulation.configs.ase_config import ASESimulationConfig
 from mlip.simulation.configs.jax_md_config import JaxMDSimulationConfig
-from mlip.simulation.configs.neb_config import NEBSimulationConfig
 from mlip.simulation.configs.simulation_config import (
     SimulationConfig,
-    SimulationLogOutputs,
     TemperatureScheduleConfig,
 )

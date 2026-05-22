@@ -10,3 +10,8 @@ MLIP ASE Calculator
             .. automethod:: __init__
 
             .. automethod:: calculate
+
+
+.. module:: mlip.utils.no_pbc_cell
+
+    .. autofunction:: get_no_pbc_cell

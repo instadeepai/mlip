@@ -12,19 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
 
-import jax
 import jax.numpy as jnp
 
 
 def safe_norm(
-    x: jax.Array, axis: int | None = None, keepdims: bool = False
-) -> jax.Array:
+    x: jnp.ndarray, axis: Optional[int] = None, keepdims: bool = False
+) -> jnp.ndarray:
     """nan-safe norm."""
     x2 = jnp.sum(x**2, axis=axis, keepdims=keepdims)
     return jnp.where(x2 == 0.0, 0.0, jnp.where(x2 == 0, 1.0, x2) ** 0.5)
-
-
-def safe_divide(x: jax.Array, y: jax.Array) -> jax.Array:
-    """Divide two arrays but return zero where the denominator is zero."""
-    return jnp.where(y == 0.0, 0.0, x / y)

@@ -3,28 +3,12 @@
 NequIP
 ======
 
-.. module:: mlip.models.nequip.config
-
-    .. autoclass:: NequipConfig
-
-.. module:: mlip.models.nequip.network
+.. module:: mlip.models.nequip.models
 
     .. autoclass:: Nequip
 
         .. automethod:: __call__
 
-.. module:: mlip.models.nequip.layer
+.. module:: mlip.models.nequip.config
 
-    .. autoclass:: NequipLayer
-
-        .. automethod:: __call__
-
-.. module:: mlip.models.nequip.blocks
-
-    .. autoclass:: NequipEmbeddingBlock
-
-        .. automethod:: __call__
-
-    .. autoclass:: NequipMultiHeadReadoutBlock
-
-        .. automethod:: __call__
+    .. autoclass:: NequipConfig

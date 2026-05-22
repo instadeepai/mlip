@@ -16,125 +16,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
-from typing import Callable, Literal
+from typing import Callable, Optional, Tuple
 
-import e3j
 import e3nn_jax as e3nn
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-from e3j.utils.options import Layout
 
-from mlip.graph import Graph
-from mlip.models import options
-from mlip.models.blocks import (
-    JointNodeEmbeddingBlock,
-    NodeEmbeddingBlock,
-    RadialEmbeddingBlock,
-    SphericalHarmonicsBlock,
-)
-from mlip.models.gaunt_tensor_product import GauntSymmetricContraction
-from mlip.models.mace.symmetric_contraction import (
-    SymmetricContraction,
-    SymmetricContractionE3NN,
-)
-from mlip.models.options import GradientScaledKernelInit, RadialBasis
-from mlip.utils.safe_norm import safe_norm
+from mlip.models.mace.message_passing import MessagePassingConvolution
+from mlip.models.mace.symmetric_contraction import SymmetricContraction
 
 
-class MaceEmbeddingBlock(nn.Module):
-    """Initial embedding block for MACE.
+class LinearReadoutBlock(nn.Module):
+    output_irreps: e3nn.Irreps
 
-    This module will assign the following graph features:
+    @nn.compact
+    def __call__(self, x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+        output_irreps = e3nn.Irreps(self.output_irreps)
+        # x = [n_nodes, irreps]
+        return e3nn.flax.Linear(output_irreps)(x)  # [n_nodes, output_irreps]
 
-    * `nodes.features['embedding']`: initial embedding of atomic numbers
-    * `edges.features['radial_embedding']`: RBF-encoding of interatomic distances.
-    * `edges.features['spherical_embedding']`: harmonic embedding of unit edge
-      vectors.
-    """
 
-    num_species: int
-    num_charges: int | None
-    num_channels: int
-    l_max: int
-    r_max: float
-    num_rbf: int
-    radial_envelope: options.RadialEnvelope
-    avg_r_min: float | None = None
-    activation_fn: Callable = jax.nn.silu
+class NonLinearReadoutBlock(nn.Module):
+    hidden_irreps: e3nn.Irreps
+    output_irreps: e3nn.Irreps
+    activation: Optional[Callable] = None
+    gate: Optional[Callable] = None
 
-    def setup(self):
-        if self.num_charges is not None:
-            self.node_embedding_block = JointNodeEmbeddingBlock(
-                num_species=self.num_species,
-                num_charge=self.num_charges,
-                num_channels=self.num_channels,
-                kernel_init=GradientScaledKernelInit.FAN_IN_NORMAL,
-                activation_fn=self.activation_fn,
-            )
-        else:
-            self.node_embedding_block = NodeEmbeddingBlock(
-                num_species=self.num_species,
-                num_channels=self.num_channels,
-                kernel_init=GradientScaledKernelInit.FAN_IN_NORMAL,
-            )
-        self.radial_embedding_block = RadialEmbeddingBlock(
-            radial_basis=RadialBasis.BESSEL,
-            num_rbf=self.num_rbf,
-            graph_cutoff_angstrom=self.r_max,
-            learnable=False,
-            radial_envelope=self.radial_envelope,
-            avg_r_min=self.avg_r_min,
-            return_as_irreps=True,
-        )
-        self.spherical_embedding_block = SphericalHarmonicsBlock(
-            l_max=self.l_max,
-            normalize=True,
-        )
+    @nn.compact
+    def __call__(self, x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+        hidden_irreps = e3nn.Irreps(self.hidden_irreps)
+        output_irreps = e3nn.Irreps(self.output_irreps)
 
-    def __call__(self, graph: Graph) -> Graph:
-        node_species = graph.nodes.features.get("species")
-        if node_species is None:
-            raise KeyError("Node feature 'species' has to be assigned upstream.")
-
-        # Node features
-        if self.num_charges is not None:
-            charge_indices = graph.nodes.features["charge_indices"]
-            node_embedding = self.node_embedding_block(node_species, charge_indices)
-        else:
-            node_embedding = self.node_embedding_block(node_species)
-        node_embedding = e3nn.IrrepsArray(f"{self.num_channels}x0e", node_embedding)
-        species_one_hot = jnp.eye(self.num_species)[node_species]
-
-        # Geometric edge features
-        edge_vectors = graph.edge_vectors()
-        radial_embedding = self.radial_embedding_block(safe_norm(edge_vectors, axis=-1))
-        spherical_embedding = self.spherical_embedding_block(edge_vectors)
-
-        # Assign graph features
-        graph = graph.update_node_features(
-            embedding=node_embedding,
-            species_one_hot=species_one_hot,
-        )
-        graph = graph.update_edge_features(
-            radial_embedding=radial_embedding,
-            spherical_embedding=spherical_embedding,
-        )
-        return graph
+        # x = [n_nodes, irreps]
+        num_vectors = hidden_irreps.filter(
+            drop=["0e", "0o"]
+        ).num_irreps  # Multiplicity of (l > 0) irreps
+        x = e3nn.flax.Linear(
+            (hidden_irreps + e3nn.Irreps(f"{num_vectors}x0e")).simplify()
+        )(x)
+        x = e3nn.gate(x, even_act=self.activation, even_gate_act=self.gate)
+        return e3nn.flax.Linear(output_irreps)(x)  # [n_nodes, output_irreps]
 
 
 class EquivariantProductBasisBlock(nn.Module):
-    source_irreps: e3nn.Irreps
     target_irreps: e3nn.Irreps
     correlation: int
     num_species: int
-    num_channels: int
+    symmetric_tensor_product_basis: bool = True
+    off_diagonal: bool = False
     gate_nodes: bool = False
-    layout: Layout | str = Layout.TRAILING_CHANNELS
-    symmetric_contraction_backend: Literal[
-        "e3j", "e3nn", "e3nn_symmetric", "gaunt_tp"
-    ] = "e3j"
 
     def node_gating(
         self, node_feats: e3nn.IrrepsArray, node_species: jnp.ndarray
@@ -157,69 +88,88 @@ class EquivariantProductBasisBlock(nn.Module):
         node_feats = node_feats * (jax.vmap(jnp.matmul)(node_scalars, w) + b)
         return node_feats
 
-    def setup(self):
+    @nn.compact
+    def __call__(
+        self,
+        node_feats: e3nn.IrrepsArray,  # [n_nodes, feature * irreps]
+        node_species: jnp.ndarray,  # [n_nodes, ] int
+    ) -> e3nn.IrrepsArray:
         target_irreps = e3nn.Irreps(self.target_irreps)
-        source_irreps = e3nn.Irreps([(1, ir) for _, ir in self.source_irreps])
-        filter_irreps = e3nn.Irreps([(1, ir) for _, ir in target_irreps])
-
-        if self.symmetric_contraction_backend in ["e3nn", "e3nn_symmetric"]:
-            # E3NN fallback with optional `symmetric_tensor_product_basis` argument:
-            # affects numerical outputs and runtime. Consider for removal.
-            symmetric_basis = self.symmetric_contraction_backend == "e3nn_symmetric"
-            SymContraction = functools.partial(
-                SymmetricContractionE3NN,
-                symmetric_tensor_product_basis=symmetric_basis,
-            )
-        elif self.symmetric_contraction_backend == "gaunt_tp":
-            SymContraction = GauntSymmetricContraction
-        else:
-            # Use e3j-based power expansion and linear projection.
-            SymContraction = functools.partial(
-                SymmetricContraction,
-                layout=Layout.parse(self.layout),
-            )
-
-        self.symmetric_contraction = SymContraction(
-            source_irreps=str(source_irreps),
-            keep_irrep_out=str(filter_irreps),
+        node_feats = node_feats.mul_to_axis().remove_zero_chunks()
+        node_feats = SymmetricContraction(
+            keep_irrep_out={ir for _, ir in target_irreps},
             correlation=self.correlation,
             num_species=self.num_species,
-            num_channels=self.num_channels,
-        )
-
-        self.linear_block = e3j.linen.Linear(
-            source_irreps=str(self.num_channels * filter_irreps),
-            target_irreps=str(target_irreps),
-            layout="E3NN",
-            kernel_init="FAN_IN",
-            rescale_gradients=True,
-        )
-
-    @nn.compact
-    def __call__(self, graph: Graph) -> Graph:
-        """Compute higher-order features by equivariant power expansion.
-
-        Args:
-            graph: Input graph with node features "latent" and "species".
-
-        Raises:
-            KeyError if "latent" or "species" are not found in node features.
-        """
-        node_feats = graph.nodes.features["latent"]
-        assert node_feats.irreps == e3nn.Irreps(self.source_irreps)
-        node_feats = node_feats.mul_to_axis().remove_zero_chunks()
-
-        node_species = graph.nodes.features["species"]
-
-        node_feats = self.symmetric_contraction(node_feats, node_species)
+            gradient_normalization="element",
+            symmetric_tensor_product_basis=self.symmetric_tensor_product_basis,
+            off_diagonal=self.off_diagonal,
+        )(node_feats, node_species)
         node_feats = node_feats.axis_to_mul()
 
         if self.gate_nodes:
             node_feats = self.node_gating(node_feats, node_species)
 
-        node_feats = e3nn.IrrepsArray(
-            self.target_irreps,
-            self.linear_block(node_feats.array),
-        )
+        return e3nn.flax.Linear(target_irreps)(node_feats)
 
-        return graph.update_node_features(latent=node_feats)
+
+class InteractionBlock(nn.Module):
+    target_irreps: e3nn.Irreps
+    avg_num_neighbors: float
+    l_max: int
+    activation: Callable
+    species_embedding_dim: int | None = None
+
+    @nn.compact
+    def __call__(
+        self,
+        edge_vectors: e3nn.IrrepsArray,  # [n_edges, 3]
+        node_feats: e3nn.IrrepsArray,  # [n_nodes, irreps]
+        radial_embeddings: jnp.ndarray,  # [n_edges, radial_embedding_dim]
+        senders: jnp.ndarray,  # [n_edges, ]
+        receivers: jnp.ndarray,  # [n_edges, ]
+        edge_species_feat: Optional[
+            jnp.ndarray
+        ] = None,  # [n_edges, species_embedding_dim * 3]
+    ) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
+        assert node_feats.ndim == 2
+        assert edge_vectors.ndim == 2
+        assert radial_embeddings.ndim == 2
+        if self.species_embedding_dim is not None:
+            assert edge_species_feat is not None
+
+        target_irreps = e3nn.Irreps(self.target_irreps)
+
+        node_feats = e3nn.flax.Linear(node_feats.irreps, name="linear_up")(node_feats)
+
+        node_feats = MessagePassingConvolution(
+            self.avg_num_neighbors,
+            target_irreps,
+            self.l_max,
+            self.activation,
+            species_embedding_dim=self.species_embedding_dim,
+        )(
+            edge_vectors,
+            node_feats,
+            radial_embeddings,
+            senders,
+            receivers,
+            edge_species_feat,
+        )
+        node_feats = e3nn.flax.Linear(target_irreps, name="linear_down")(node_feats)
+
+        assert node_feats.ndim == 2
+        return node_feats  # [n_nodes, target_irreps]
+
+
+class ScaleShiftBlock(nn.Module):
+    scale: float
+    shift: float
+
+    @nn.compact
+    def __call__(self, x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+        return self.scale * x + self.shift
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(scale={self.scale:.6f}, shift={self.shift:.6f})"
+        )

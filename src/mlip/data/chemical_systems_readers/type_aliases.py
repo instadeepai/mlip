@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
+
 from typing import TypeAlias
 
 from mlip.data.chemical_system import ChemicalSystem
@@ -20,5 +20,9 @@ from mlip.data.chemical_system import ChemicalSystem
 # readable.
 ChemicalSystems: TypeAlias = list[ChemicalSystem]
 
-Source: TypeAlias = str | os.PathLike
-Target: TypeAlias = str | os.PathLike
+# Type alias for the ChemicalSystemsReader.load function output
+# signature for convenience.
+# It contains the list of chemical systems for train, validation and test splits.
+ChemicalSystemsBySplit: TypeAlias = tuple[
+    ChemicalSystems, ChemicalSystems, ChemicalSystems
+]

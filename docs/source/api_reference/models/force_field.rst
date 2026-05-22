@@ -13,18 +13,6 @@ Force Field
 
     .. automethod:: init
 
-    .. automethod:: replace_config
-
-    .. automethod:: replace_required_properties
-
-    .. automethod:: replace_inference_context
-
-    .. automethod:: calculate
-
-    .. automethod:: predict
-
-    .. automethod:: prepare_experts_for_inference
-
     .. autoproperty:: cutoff_distance
 
     .. autoproperty:: allowed_atomic_numbers
@@ -32,9 +20,3 @@ Force Field
     .. autoproperty:: config
 
     .. autoproperty:: dataset_info
-
-    .. automethod:: get_energy_head
-
-    .. automethod:: get_predictor_class
-
-    .. automethod:: validate_properties

@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
 
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from mlip.simulation.configs.simulation_config import (
     SimulationConfig,
-    SimulationLogOutputs,
     TemperatureScheduleConfig,
 )
 from mlip.typing import PositiveFloat, PositiveInt
@@ -43,48 +43,31 @@ class JaxMDSimulationConfig(SimulationConfig):
                       runs in a fully jitted way, and the loggers are only
                       called after each episode. If not set, an appropriate value will
                       be attempted to be select but it is possible that it may have to
-                      be manually set. For fewer than 1000 steps, `num_episodes` will
+                      be manually set. For fewer than 1000 steps, ``num_episodes`` will
                       be set so that the number of steps per episode will be 10. For
-                      more than 1000 steps, `num_episodes` will be set so that the
+                      more than 1000 steps, ``num_episodes`` will be set so that the
                       number of steps per episode will be 1000. Therefore, if
-                      `num_episodes` is not set, it requires that `num_steps` be
+                      ``num_episodes`` is not set, it requires that ``num_steps`` be
                       divisible by 1000 if greater than 1000 otherwise divisible by 10.
         timestep_fs: The simulation timestep in femtoseconds. This is also used as the
                      initial timestep in the FIRE minimization algorithm. The default is
                      1.0. **Important Note:** We recommend to set this value to 0.1 when
                      running energy minimizations instead of MD simulations.
-        log_outputs: A dataclass specifying which of the simulation state fields to
-                     populate during the simulation. By default, all possible ones.
         temperature_kelvin: The temperature in Kelvin, set to 300 by default. Must be
-                            set to `None` for energy minimizations.
+                            set to ``None`` for energy minimizations.
         temperature_schedule_config: The temperature schedule config to use for the
                                  simulation. Default is the constant schedule in
-                                 which case `temperature_kelvin` will be applied.
-        pressure_bar: The target pressure in bar for NPT simulations. The default is
-                      1.01325 bar = 1 atm.
-        barostat_update_interval: The number of steps between volume updates using the
-                                  MonteCarloBarostat in `NPT_MC_LANGEVIN` simulations.
-                                  Default is 25.
-        molecule_indices: List defining which atoms belong to which molecules, required
-                          for `NPT_MC_LANGEVIN` simulations. For example, for a system
-                          of two consecutive water molecules, this would be
-                          `[0, 0, 0, 1, 1, 1]`. Default is None.
+                                 which case ``temperature_kelvin`` will be applied.
     """
 
     num_episodes: PositiveInt | None = None
-    timestep_fs: PositiveFloat | None = 1.0
-    log_outputs: SimulationLogOutputs = Field(default=SimulationLogOutputs())
+    timestep_fs: Optional[PositiveFloat] = 1.0
 
     # MD only
-    temperature_kelvin: PositiveFloat | None = 300.0
+    temperature_kelvin: Optional[PositiveFloat] = 300.0
     temperature_schedule_config: TemperatureScheduleConfig = Field(
         default=TemperatureScheduleConfig(temperature=temperature_kelvin)
     )
-
-    # NPT_MC_LANGEVIN only
-    pressure_bar: PositiveFloat | None = 1.01325
-    barostat_update_interval: PositiveInt | None = 25
-    molecule_indices: list[int] | list[list[int]] | None = None
 
     @model_validator(mode="after")
     def validate_num_episodes(self) -> Self:

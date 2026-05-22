@@ -11,20 +11,12 @@ This module contains all code related to models.
     :maxdepth: 1
 
     mlip_network
-    config
     mace
-    esen
     nequip
     visnet
     predictor
-    conservative_predictor
-    hessian_predictor
     force_field
-    inference_context
-    blocks
-    readout
     prediction
-    properties
     io
     loss
     options

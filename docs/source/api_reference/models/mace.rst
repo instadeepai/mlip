@@ -3,24 +3,12 @@
 MACE
 ====
 
-.. module:: mlip.models.mace.config
-
-    .. autoclass:: MaceConfig
-
-.. module:: mlip.models.mace.network
+.. module:: mlip.models.mace.models
 
     .. autoclass:: Mace
 
         .. automethod:: __call__
 
-.. module:: mlip.models.mace.layer
+.. module:: mlip.models.mace.config
 
-    .. autoclass:: MaceLayer
-
-        .. automethod:: __call__
-
-.. module:: mlip.models.mace.blocks
-
-    .. autoclass:: MaceEmbeddingBlock
-
-        .. automethod:: __call__
+    .. autoclass:: MaceConfig

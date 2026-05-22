@@ -13,23 +13,24 @@
 # limitations under the License.
 
 import jax
+import jraph
 import numpy as np
 
-from mlip.graph import Graph, GraphEdges, GraphGlobals, GraphNodes
+from mlip.data.helpers.dynamically_batch import dynamically_batch
+from mlip.typing import GraphEdges, GraphGlobals, GraphNodes
 
 
-def get_dummy_graph_for_model_init() -> Graph:
+def get_dummy_graph_for_model_init() -> jraph.GraphsTuple:
     """Generates a simple dummy graph that can be used for model initialization.
 
     Returns:
         The dummy graph.
     """
-    graph = Graph(
+    graph = jraph.GraphsTuple(
         nodes=GraphNodes(
             positions=np.zeros((1, 3)),
             forces=np.zeros((1, 3)),
-            atomic_numbers=np.array([1]),
-            partial_charges=np.array([0.0]),
+            species=np.array([0]),
         ),
         edges=GraphEdges(shifts=np.zeros((1, 3)), displ_fun=None),
         globals=jax.tree.map(
@@ -39,20 +40,20 @@ def get_dummy_graph_for_model_init() -> Graph:
                 energy=np.array(0.0),
                 stress=np.zeros((3, 3)),
                 weight=np.asarray(1.0),
-                charge=np.asarray(0, dtype=np.int32),
-                spin_multiplicity=np.asarray(1, dtype=np.int32),
-                dataset_idx=np.asarray(0, dtype=np.int32),
-                is_dummy_for_init=np.asarray(True, dtype=bool),
-                dipole_moment=np.zeros((3)),
             ),
         ),
         receivers=np.array([0]),
         senders=np.array([0]),
         n_edge=np.array([1]),
         n_node=np.array([1]),
-        n_edge_long_range=np.array([1]),
-        senders_long_range=np.array([0]),
-        receivers_long_range=np.array([0]),
-        edges_long_range=GraphEdges(shifts=np.zeros((1, 3)), displ_fun=None),
     )
-    return graph
+
+    # Batch with minimal dummy
+    return next(
+        dynamically_batch(
+            [graph],
+            n_node=graph.nodes.positions.shape[0] + 1,
+            n_edge=graph.senders.shape[0] + 1,
+            n_graph=2,
+        )
+    )

@@ -14,8 +14,11 @@
 
 # flake8: noqa: A005
 from mlip.typing.fields import Irreps, NonNegativeInt, PositiveFloat, PositiveInt
+from mlip.typing.graph_definition import GraphEdges, GraphGlobals, GraphNodes
 from mlip.typing.prediction import Prediction
 from mlip.typing.signatures import (
+    GraphDatasetLike,
+    GraphsTuple,
     LossFunction,
     ModelParameters,
     ModelPredictorFun,

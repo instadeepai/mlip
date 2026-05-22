@@ -8,5 +8,3 @@ Simulation Config
 .. autoclass:: SimulationConfig
 
 .. autoclass:: TemperatureScheduleConfig
-
-.. autoclass:: SimulationLogOutputs

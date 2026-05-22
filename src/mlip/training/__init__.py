@@ -12,12 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mlip.training.checkpointer import (
-    CheckpointerConfig,
-    CheckpointMetadata,
-    OrbaxCheckpointer,
-    RestoreResult,
-)
 from mlip.training.optimizer import (
     get_default_mlip_optimizer,
     get_mlip_optimizer_chain_with_flexible_base_optimizer,

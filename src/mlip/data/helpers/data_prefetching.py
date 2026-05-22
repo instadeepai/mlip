@@ -11,18 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import functools
+
 import logging
 import queue
 import threading
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Optional
 
 import jax
 import numpy as np
 from jax.sharding import Mesh, NamedSharding, PartitionSpec
+from jraph import GraphsTuple
 
-from mlip.data.graph_dataset import GraphDataset, GraphDatasetState
-from mlip.graph import Graph
+from mlip.data.helpers.graph_dataset import GraphDataset
 
 logger = logging.getLogger("mlip")
 
@@ -55,7 +55,7 @@ class PrefetchIterator:
         self,
         iterable: Iterable,
         prefetch_count: int = 1,
-        preprocess_fn: Callable | None = None,
+        preprocess_fn: Optional[Callable] = None,
     ):
         """Constructor.
 
@@ -71,36 +71,10 @@ class PrefetchIterator:
         self.prefetch_count = prefetch_count
         self.queue = queue.Queue(maxsize=prefetch_count)
         self.preprocess_fn = preprocess_fn
-        self.last_batch_state = None
-        self.thread = None
 
-    # These next two methods allows the class to be pickled if the preprocess function
-    # compatible with pickling
-    def __getstate__(self):
-        return {
-            "iterable": self.iterable,
-            "length": self.length,
-            "prefetch_count": self.prefetch_count,
-            "preprocess_fn": self.preprocess_fn,
-        }
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self.queue = queue.Queue(maxsize=self.prefetch_count)
-        self.thread = None
-
-    @property
-    def state(self) -> GraphDatasetState:
-        return self.last_batch_state
-
-    @state.setter
-    def state(self, state: GraphDatasetState) -> None:
-        assert self.queue.empty(), (
-            "Cannot set state while prefetch queue is non-empty. "
-            "Pre-fetched batches were produced from the old state and would "
-            "be yielded before the new state takes effect."
-        )
-        self.iterable.state = state
+        # Start the prefetch
+        self.thread = threading.Thread(target=self._prefetch, daemon=True)
+        self.thread.start()
 
     def _prefetch(self):
         """Prefetch items from the original iterable into the queue.
@@ -112,33 +86,25 @@ class PrefetchIterator:
         """
         for raw_item in self.iterable:
             item = self.preprocess_fn(raw_item) if self.preprocess_fn else raw_item
-            state = self.iterable.state
-            self.queue.put((item, state))  # This will block when the queue is full
+            self.queue.put(item)  # This will block when the queue is full
 
-        # Indicate the end of the iterator, carrying the final (reset) state
-        self.queue.put((None, self.iterable.state))
-
-    def _start_prefetch(self):
-        """Start a new prefetch thread."""
-        self.thread = threading.Thread(target=self._prefetch, daemon=True)
-        self.thread.start()
+        # Indicate the end of the iterator
+        self.queue.put(None)
 
     def __iter__(self):
         """Implementation of the iterator. It starts a new thread once completed."""
-        if self.thread is None or not self.thread.is_alive():
-            self._start_prefetch()
-
-        item, state = self.queue.get()
+        item = self.queue.get()
         while item is not None:
-            self.last_batch_state = state
             yield item
-            item, state = self.queue.get()
-        self.last_batch_state = state
+            item = self.queue.get()
 
-        # Thread is done; next __iter__ call will start a new prefetch cycle
+        # Wait for the prefetch thread to finish before restarting.
+        # A brief join handles the race between queue.put(None) and thread exit.
         self.thread.join(timeout=1)
-        assert not self.thread.is_alive()
-        self.thread = None
+        if self.thread.is_alive():
+            raise RuntimeError("Prefetch thread did not terminate")
+        self.thread = threading.Thread(target=self._prefetch, daemon=True)
+        self.thread.start()
 
     def __len__(self):
         """Returns the length of the underlying iterable."""
@@ -151,20 +117,6 @@ class PrefetchIterator:
             prefetch_count=self.prefetch_count,
             preprocess_fn=self.preprocess_fn,
         )
-
-    def number_of_graphs(self) -> int:
-        """Forwards this function call to the underlying iterable if it can, otherwise
-        will return zero."""
-        if hasattr(self.iterable, "number_of_graphs"):
-            return self.iterable.number_of_graphs()
-        return 0
-
-    def number_of_nodes(self) -> int:
-        """Forwards this function call to the underlying iterable if it can, otherwise
-        will return zero."""
-        if hasattr(self.iterable, "number_of_nodes"):
-            return self.iterable.number_of_nodes()
-        return 0
 
 
 def create_prefetch_iterator(iterable, prefetch_count=1, preprocess_fn=None):
@@ -192,15 +144,7 @@ class ParallelGraphDataset:
         self.graph_dataset = graph_dataset
         self.n = num_parallel
 
-    @property
-    def state(self) -> GraphDatasetState:
-        return self.graph_dataset.state
-
-    @state.setter
-    def state(self, state: GraphDatasetState) -> None:
-        self.graph_dataset.state = state
-
-    def __iter__(self):
+    def __iter__(self) -> GraphsTuple:
         """The iterator for this parallel graph dataset."""
         batch = []
         for idx, graph in enumerate(self.graph_dataset):
@@ -234,58 +178,29 @@ class ParallelGraphDataset:
     def subset(self, i: slice | int | list | float) -> "ParallelGraphDataset":
         return ParallelGraphDataset(self.graph_dataset.subset(i), self.n)
 
-    def number_of_graphs(self) -> int:
-        """Returns the number of graphs in the dataset.
 
-        Returns:
-            The number of graphs in this dataset.
-        """
-        total = 0
+class UnsqueezeGraphDatasetWrapper:
+    """Wraps a GraphDataset to yield batches with a leading (1, ...) dimension.
 
-        # In multi-host mode, global arrays only expose local shards.
-        # Use a JIT-compiled function to count across ALL devices so
-        # every host gets identical totals.
-        @jax.jit
-        def _count_all(stacked_batch):
-            def _count_single(batch):
-                return batch.graph_mask().sum()
+    This makes single-device GraphDataset batches compatible with the vmap+jit
+    training step which expects stacked batches of shape (n_devices, ...).
+    """
 
-            _n_graphs = jax.vmap(_count_single)(stacked_batch)
-            return _n_graphs.sum()
+    def __init__(self, dataset: GraphDataset):
+        self._dataset = dataset
 
-        for stacked_batch in self:
-            n_graphs = _count_all(stacked_batch)
-            total += int(jax.device_get(n_graphs))
+    def __iter__(self):
+        for batch in self._dataset:
+            yield jax.tree.map(lambda x: x[None, ...], batch)
 
-        return total
+    def __len__(self):
+        return len(self._dataset)
 
-    def number_of_nodes(self) -> int:
-        """Returns the number of nodes in the dataset.
-
-        Returns:
-            The number of nodes in this dataset.
-        """
-        total = 0
-
-        # In multi-host mode, global arrays only expose local shards.
-        # Use a JIT-compiled function to count across ALL devices so
-        # every host gets identical totals.
-        @jax.jit
-        def _count_all(stacked_batch):
-            def _count_single(batch):
-                return batch.node_mask().sum()
-
-            _n_nodes = jax.vmap(_count_single)(stacked_batch)
-            return _n_nodes.sum()
-
-        for stacked_batch in self:
-            n_nodes = _count_all(stacked_batch)
-            total += int(jax.device_get(n_nodes))
-
-        return total
+    def subset(self, i: slice | int | list | float) -> "UnsqueezeGraphDatasetWrapper":
+        return UnsqueezeGraphDatasetWrapper(self._dataset.subset(i))
 
 
-def create_global_arrays(stacked_batch: Graph, mesh: Mesh) -> Graph:
+def create_global_arrays(stacked_batch: GraphsTuple, mesh: Mesh) -> GraphsTuple:
     """Convert a stacked numpy batch to a global jax.Array for multi-host training.
 
     Each host provides its local sub-batches (one per local device). This function
@@ -311,43 +226,3 @@ def create_global_arrays(stacked_batch: Graph, mesh: Mesh) -> Graph:
         )
 
     return jax.tree.map(_make_global, stacked_batch)
-
-
-def wrap_dataset_with_prefetch(
-    dataset: GraphDataset,
-    mesh: Mesh,
-    num_batch_prefetch_host: int,
-    num_batch_prefetch_device: int,
-) -> PrefetchIterator:
-    """Wrap a graph dataset with parallel batching, prefetching, and device placement.
-
-    Combines three layers: (1) a `ParallelGraphDataset` that stacks batches across
-    devices, (2) a host-side prefetch iterator that prepares upcoming batches in a
-    background thread, and (3) a device-side prefetch iterator that converts stacked
-    batches into global JAX arrays sharded across the mesh.
-
-    Args:
-        dataset: The graph dataset to wrap.
-        mesh: The JAX device mesh used for sharding global arrays.
-        num_batch_prefetch_host: Number of stacked batches to prefetch on the host.
-        num_batch_prefetch_device: Number of global-array batches to prefetch
-            on devices.
-
-    Returns:
-        A `PrefetchIterator` that yields sharded global JAX arrays ready for
-        multi-device training.
-    """
-    num_devices = len(mesh.devices)
-
-    device_fn = functools.partial(create_global_arrays, mesh=mesh)
-
-    parallel_dataset = ParallelGraphDataset(dataset, num_devices)
-    prefetched_iterator = create_prefetch_iterator(
-        create_prefetch_iterator(
-            parallel_dataset,
-            prefetch_count=num_batch_prefetch_host,
-        ),
-        prefetch_count=num_batch_prefetch_device,
-        preprocess_fn=device_fn,
-    )
-    return prefetched_iterator

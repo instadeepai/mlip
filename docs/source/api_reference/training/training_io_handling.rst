@@ -17,7 +17,7 @@ IO handling during training
 
         .. automethod:: save_dataset_info
 
-        .. automethod:: restore_checkpoint
+        .. automethod:: restore_training_state
 
     .. autoclass:: TrainingIOHandlerConfig
 

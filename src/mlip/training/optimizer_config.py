@@ -26,13 +26,13 @@ class OptimizerConfig(pydantic.BaseModel):
 
     Attributes:
         apply_weight_decay_mask: Whether to apply a weight decay mask. If set to
-                                 `False`, a weight decay is applied to all parameters.
-                                 If set to `True` (default), only the parameters of
+                                 ``False``, a weight decay is applied to all parameters.
+                                 If set to ``True`` (default), only the parameters of
                                  model blocks "linear_down" and "SymmetricContraction"
                                  are assigned a weight decay. These blocks only exist
                                  for MACE models, and it is recommended for MACE to
-                                 set this setting to `True`. If it is set to
-                                 `True` but neither of these blocks exist in the
+                                 set this setting to ``True``. If it is set to
+                                 ``True`` but neither of these blocks exist in the
                                  model (like for ViSNet or NequIP),
                                  we apply weight decay to all parameters.
         weight_decay: The weight decay with a default of zero.
@@ -43,9 +43,9 @@ class OptimizerConfig(pydantic.BaseModel):
         peak_learning_rate: Peak learning rate (default is 0.01).
         final_learning_rate: Final learning rate (default is 0.01).
         warmup_steps: Number of optimizer warm-up steps (default is 4000).
-                      Check optax's `linear_schedule()` function for more info.
+                      Check optax's ``linear_schedule()`` function for more info.
         transition_steps: Number of optimizer transition steps (default is 360000).
-                          Check optax's `linear_schedule()` function for more info.
+                          Check optax's ``linear_schedule()`` function for more info.
     """
 
     apply_weight_decay_mask: bool = True

@@ -16,11 +16,6 @@ import dataclasses
 import random
 from typing import Any, Callable
 
-from mlip.data.helpers.exceptions import (
-    GroupIDNotInSplitError,
-    SplitProportionsInvalidError,
-)
-
 
 @dataclasses.dataclass
 class DataSplitProportions:
@@ -29,6 +24,14 @@ class DataSplitProportions:
     train: float
     validation: float
     test: float
+
+
+class SplitProportionsInvalidError(Exception):
+    """Exception to be raised if data split proportions don't sum up to one."""
+
+
+class GroupIDNotInSplitError(Exception):
+    """Exception to be raised if group ID not found in the given splits."""
 
 
 def _validate_proportions(proportions: DataSplitProportions) -> None:
@@ -151,8 +154,8 @@ def split_data_by_group(
     group_ids_by_split: tuple[set[str], set[str], set[str]],
     get_group_id_fun: Callable[[Any], str],
 ) -> tuple[list[Any], list[Any], list[Any]]:
-    """Splits the data into groups (train, val, test) with the `get_group_id_fun`
-    based on the `group_ids_by_split`.
+    """Splits the data into groups (train, val, test) with the ``get_group_id_fun``
+    based on the ``group_ids_by_split``.
 
     If there's a data point with a group_id that doesn't belong to
     the split (train, val, test), an exception will be raised.

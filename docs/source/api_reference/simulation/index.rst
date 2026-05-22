@@ -14,7 +14,7 @@ This module contains all code related to simulations (e.g., MD or energy minimiz
     sim_config
     simulation_state
     enums
-    graph_creation_jaxmd
+    graph_from_atoms
     jaxmd_engine
     jaxmd_sim_config
     ase_engine
@@ -22,5 +22,3 @@ This module contains all code related to simulations (e.g., MD or energy minimiz
     ase_sim_config
     temperature_scheduling
     batched_inference
-    neb_engine
-    neb_config

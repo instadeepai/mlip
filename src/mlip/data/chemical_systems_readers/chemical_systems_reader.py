@@ -14,16 +14,19 @@
 
 import abc
 import os
-import tempfile
-from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional, TypeAlias
 
-from mlip.data.chemical_systems_readers.defaults import DEFAULT_PROPERTY_KEY_MAPPING
 from mlip.data.chemical_systems_readers.type_aliases import (
     ChemicalSystems,
-    Source,
-    Target,
+    ChemicalSystemsBySplit,
 )
+from mlip.data.chemical_systems_readers.utils import (
+    filter_systems_with_unseen_atoms_and_assign_atomic_species,
+)
+from mlip.data.configs import ChemicalSystemsReaderConfig
+
+Source: TypeAlias = str | os.PathLike
+Target: TypeAlias = str | os.PathLike
 
 
 class ChemicalSystemsReader(abc.ABC):
@@ -32,66 +35,55 @@ class ChemicalSystemsReader(abc.ABC):
     one list for training data, one for validation, and one for test data.
     """
 
+    Config = ChemicalSystemsReaderConfig
+
     def __init__(
         self,
-        filepaths: str | os.PathLike | list[str | os.PathLike],
-        data_download_fun: Callable[[Source, Target], None] | None = None,
-        num_to_load: int | None = None,
-        property_name_mapping: dict[str, str] | None = None,
+        config: ChemicalSystemsReaderConfig,
+        data_download_fun: Optional[Callable[[Source, Target], None]] = None,
     ):
         """Constructor.
 
         Args:
-            filepaths: Path or paths to file from which ChemicalSystem objects
-                will be read.
-            data_download_fun: Optional function to download the data
-                from `filepath` (source) to a local target path.
-            num_to_load: Optional limit on the number of systems to
-                load per file. If `None`, all systems are loaded.
-            property_name_mapping: Optional mapping from canonical names
-                (`"forces"`, `"energy"`, `"stress"`) to the
-                keys used in the data files. By default, it will be mapped
-                to the same names. Any entries provided
-                will override the corresponding defaults.
+            config: The configuration defining how and where to load the data from.
+            data_download_fun: A function to download data from an external remote
+                               system. If ``None`` (default), then this class assumes
+                               file paths are local. This function must take two paths
+                               as input, source and target, and download the data at
+                               source into the target location.
         """
-        self.filepaths = filepaths
+        self.config = config
         self.data_download_fun = data_download_fun
-        self.num_to_load = num_to_load
-        if property_name_mapping is None:
-            self.property_name_mapping = DEFAULT_PROPERTY_KEY_MAPPING
-        else:
-            self.property_name_mapping = (
-                DEFAULT_PROPERTY_KEY_MAPPING | property_name_mapping
-            )
 
     @abc.abstractmethod
-    def load(self) -> ChemicalSystems:
-        """Loads chemical systems from all filepaths.
-
-        Returns:
-            A list of :class:`~mlip.data.chemical_system.ChemicalSystem`
-            objects.
-        """
-        pass
-
-    def _load_single_file(self, filepath: str | os.PathLike) -> ChemicalSystems:
-        """Load a single file, downloading first if needed."""
-        if self.data_download_fun is None:
-            return self._read_file(filepath)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp_filepath = Path(tmpdir) / Path(filepath).name
-            self.data_download_fun(filepath, tmp_filepath)
-            return self._read_file(tmp_filepath)
-
-    @abc.abstractmethod
-    def _read_file(self, filepath: str | os.PathLike) -> ChemicalSystems:
-        """Read chemical systems from a single local file.
+    def load(
+        self,
+        postprocess_fun: Optional[
+            Callable[
+                [ChemicalSystems, ChemicalSystems, ChemicalSystems],
+                ChemicalSystemsBySplit,
+            ]
+        ] = filter_systems_with_unseen_atoms_and_assign_atomic_species,
+    ) -> ChemicalSystemsBySplit:
+        """Loads the dataset into its internal format.
 
         Args:
-            filepath: Path to a local file.
+            postprocess_fun: Function to call to postprocess the loaded dataset
+                            before returning it. Accepts train, validation and test
+                            systems (``list[ChemicalSystems]``), runs some
+                            postprocessing (filtering for example) and
+                            returns the postprocessed train, validation and test
+                            systems.
+                            If ``postprocess_fun`` is ``None`` then no postprocessing
+                            will be done. By default, it will run
+                            :meth:`~mlip.data.chemical_systems_readers.utils.assign_atomic_species_and_filter_systems_with_unseen_atoms`
+                            which assigns atomic species on ``ChemicalSystem`` objects
+                            and filters out systems from the validation
+                            and test sets that contain chemical elements that
+                            are not present in the train systems.
 
         Returns:
-            A list of :class:`~mlip.data.chemical_system.ChemicalSystem`
-            objects.
+            A tuple of loaded training, validation and test datasets (in this order).
+            The internal format is a list of ``ChemicalSystem`` objects.
         """
         pass

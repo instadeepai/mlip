@@ -16,12 +16,12 @@ import operator
 import pickle
 from pathlib import Path
 
-import jax
+import jax.tree_util
 import pytest
 
-from mlip.models.params_transfer import count_readout_heads, transfer_params
+from mlip.models.params_transfer import transfer_params
 
-DATA_DIR = Path(__file__).parent.parent / "sample_data"
+DATA_DIR = Path(__file__).parent.parent / "data"
 MACE_PARAMS_PICKLE_FILE = DATA_DIR / "mace_test_params.pkl"
 MACE_PARAMS_3_HEADS_PICKLE_FILE = DATA_DIR / "mace_test_params_3_heads.pkl"
 
@@ -46,7 +46,7 @@ def test_transfer_of_parameters_works_correctly(scale_factor):
             ]["embeddings"][i][j]
         )
 
-    transferred = transfer_params(
+    transferred, missing_keys = transfer_params(
         mace_params_1_head, mace_params_3_heads, scale_factor=scale_factor
     )
 
@@ -61,34 +61,23 @@ def test_transfer_of_parameters_works_correctly(scale_factor):
             ]["embeddings"][i][j]
         )
 
-    assert count_readout_heads(mace_params_1_head) == 1
-    assert count_readout_heads(mace_params_3_heads) == 3
-    assert count_readout_heads(transferred) == 3
+    assert missing_keys == [
+        "LinearReadoutBlock_1",
+        "LinearReadoutBlock_2",
+        "NonLinearReadoutBlock_1",
+        "NonLinearReadoutBlock_2",
+    ]
 
     mace_params_block = transferred["params"]["mlip_network"]["MaceBlock_0"]
-    source_mace_block = mace_params_1_head["params"]["mlip_network"]["MaceBlock_0"]
-    new_head_blocks = [
-        ("layer_0", "LinearReadoutBlock_1"),
-        ("layer_0", "LinearReadoutBlock_2"),
-        ("layer_1", "NonLinearReadoutBlock_1"),
-        ("layer_1", "NonLinearReadoutBlock_2"),
-    ]
-    for layer, name in new_head_blocks:
-        prefix = name.rsplit("_", 1)[0]  # strip "_1" / "_2"
-        dst = mace_params_block[layer][name]
+    for block in [
+        mace_params_block["layer_0"]["LinearReadoutBlock_1"],
+        mace_params_block["layer_0"]["LinearReadoutBlock_2"],
+        mace_params_block["layer_1"]["NonLinearReadoutBlock_1"],
+        mace_params_block["layer_1"]["NonLinearReadoutBlock_2"],
+    ]:
         if scale_factor == 0.0:
-            # Zero-init escape hatch: every parameter in the new head is 0.
-            assert jax.tree.reduce(operator.add, dst).min() == 0.0
-            assert jax.tree.reduce(operator.add, dst).max() == 0.0
+            assert jax.tree.reduce(operator.add, block).min() == 0.0
+            assert jax.tree.reduce(operator.add, block).max() == 0.0
         else:
-            # Warm start: the new head's params were deep-copied from head 0
-            # of the pretrained model — so they must match `<prefix>_0`
-            # leaf-for-leaf (and not be identically zero, which would mean
-            # the warm start silently fell back to the scale-factor branch).
-            source_head_0 = source_mace_block[layer][f"{prefix}_0"]
-            match_tree = jax.tree.map(
-                lambda s, d: bool((s == d).all()), source_head_0, dst
-            )
-            assert all(jax.tree.leaves(match_tree))
-            assert jax.tree.reduce(operator.add, dst).min() != 0.0
-            assert jax.tree.reduce(operator.add, dst).max() != 0.0
+            assert jax.tree.reduce(operator.add, block).min() < 0.0
+            assert jax.tree.reduce(operator.add, block).max() > 0.0

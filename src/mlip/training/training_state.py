@@ -15,6 +15,7 @@
 import logging
 import time
 from dataclasses import field
+from typing import Optional
 
 import jax
 import optax
@@ -45,7 +46,7 @@ class TrainingState:
     ema_state: EMAState
     num_steps: jax.Array
     acc_steps: jax.Array
-    extras: dict | None = field(default_factory=dict)
+    extras: Optional[dict] = field(default_factory=dict)
 
 
 def _count_parameters(params: ModelParameters) -> int:
@@ -67,7 +68,7 @@ def init_training_state(
     Returns:
         The initialized training state.
     """
-    cpu_device = jax.local_devices(backend="cpu")[0]
+    cpu_device = jax.devices("cpu")[0]
     start_time = time.perf_counter()
 
     with jax.default_device(cpu_device):

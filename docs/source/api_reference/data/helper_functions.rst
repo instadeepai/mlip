@@ -3,9 +3,19 @@
 Helper functions
 ================
 
-.. module:: mlip.graph.neighborhood
+.. module:: mlip.data.helpers.graph_creation
+
+    .. autofunction:: create_graph_from_chemical_system
+
+.. module:: mlip.data.helpers.neighborhood
 
     .. autofunction:: get_neighborhood
+
+.. module:: mlip.data.helpers.edge_vectors
+
+    .. autofunction:: get_edge_relative_vectors
+
+    .. autofunction:: get_edge_vectors
 
 .. module:: mlip.data.helpers.dynamically_batch
 
@@ -24,11 +34,3 @@ Helper functions
     .. autofunction:: compute_avg_num_neighbors
 
     .. autofunction:: compute_avg_min_neighbor_distance
-
-.. module:: mlip.data.helpers.hessian_utils
-
-    .. autofunction:: get_hessian_processing_functions
-
-    .. autofunction:: pad_systems_hessians
-
-    .. autofunction:: process_graph_hessian

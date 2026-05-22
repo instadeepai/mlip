@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 
@@ -38,38 +39,16 @@ class SimulationState:
                     positions, in units of :math:`\\sqrt{eV/u}`.
         temperature: The temperatures along the trajectory in Kelvin.
         kinetic_energy: The total kinetic energy along the trajectory in eV.
-        cell: The cell vectors along the trajectory, with shape M x 3 x 3. The unit
-              is Angstrom.
         step: The current number of steps performed.
         compute_time_seconds: The compute time in seconds used so far for the run
                               (not including logging times).
     """
 
-    atomic_numbers: np.ndarray | list[np.ndarray] | None = None
-    positions: np.ndarray | list[np.ndarray] | None = None
-    forces: np.ndarray | list[np.ndarray] | None = None
-    velocities: np.ndarray | list[np.ndarray] | None = None
-    temperature: np.ndarray | list[np.ndarray] | None = None
-    kinetic_energy: np.ndarray | list[np.ndarray] | None = None
-    cell: np.ndarray | list[np.ndarray] | None = None
+    atomic_numbers: Optional[np.ndarray | list[np.ndarray]] = None
+    positions: Optional[np.ndarray | list[np.ndarray]] = None
+    forces: Optional[np.ndarray | list[np.ndarray]] = None
+    velocities: Optional[np.ndarray | list[np.ndarray]] = None
+    temperature: Optional[np.ndarray | list[np.ndarray]] = None
+    kinetic_energy: Optional[np.ndarray | list[np.ndarray]] = None
     step: int = 0
     compute_time_seconds: float = 0.0
-
-
-@dataclass
-class NEBSimulationState(SimulationState):
-    """Simulation state for Nudged Elastic Band (NEB) transition state searches.
-
-    Inherits all the fields from :class:`~mlip.simulation.state.SimulationState` and
-    adds one new one.
-
-    Attributes:
-        forces_real: Per-image physical forces from the force-field
-                     calculator, evaluated at each image's current geometry
-                     before any NEB modification, meaning without the band-tangent
-                     projection or spring forces between images that are applied to
-                     the inherited `forces` field. Endpoints are included.
-                     Shape: (num_images, num_atoms, 3) per snapshot, unit eV/Å.
-    """
-
-    forces_real: np.ndarray | list[np.ndarray] | None = None

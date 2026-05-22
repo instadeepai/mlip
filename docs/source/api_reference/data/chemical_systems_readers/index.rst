@@ -19,4 +19,5 @@ and the third one for the test set.
     chemical_systems_reader
     extxyz_reader
     hdf5_reader
-    ase_atoms_reader
+    combined_reader
+    reader_utils

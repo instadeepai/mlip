@@ -26,9 +26,7 @@ how the data is organized:
         # Stress could be optional if not needed during training
         if "stress" in structure:
             stress = structure["stress"][:]
-        # Hessian is only required to train a `HessianPredictor`
-        if "hessian" in structure:
-            hessian = structure["hessian"][:]
+
         # Energy is a scalar
         energy = structure.attrs["energy"]
 

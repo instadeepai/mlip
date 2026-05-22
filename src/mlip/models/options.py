@@ -16,12 +16,10 @@ from enum import Enum
 from typing import Callable
 
 import jax
-import jax.nn.initializers as initializers
 from jax import Array
-from numpy import sqrt
 
 from mlip.models.radial_embedding import (
-    cosine_cutoff,
+    bessel_basis,
     polynomial_envelope_updated,
     soft_envelope,
 )
@@ -49,31 +47,34 @@ class Activation(Enum):
     NONE = "none"
 
 
-class RadialEnvelope(Enum):
-    """Radial envelope options.
+class RadialBasis(Enum):
+    """Radial basis option(s). For the moment, only `BESSEL = "bessel"` exists."""
 
-    Attributes:
-        POLYNOMIAL: Polynomial envelope.
-        SOFT: Soft envelope.
+    BESSEL = "bessel"
+
+
+class RadialEnvelope(Enum):
+    """Radial envelope options. For the moment,
+    `POLYNOMIAL = "polynomial_envelope"` and `SOFT = "soft_envelope"` exist.
     """
 
     POLYNOMIAL = "polynomial_envelope"
     SOFT = "soft_envelope"
-    COSINE_CUTOFF = "cosine_cutoff"
 
 
-class RadialBasis(Enum):
-    """Options for the radial basis.
+class VecNormType(Enum):
+    """Options for the VecLayerNorm of the ViSNet model."""
 
-    Attributes:
-        GAUSS: Gaussian smearing.
-        EXPNORM: Exponential normal smearing.
-        BESSEL: Bessel functions.
-    """
+    RMS = "rms"
+    MAX_MIN = "max_min"
+    NONE = "none"
+
+
+class VisnetRBF(Enum):
+    """Options for the radial basis functions used by ViSNet."""
 
     GAUSS = "gauss"
     EXPNORM = "expnorm"
-    BESSEL = "bessel"
 
 
 # --- Option parsers ---
@@ -97,6 +98,18 @@ def parse_activation(act: Activation | str) -> Callable[[Array], Array]:
     return activations_map[Activation(act)]
 
 
+def parse_radial_basis(basis: RadialBasis | str) -> Callable:
+    """Parse `RadialBasis` parameter among available options.
+
+    See :class:`~mlip.models.options.RadialBasis`.
+    """
+    radial_basis_map = {
+        RadialBasis.BESSEL: bessel_basis,
+    }
+    assert set(RadialBasis) == set(radial_basis_map.keys())
+    return radial_basis_map[RadialBasis(basis)]
+
+
 def parse_radial_envelope(envelope: RadialEnvelope | str) -> Callable:
     """Parse `RadialEnvelope` parameter among available options.
 
@@ -105,46 +118,6 @@ def parse_radial_envelope(envelope: RadialEnvelope | str) -> Callable:
     radial_envelope_map = {
         RadialEnvelope.POLYNOMIAL: polynomial_envelope_updated,
         RadialEnvelope.SOFT: soft_envelope,
-        RadialEnvelope.COSINE_CUTOFF: cosine_cutoff,
     }
     assert set(RadialEnvelope) == set(radial_envelope_map.keys())
     return radial_envelope_map[RadialEnvelope(envelope)]
-
-
-class GradientScaledKernelInit(Enum):
-    """Kernel initializer options for gradient-scaled initialization.
-
-    Gradient-scaled initialization refers to the case that a unit variance
-    initializer is used, but runtime scaling is applied to the weights,
-    which also scales the gradients.
-    """
-
-    FAN_IN_NORMAL = "fan_in_normal"
-
-
-def get_layer_initializer_and_scale(
-    dim_in: int,
-    kernel_init: initializers.Initializer | GradientScaledKernelInit | str,
-) -> tuple[initializers.Initializer, float]:
-    """Return a kernel initialiser and its paired runtime scaling factor.
-
-    If `kernel_init` is a `GradientScaledKernelInit`, returns a unit variance
-    initializer with a runtime scaling to adjust the effective variance
-    in a way that also applies to the gradients.
-    If `kernel_init` is a callable, returns it with a runtime scaling of 1.0.
-
-    Args:
-        dim_in: Input width of the Dense layer.
-        kernel_init: Initialiser type. Either a `GradientScaledKernelInit`
-            or a callable initializer.
-
-    Returns:
-        A tuple of `(initializer, runtime_scale)`.
-    """
-    if callable(kernel_init):
-        return kernel_init, 1.0
-
-    if GradientScaledKernelInit(kernel_init) == GradientScaledKernelInit.FAN_IN_NORMAL:
-        return initializers.normal(1.0), sqrt(1 / dim_in)
-
-    raise ValueError(f"Unsupported kernel initializer: {kernel_init}")

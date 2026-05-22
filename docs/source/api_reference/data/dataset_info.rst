@@ -9,6 +9,4 @@ Dataset Info
 
     .. automethod:: __init__
 
-    .. autoproperty:: allowed_atomic_numbers
-
 .. autofunction:: compute_dataset_info_from_graphs

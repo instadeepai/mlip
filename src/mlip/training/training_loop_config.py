@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
 
 import pydantic
 from typing_extensions import Annotated
@@ -31,12 +32,12 @@ class TrainingLoopConfig(pydantic.BaseModel):
         random_seed: A random seed, by default set to 42.
         ema_decay: The EMA decay rate, by default set to 0.99.
         use_ema_params_for_eval: Whether to use the EMA parameters for evaluation,
-                                 set to `True` by default.
+                                 set to ``True`` by default.
         eval_num_graphs: Number of validation set graphs to evaluate on. By default,
-                         this is set to `None` which means to evaluate on
+                         this is set to ``None`` which means to evaluate on
                          all the available graphs.
         run_eval_at_start: Whether to run an evaluation on the validation set before
-                           we start the first epoch. By default, it is set to `True`.
+                           we start the first epoch. By default, it is set to ``True``.
     """
 
     num_epochs: PositiveInt
@@ -44,5 +45,5 @@ class TrainingLoopConfig(pydantic.BaseModel):
     random_seed: int = 42
     ema_decay: EMADecay = 0.99
     use_ema_params_for_eval: bool = True
-    eval_num_graphs: PositiveInt | None = None
+    eval_num_graphs: Optional[PositiveInt] = None
     run_eval_at_start: bool = True

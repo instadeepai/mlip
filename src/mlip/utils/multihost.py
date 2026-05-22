@@ -154,7 +154,7 @@ def assert_pytrees_match(a: Any, b: Any) -> None:
 
 @functools.cache
 def create_device_mesh() -> Mesh:
-    """Create 1D device mesh for data parallelism. The function is cached
+    """Create 1D device mesh for data parallelism. The funcion is cached
     to ensure that the same mesh object is used across calls.
 
     Returns:
@@ -207,7 +207,7 @@ def sync_string(value: str | None) -> str:
           on 1 process and None on all other.
 
     Returns:
-        str: The synced string.
+        The synced string in all processes.
     """
     is_source = value is not None
 

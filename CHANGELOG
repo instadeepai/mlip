@@ -1,24 +1,10 @@
 # Changelog
 
-## Release 0.2.0
+## Release 0.1.10
 
-- Introducing breaking API updates in multiple places, see Migration guide in
-  documentation for a detailed overview. These updates make the mlip library more
-  customizable and extendable, and enable a range of new features listed below.
-- Extensive refactoring of the model implementations, updating to a `Graph -> Graph`
-  signature for `MLIPNetwork` and for other blocks and layers used inside models.
-- Introducing the e3j backend for accelerated equivariant operations for MACE and
-  NequIP models.
-- Adding the eSEN model architecture, and optionally, with a Mixture-of-Experts (MoE)
-  formalism.
-- Introducing Gaunt tensor products for MACE.
-- Adding global charge conditioning, partial charge predictions, and long-range
-  interactions via a PhysNet-inspired Coulomb term.
-- Adding support for NPT ensemble MD simulations.
-- Adding support for transition state search with the nudged elastic band method.
-- Extending multi-head fine-tuning support to all model architectures and updating
-  fine-tuning API and strategy.
-- Enabling the training of models on Hessian labels.
+- Enhancing performance of dataset preprocessing by removing JIT compilation as well
+  as using numpy instead of jax.numpy in edge vector function inside
+  the neighbor analysis code.
 
 ## Release 0.1.9
 

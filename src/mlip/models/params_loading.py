@@ -42,7 +42,7 @@ def _restored_state(
 
 
 def load_parameters_from_checkpoint(
-    checkpoint_dir: str | os.PathLike,
+    local_checkpoint_dir: str | os.PathLike,
     initial_params: ModelParameters,
     epoch_to_load: int,
     load_ema_params: bool = False,
@@ -50,14 +50,14 @@ def load_parameters_from_checkpoint(
     """Loads model parameters from a checkpoint.
 
     Args:
-        checkpoint_dir: The directory (Orbax-compatible) where the model
-                        checkpoints are stored. This directory should contain the
-                        subdirectories named after the epoch numbers of the
-                        checkpoints.
+        local_checkpoint_dir: The directory (must be local) where the
+                              checkpoints are stored. This directory should contain the
+                              subdirectories named after the epoch numbers of the
+                              checkpoints.
         initial_params: The initial parameters of the model as a template for loading.
         epoch_to_load: The epoch number to load.
         load_ema_params: Whether to load the EMA parameters instead of the standard
-                         ones. By default, this is set to `False`.
+                         ones. By default, this is set to ``False``.
 
     Returns:
         The loaded model parameters.
@@ -69,7 +69,7 @@ def load_parameters_from_checkpoint(
     is_old_params_version = False
     with single_host_jax_and_orbax():
         ckpt_manager = CheckpointManager(
-            checkpoint_dir,
+            local_checkpoint_dir,
             item_names=item_names,
         )
 
@@ -98,12 +98,4 @@ def load_parameters_from_checkpoint(
 
     if is_old_params_version:
         return jax.tree.map(jnp.asarray, {"params": {"mlip_network": params["params"]}})
-
-    # Parameter blocks can be zero-size (e.g. unused irreps). Re-initialize zero-size
-    # leaves from the freshly-constructed reference so the shape and dtype are correct.
-    def _restore_empty(t, ref):
-        return jnp.empty(ref.shape, dtype=ref.dtype) if ref.size == 0 else t
-
-    params = jax.tree.map(_restore_empty, params, initial_params)
-
     return jax.tree.map(jnp.asarray, params)

@@ -13,7 +13,7 @@ author = "InstaDeep"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_design"]
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon"]
 
 exclude_patterns = []
 default_role = "code"

@@ -1,12 +1,9 @@
 .. _graph_dataset:
 
-.. module:: mlip.data.graph_dataset
+.. module:: mlip.data.helpers.graph_dataset
 
 Graph Dataset
 =============
-
-.. autoclass:: GraphDatasetState
-    :members:
 
 .. autoclass:: GraphDataset
 

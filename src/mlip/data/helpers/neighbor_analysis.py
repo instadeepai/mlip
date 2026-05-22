@@ -14,17 +14,18 @@
 
 import logging
 
+import jraph
 import numpy as np
 from tqdm_loggable.auto import tqdm
 
-from mlip.graph import Graph
+from mlip.data.helpers.edge_vectors import get_edge_relative_vectors
 
 LOG_PROPORTION = 10
 
 logger = logging.getLogger("mlip")
 
 
-def compute_avg_num_neighbors(graphs: list[Graph]) -> float:
+def compute_avg_num_neighbors(graphs: list[jraph.GraphsTuple]) -> float:
     """Computes the averages number of neighbors for a given list of graphs.
 
     Args:
@@ -43,7 +44,7 @@ def compute_avg_num_neighbors(graphs: list[Graph]) -> float:
     return np.mean(np.concatenate(num_neighbors)).item()
 
 
-def compute_avg_min_neighbor_distance(graphs: list[Graph]) -> float:
+def compute_avg_min_neighbor_distance(graphs: list[jraph.GraphsTuple]) -> float:
     """Computes the average minimum neighbor distance for a given list of graphs.
 
     Args:
@@ -57,7 +58,15 @@ def compute_avg_min_neighbor_distance(graphs: list[Graph]) -> float:
     log_interval = max(1, len(graphs) // LOG_PROPORTION)
 
     for i, graph in enumerate(graphs):
-        vectors = graph.edge_vectors(use_np=True)
+        vectors = get_edge_relative_vectors(
+            graph.nodes.positions,
+            graph.senders,
+            graph.receivers,
+            graph.edges.shifts,
+            graph.globals.cell,
+            graph.n_edge,
+            use_np=True,
+        )
         length = np.linalg.norm(vectors, axis=-1)
         min_neighbor_distances.append(length.min())
 

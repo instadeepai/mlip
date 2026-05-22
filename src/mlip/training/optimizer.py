@@ -126,7 +126,7 @@ def get_default_mlip_optimizer(
     different base optimizer.
 
     Args:
-        config: The optimizer config. Default is ``None`` which leads to the
+        config: The optimizer config. Default is `None` which leads to the
                 pure default config being used.
 
     Returns:

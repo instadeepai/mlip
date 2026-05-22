@@ -27,9 +27,21 @@ class SimulationEngine(abc.ABC):
     """Abstract base class of a simulation engine that can be implemented by different
     backends and can, in principle, run many types of
     simulations (e.g., MD or energy minimizations).
+
+    Attributes:
+        Config: The config class corresponding to the engine. Needs to be overridden
+                by the child classes.
+        simulation_state_class: The class that is used for the simulation state.
+                                By default, this is
+                                the :class:`~mlip.simulation.state.SimulationState`
+                                class. Usually, the derived simulation engines won't
+                                override this. However, an advanced user of the library
+                                could use this to customize the simulation state class
+                                for their own purposes via an inheritance pattern.
     """
 
     Config = pydantic.BaseModel  # must be overridden by child classes
+    simulation_state_class = SimulationState
 
     def __init__(
         self,
@@ -39,7 +51,7 @@ class SimulationEngine(abc.ABC):
     ) -> None:
         """Constructor that initializes the simulation state and
         an empty list of loggers. Engine-specific initialization is then
-        delegated to ``._initialize()``
+        delegated to `._initialize()`
 
         Args:
             atoms: The atoms of the system to simulate.
@@ -54,7 +66,7 @@ class SimulationEngine(abc.ABC):
         if len(atoms) == 0:
             raise ValueError("Passed 'atoms' argument is empty.")
 
-        self.state = SimulationState()
+        self.state = self.simulation_state_class()
         self.loggers: list[Callable[[SimulationState], None]] = []
         self._initialize(atoms, force_field, config)
 

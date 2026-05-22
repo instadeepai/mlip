@@ -14,50 +14,89 @@
 
 import logging
 
-import jraph
 import numpy as np
+
+from mlip.graph.graph import AtomicNumbers, Graph
 
 logger = logging.getLogger("mlip")
 
 
 def compute_average_e0s_from_graphs(
-    graphs: list[jraph.GraphsTuple],
+    graphs: list[Graph],
 ) -> dict[int, float]:
     """Compute average energy contribution of each element by least squares.
 
     Args:
         graphs: The graphs for which to compute the average energy
-                contribution of each element
+                contribution of each element.
 
     Returns:
-        The atomic energies dictionary which is the mapping of atomic species to
-        the average energy contribution of each element.
+        A dictionary mapping atomic number to the average energy contribution
+        of that element.
     """
     num_graphs = len(graphs)
-    unique_species = sorted(set(np.concatenate([g.nodes.species for g in graphs])))
-    num_unique_species = len(unique_species)
+    unique_atomic_numbers = sorted(
+        set(np.concatenate([g.nodes.atomic_numbers for g in graphs]))
+    )
+    num_unique = len(unique_atomic_numbers)
 
-    species_count = np.zeros((num_graphs, num_unique_species))
+    element_count = np.zeros((num_graphs, num_unique))
     energies = np.zeros(num_graphs)
 
     for i in range(num_graphs):
         energies[i] = np.asarray(graphs[i].globals.energy).item()
-        for j, species_number in enumerate(unique_species):
-            species_count[i, j] = np.count_nonzero(
-                graphs[i].nodes.species == species_number
-            )
+        for j, z in enumerate(unique_atomic_numbers):
+            element_count[i, j] = np.count_nonzero(graphs[i].nodes.atomic_numbers == z)
 
     try:
-        e0s = np.linalg.lstsq(species_count, energies, rcond=1e-8)[0]
-        atomic_energies = {}
-        for i, species_number in enumerate(unique_species):
-            atomic_energies[species_number] = e0s[i]
+        e0s = np.linalg.lstsq(element_count, energies, rcond=1e-8)[0]
+        atomic_energies = {z: e0s[i] for i, z in enumerate(unique_atomic_numbers)}
 
     except np.linalg.LinAlgError:
         logger.warning(
             "Failed to compute E0s using "
             "least squares regression, using the 0.0 for all atoms."
         )
-        atomic_energies = dict.fromkeys(unique_species, 0.0)
+        atomic_energies = dict.fromkeys(unique_atomic_numbers, 0.0)
 
     return atomic_energies
+
+
+def _convert_energy_to_formation_energy(
+    energy: float, atomic_numbers: AtomicNumbers, atomic_energies_map: dict[int, float]
+) -> float:
+    """Converts an energy to a formation energy by subtracting the
+    sum of atomic energies for that system.
+    """
+    sum_atomic_energies = sum(
+        atomic_energies_map.get(int(z), 0.0) for z in atomic_numbers
+    )
+    return energy - sum_atomic_energies
+
+
+def remove_e0s_from_graphs(
+    graphs: list[Graph], atomic_energies_map: dict[int, float]
+) -> list[Graph]:
+    """Removes the atomic energies from a list of graphs.
+
+    Important note: This function just assumes atomic energies of zero for elements
+    in the graphs that are not in the map. Hence, it does not fail in this case.
+    The compatibility check of a dataset with a dataset info is happening elsewhere in
+    the dataset processing.
+
+    Args:
+        graphs: The list of graphs.
+        atomic_energies_map: The dictionary mapping atomic numbers to their atomic
+                             energies.
+
+    Returns:
+        The list of graphs with updated `graph.globals.energy` fields.
+    """
+    return [
+        g.replace_globals(
+            energy=_convert_energy_to_formation_energy(
+                g.globals.energy, g.nodes.atomic_numbers, atomic_energies_map
+            )
+        )
+        for g in graphs
+    ]

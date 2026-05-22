@@ -63,10 +63,10 @@ def constant_schedule(temperature: float) -> Callable[[int], float]:
 def linear_schedule(
     start_temperature: float, end_temperature: float, duration: int
 ) -> Callable[[int], float]:
-    """Returns a linear temperature schedule that starts at ``start_temperature``
-    and ends at ``end_temperature`` after ``duration`` steps. ``duration`` will
+    """Returns a linear temperature schedule that starts at `start_temperature`
+    and ends at `end_temperature` after `duration` steps. `duration` will
     automatically be set to the total number of steps in the simulation. Only the
-    ``start_temperature`` and ``end_temperature`` need to be set.
+    `start_temperature` and `end_temperature` need to be set.
 
     Arguments:
         start_temperature: The starting temperature in Kelvin.
@@ -74,17 +74,17 @@ def linear_schedule(
         duration: The duration for heating the system.
     """
     slope = (end_temperature - start_temperature) / duration
-    return lambda step: (
-        jnp.where(step > duration, end_temperature, slope * step + start_temperature)
+    return lambda step: jnp.where(
+        step > duration, end_temperature, slope * step + start_temperature
     )
 
 
 def triangle_schedule(
     max_temperature: float, min_temperature: float, heating_period: int
 ) -> Callable[[int], float]:
-    """Returns a triangle wave with period ``heating_period`` that starts at
-    ``min_temperature``, rises to ``max_temperature`` after ``heating_period / 2`` steps
-    before returning to ``min_temperature`` after another ``heating_period / 2`` steps.
+    """Returns a triangle wave with period `heating_period` that starts at
+    `min_temperature`, rises to `max_temperature` after `heating_period / 2` steps
+    before returning to `min_temperature` after another `heating_period / 2` steps.
 
     Arguments:
         max_temperature: The maximum temperature in Kelvin.
@@ -92,8 +92,8 @@ def triangle_schedule(
         heating_period: The period for heating the system.
     """
     amplitude = (max_temperature - min_temperature) / 2
-    return (
-        lambda step: (4 * amplitude)
+    return lambda step: (
+        (4 * amplitude)
         / heating_period
         * jnp.abs(((step - heating_period / 2) % heating_period) - (heating_period / 2))
         + min_temperature

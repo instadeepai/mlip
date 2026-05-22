@@ -31,7 +31,7 @@ the training run:
     loss = _get_loss()  # placeholder
     optimizer = _get_optimizer ()  # placeholder
     io_handler = _get_training_loop_io_handler()  # placeholder
-    config = TrainingLoop.Config(**config_kwargs)
+    train_config = TrainingLoop.Config(**config_kwargs)
 
     # Create TrainingLoop class
     training_loop = TrainingLoop(
@@ -40,7 +40,7 @@ the training run:
         force_field=force_field,
         loss=loss,
         optimizer=optimizer,
-        config=config,
+        config=train_config,
         io_handler=io_handler,  # also has a default, does not need to be set
     )
 
@@ -55,7 +55,8 @@ can be accessed after the run like this:
     final_training_state = training_loop.training_state
     final_params = final_training_state.params
 
-However, the final parameters are not always the ones with the best
+
+**Important:** The final parameters are not always the ones with the best
 performance on the validation set, and hence,
 you can also access these with ``training_loop.best_model.params``.
 Therefore, use `training_loop.best_model` to get the
@@ -64,13 +65,15 @@ the best parameters. If you want to save a
 trained force field not only via the checkpointing API described further below,
 you can also use the function
 :py:func:`save_model_to_zip() <mlip.models.model_io.save_model_to_zip>` to save it
-as a lightweight zip archive in case you only want to use it for inference tasks later,
-as this archive does not include any training state.
+as a lightweight zip archive in case you only want to use it for inference or
+simulation tasks later, as this archive does not include any training state.
 
 Note that it is also possible to run an evaluation on a test dataset after training by
 using the
 :py:func:`test() <mlip.training.training_loop.TrainingLoop.test>` method of the
-:py:class:`TrainingLoop <mlip.training.training_loop.TrainingLoop>` instance.
+:py:class:`TrainingLoop <mlip.training.training_loop.TrainingLoop>` instance. Moreover,
+we support evaluating on multiple validation sets separately during training, see
+:ref:`this <multiple_val_sets>` section below for details.
 
 In the following, we describe the prerequisites listed above in more detail.
 
@@ -79,15 +82,49 @@ In the following, we describe the prerequisites listed above in more detail.
 Loss
 ----
 
-All losses must be implemented as derived classes of
-:py:class:`Loss <mlip.models.loss.Loss>`. We currently implement two losses, the
-Mean-Squared-Error loss (:py:class:`MSELoss <mlip.models.loss.MSELoss>`), and the
-Huber loss (:py:class:`HuberLoss <mlip.models.loss.HuberLoss>`), which are both losses
-that are derived from a loss that computes errors for energies, forces, and stress,
-and weights them according to some weighting schedule that can depend on the epoch
-number (base class: :py:class:`WeightedEFSLoss <mlip.models.loss.WeightedEFSLoss>`).
+All losses must be passed as
+:py:class:`Loss <mlip.models.loss.Loss>` classes. This class takes in
+a list of :py:class:`LossTerm <mlip.models.loss.LossTerm>` classes and a list of
+corresponding schedules (functions that map an epoch number to a weight for the loss
+term). Custom :py:class:`LossTerm <mlip.models.loss.LossTerm>` classes can be added
+easily via inheritance, however, usually this is not required (see information on
+built-in losses below). A simple example for a custom loss term implementation
+is provided below.
 
-If one wants to use the MSE loss for training, simply run this code to initialize it:
+.. code-block:: python
+
+    from mlip.models.loss import Loss, LossTerm
+    from mlip.graph import Graph
+
+    class CustomLossTerm(LossTerm):
+    """A simple custom MAE energy loss."""
+
+    property_name = "energy"
+
+    def __call__(self, pred_graph: Graph, ref_graph: Graph) -> float:
+        """Outputs an MAE energy loss."""
+        return np.mean(np.abs(pred_graph.globals.energy - ref_graph.globals.energy))
+
+    # Instantiate a Loss with this custom loss term
+    loss = Loss([CustomLossTerm()], [lambda epoch_number: 1.0])
+
+For convenience, we implement two losses, the
+Mean-Squared-Error loss (:py:class:`MSELoss <mlip.models.loss.MSELoss>`), and the
+Huber loss (:py:class:`HuberLoss <mlip.models.loss.HuberLoss>`), which are both derived
+classes of :py:class:`Loss <mlip.models.loss.Loss>` and already include
+all loss terms corresponding to the loss terms available in this library (for energies,
+forces, stress, Hessians, atomic partial charges, total charge, and dipole moment).
+See the API reference for these classes for details.
+
+.. note::
+
+   To predict non-default properties (e.g., Hessians or atomic partial charges), one
+   must instantiate the `ForceField` with the correct `required_properties` argument
+   such that it outputs these properties and can learn from the corresponding training
+   labels.
+
+For example, if a user wants to use the MSE loss for training that only includes energy
+and force matching objectives, simply run this code to initialize it:
 
 .. code-block:: python
 
@@ -102,14 +139,13 @@ If one wants to use the MSE loss for training, simply run this code to initializ
     forces_weight_schedule = optax.piecewise_constant_schedule(25.0, {100: 0.04})
     loss = MSELoss(energy_weight_schedule, forces_weight_schedule)
 
-For our two implemented losses, we also allow for computation of more extended metrics
-by setting the `extended_metrics` argument to `True` in the loss constructor.
-By default, it is `False`. See the documentation of
-the :py:class:`call method <mlip.models.loss.WeightedEFSLoss.__call__>` of the class
-:py:class:`WeightedEFSLoss <mlip.models.loss.WeightedEFSLoss>` for more information on
-the returned metrics.
+For our two implemented default losses, we also allow for computation of more
+extended metrics by setting the `extended_metrics` argument to `True` in the
+constructor. By default, it is `False`. See the implementation of the
+:py:func:`compute_eval_metrics() <mlip.models.loss.eval_metrics.compute_eval_metrics>`
+function (used inside the default losses) for details on the computed metrics.
 
-Furthermore, note that even though the loss class is supposed to provide these metrics
+Note that even though the loss class is supposed to provide these metrics
 averaged just over a given input batch, we reweight these metrics based on the number
 of real (not dummy) graphs per batch in the training loop, such that the
 resulting metrics that are logged during training are accurately averaged
@@ -127,11 +163,11 @@ however, this library also has a specialized pipeline that has been inspired by
 `this <https://github.com/ACEsuit/mace>`_ PyTorch MACE implementation.
 It is configurable via a
 :py:class:`OptimizerConfig <mlip.training.optimizer_config.OptimizerConfig>` object that
-has sensible defaults set for training MLIP models. However, we suggest to also check
+has sensible defaults set for training MLIP models. However, we suggest also checking
 out `our white paper <https://arxiv.org/abs/2505.22397>`_ for recommendations for
 sensible ways to adapt the defaults for specific models, for instance, ViSNet and
 NequIP seem to be more prone to NaNs with the default learning rate and benefit from
-using a smaller one such as ``1e-4``.
+using a smaller one, e.g., `1e-4`.
 
 The default MLIP optimizer can be set up like this:
 
@@ -149,26 +185,31 @@ See the API reference for
 :py:func:`get_default_mlip_optimizer <mlip.training.optimizer.get_default_mlip_optimizer>`
 and
 :py:class:`OptimizerConfig <mlip.training.optimizer_config.OptimizerConfig>`
-for further details on how this MLIP optimizer works internally.
+for further details on the components of this MLIP optimizer and how it works
+internally.
 
 .. _training_io_handler:
 
 IO handling and logging
 -----------------------
 
+Checkpointing
+^^^^^^^^^^^^^
+
 During training, we want to allow for checkpointing of the training state and logging
 of metrics. The
 :py:class:`TrainingIOHandler <mlip.training.training_io_handler.TrainingIOHandler>`
 class manages these tasks. It comes with its own config, the
 :py:class:`TrainingIOHandlerConfig <mlip.training.training_io_handler.TrainingIOHandlerConfig>`,
-which like most other configs in the library can be accessed
+which, like most other configs in the library, can be accessed
 via `TrainingIOHandler.Config`. The IO handler uses
 `Orbax Checkpointing <https://orbax.readthedocs.io/en/latest/guides/checkpoint/orbax_checkpoint_101.html>`_
 to save and restore model checkpoints. Also, for loading a trained model for simulations or
 other inference tasks, this library relies on loading these model checkpoints
 (see :py:func:`load_parameters_from_checkpoint() <mlip.models.params_loading.load_parameters_from_checkpoint>`).
-The local checkpointing location can be set in the config, however, uploading these checkpoints
-to remote storage locations can be achieved via a provided data upload function:
+The local checkpointing location can be set in the config class, however, uploading
+these checkpoints to remote storage locations can be achieved via a
+provided data upload function:
 
 .. code-block:: python
 
@@ -190,6 +231,21 @@ object, and a ``model`` subdirectory with all the model checkpoints, one for
 each epoch that had the best model up to that point judging by validation set loss.
 In this location, it is recommended to also save other metadata manually,
 such as the applied model config.
+
+Note that if the checkpointing directory provided in the
+:py:class:`TrainingIOHandlerConfig <mlip.training.training_io_handler.TrainingIOHandlerConfig>`
+is a `Path``-like object, we will forward this object to the Orbax checkpointing code
+as is, i.e., any direct remote-storage checkpointing that is made available via Orbax is
+also indirectly supported by this library. See the
+`Orbax documentation <https://orbax.readthedocs.io/en/latest/>`_ for details.
+
+We also support intra-epoch checkpointing, which can be useful for running training on
+preemptible compute instances in the Cloud that require to checkpoint often. For
+details, see the API reference of
+:py:class:`TrainingIOHandlerConfig <mlip.training.training_io_handler.TrainingIOHandlerConfig>`.
+
+Logging
+^^^^^^^
 
 For advanced logging, e.g., to an experiment tracking platform (such as
 `MLflow <https://mlflow.org>`_), one can also attach custom logging functions to the
@@ -238,15 +294,16 @@ logging function attached by default.
 Multi-host training
 -------------------
 
-The mlip library supports multi-host (multi-node) training via JAX's built-in distributed
-runtime. When training across multiple hosts, each host manages its own local devices
-and coordinates with other hosts through a designated coordinator process. The training
-loop automatically handles data-parallel sharding of batches across all global devices.
+The *mlip* library supports multi-host (multi-node) training via JAX's built-in
+distributed runtime. When training across multiple hosts, each host manages its own
+local devices and coordinates with other hosts through a designated coordinator process.
+The training loop automatically handles data-parallel sharding of batches
+across all global devices.
 
 To run multi-host training, you need to initialize the JAX distributed runtime
 **before** any other JAX calls. This is done via
 `jax.distributed.initialize() <https://jax.readthedocs.io/en/latest/_autosummary/jax.distributed.initialize.html>`_.
-Below is a minimal example:
+Below, we present a minimal example:
 
 .. code-block:: python
 
@@ -266,10 +323,41 @@ Below is a minimal example:
     # and jax.local_devices() returns only this host's devices.
 
 Once JAX distributed is initialized, the rest of the training code (dataset creation,
-training loop, checkpointing) works the same as in the single-host case — the library
+training loop, checkpointing) works the same as in the single-host case, and the library
 handles the data sharding internally.
 
 For more details, see the
 `JAX multi-process documentation <https://jax.readthedocs.io/en/latest/multi_process.html>`_
 and the
 `Flax distributed training guide <https://flax.readthedocs.io/en/latest/guides/parallel_training/index.html>`_.
+
+.. _multiple_val_sets:
+
+Multiple validation sets
+------------------------
+
+Instead of passing a single validation set to the training loop, we support
+passing a dictionary of different validation sets. This option does not change the
+training process, as the validation loss to decide whether to checkpoint a model will
+be computed as a weighted average over all given validation sets.
+
+However, the evaluation metrics will be reported per set, i.e., each metric name will
+have a prefix of the validation set name. See the example below:
+
+.. code-block:: python
+
+    from mlip.training import TrainingLoop
+
+    validation_sets = {
+        "organics": _get_organics_validation_set_placeholder(),
+        "materials": _get_materials_validation_set_placeholder(),
+    }
+
+    training_loop = TrainingLoop(
+        validation_dataset=validation_sets,
+        **other_kwargs,
+    )
+
+    # Instead of metrics like "mse_f" for MSE of forces, one will now get
+    # "organics_mae_f" and "materials_mae_f" separately
+    training_loop.run()

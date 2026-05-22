@@ -14,3 +14,5 @@ Chemical System
     .. automethod:: validate_cell_shape
 
     .. automethod:: validate_stress_shape
+
+    .. automethod:: from_ase_atoms

@@ -37,6 +37,11 @@ jobs:
     runs-on: ubuntu-latest
     container:
        image: python:3.12-slim
+
+    env:
+      # Shares the XLA compile cache across CI runs. Also read natively by JAX.
+      JAX_COMPILATION_CACHE_DIR: ${{ github.workspace }}/.cache/jax_compilation_cache
+
     steps:
       - name: checkout code 📂
         uses: actions/checkout@v5
@@ -53,6 +58,14 @@ jobs:
       - name: setup env
         run: uv sync
 
+      - name: Restore JAX compilation cache 🗄️
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.JAX_COMPILATION_CACHE_DIR }}
+          key: jax-cache-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            jax-cache-${{ runner.os }}-
+
       - name: run tests 🧪
         run: |
           uv run --no-sync pytest --ignore tests/experiments --verbose \
@@ -63,13 +76,13 @@ jobs:
 
       - name: pytest coverage comment
         id: coverageComment
-        uses: MishaKav/pytest-coverage-comment@main
+        uses: MishaKav/pytest-coverage-comment@287292879eaaff04116f36d3eb1a670f6e5df1a4
         with:
           pytest-xml-coverage-path: ./coverage.xml
           junitxml-path: ./pytest.xml
 
       - name: Create the Badge
-        uses: schneegans/dynamic-badges-action@v1.7.0
+        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483
         with:
           auth: ${{ secrets.BOT_ACCESS_TOKEN }}
           gistID: b6e4bf384215e60775699a83c3c00aef

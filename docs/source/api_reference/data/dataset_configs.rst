@@ -5,6 +5,4 @@
 Dataset Configs
 ===============
 
-.. autoclass:: ChemicalSystemsReaderConfig
-
 .. autoclass:: GraphDatasetBuilderConfig

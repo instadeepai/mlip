@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Union
 
-import pydantic
+from pydantic import model_validator
+from typing_extensions import Self
 
-from mlip.models.options import Activation, VecNormType
+from mlip.models.config import MLIPNetworkConfig
+from mlip.models.options import Activation, RadialBasis
+from mlip.models.visnet.visnet_helpers import VecNormType
 from mlip.typing import NonNegativeInt, PositiveInt
 
 
-class VisnetConfig(pydantic.BaseModel):
+class VisnetConfig(MLIPNetworkConfig):
     """Hyperparameters for the ViSNet model.
 
     Attributes:
@@ -31,7 +33,7 @@ class VisnetConfig(pydantic.BaseModel):
         num_heads: Number of heads in the attention block. Default is 8.
         num_rbf: Number of basis functions used in the embedding block. Default is 32.
         trainable_rbf: Whether to add learnable weights to each of the radial embedding
-                       basis functions. Default is ``False``.
+                       basis functions. Default is `False`.
         activation: Activation function for the output block. Options are "silu"
                     (default), "ssp" (which is shifted softplus), "tanh", "sigmoid", and
                     "swish".
@@ -40,16 +42,24 @@ class VisnetConfig(pydantic.BaseModel):
                          "sigmoid", and "swish".
         vecnorm_type: The type of the vector norm. The options are "none" (default),
                       "max_min", and "rms".
-        atomic_energies: How to treat the atomic energies. If set to ``None`` (default)
-                         or the string ``"average"``, then the average atomic energies
-                         stored in the dataset info are used. It can also be set to the
-                         string ``"zero"`` which means not to use any atomic energies
-                         in the model. Lastly, one can also pass an atomic energies
-                         dictionary via this parameter different from the one in the
-                         dataset info, that is used.
+        num_readout_heads: Number of readout heads. The default is 1.
+        radial_basis: The type of radial embedding. Options are "bessel", "gauss" and
+                  "expnorm" (default).
+        add_atomic_energies: Whether to add atomic energies to the final energies.
+                             Default is `True`.
         num_species: The number of elements (atomic species descriptors) allowed.
-                     If ``None`` (default), infer the value from the atomic energies
+                     If `None` (default), infer the value from the atomic energies
                      map in the dataset info.
+        predict_partial_charges: Whether the model will be trained to predict charges.
+        use_coulomb_term: Whether to use the Coulomb term in the model for long
+                          range interactions. Default is False.
+        use_total_charge_embedding: Whether to use the total charge embedding. Default
+                                    is False.
+        embed_activation: Activation function for the embedding block. Default is
+                        "silu".
+        deterministic_scatter_ops: Whether to use deterministic scatter operations in
+            the forward pass, ensuring deterministic energy outputs. Setting to
+            `True` makes prediction slower. Default is `False`.
     """
 
     num_layers: PositiveInt = 4
@@ -61,5 +71,17 @@ class VisnetConfig(pydantic.BaseModel):
     activation: Activation = Activation.SILU
     attn_activation: Activation = Activation.SILU
     vecnorm_type: VecNormType = VecNormType.NONE
-    atomic_energies: Optional[Union[str, dict[int, float]]] = None
-    num_species: Optional[PositiveInt] = None
+    num_readout_heads: PositiveInt = 1
+    radial_basis: RadialBasis | str = RadialBasis.EXPNORM
+    num_species: PositiveInt | None = None
+    predict_partial_charges: bool = False
+    use_coulomb_term: bool = False
+    use_total_charge_embedding: bool = False
+    embed_activation: Activation = Activation.SILU
+    deterministic_scatter_ops: bool = False
+
+    @model_validator(mode="after")
+    def _enforce_partial_charges_for_coulomb_term(self) -> Self:
+        if self.use_coulomb_term:
+            self.predict_partial_charges = True
+        return self

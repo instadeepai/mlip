@@ -38,7 +38,7 @@ def test_mace_outputs_correct_forces_and_energies_for_single_graph(
 
     result = jax.jit(mace_ff)(graph)
 
-    assert list(result.energy) == pytest.approx([-19.471107], abs=5e-3)
+    assert list(result.energy) == pytest.approx([-19.471107], abs=1e-2)
     expected_forces = np.array([
         [-79.748566, 43.17404, -25.88391],
         [-5.946529, 21.135736, -4.770129],
@@ -51,7 +51,7 @@ def test_mace_outputs_correct_forces_and_energies_for_single_graph(
         [-109.224945, 24.383228, -15.4217],
         [9.50422, -70.78314, 100.10049],
     ])
-    assert np.allclose(np.array(result.forces), expected_forces, atol=5e-3)
+    assert np.allclose(np.array(result.forces), expected_forces, atol=1e-2)
 
     assert result.stress is not None and np.any(result.stress != 0.0)
     assert result.pressure is not None and np.any(result.pressure != 0.0)

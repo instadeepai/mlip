@@ -19,12 +19,11 @@ import jax
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import Calculator, all_changes
-from matscipy.neighbours import neighbour_list
 
+from mlip.data.chemical_system import ChemicalSystem
 from mlip.data.helpers.dynamically_batch import dynamically_batch
+from mlip.graph import Graph
 from mlip.models import ForceField
-from mlip.simulation.utils import create_graph_from_atoms
-from mlip.utils.no_pbc_cell import get_no_pbc_cell
 
 logger = logging.getLogger("mlip")
 
@@ -57,7 +56,10 @@ class MLIPForceFieldASECalculator(Calculator):
             force_field: Force field model used to compute the predictions.
             allow_nodes_to_change: Whether the number or types of atoms/nodes may
                                    change for the same instance of this class. Defaults
-                                   to ``False``.
+                                   to `False`. If this is set to false, the node
+                                   capacity multiplier will not be updated correctly,
+                                   and an error will be raised if the number of nodes
+                                   does change between calls to the calculate function.
             node_capacity_multiplier: Factor to multiply the number of nodes by to
                                       obtain the node capacity including padding.
                                       Defaults to 1.0.
@@ -67,100 +69,59 @@ class MLIPForceFieldASECalculator(Calculator):
         self.model_apply_fun = jax.jit(force_field.predictor.apply)
         self.model_params = force_field.params
         self.graph_cutoff_angstrom = force_field.cutoff_distance
+        self.long_range_cutoff_angstrom = force_field.long_range_cutoff_distance
         self.allowed_atomic_numbers = force_field.allowed_atomic_numbers
         self.edge_capacity_multiplier = edge_capacity_multiplier
         self.allow_nodes_to_change = allow_nodes_to_change
         self.node_capacity_multiplier = node_capacity_multiplier
+        self.force_field = force_field
 
-        if np.any(atoms.pbc):
-            senders, receivers, shifts = neighbour_list(
-                quantities="ijS",
-                cell=atoms.cell,
-                pbc=atoms.pbc,
-                positions=atoms.positions,
-                cutoff=self.graph_cutoff_angstrom,
-            )
-        else:
-            cell, cell_origin = get_no_pbc_cell(
-                atoms.positions, self.graph_cutoff_angstrom
-            )
-            senders, receivers, shifts = neighbour_list(
-                quantities="ijS",
-                cell=cell,
-                cell_origin=cell_origin,
-                pbc=atoms.pbc,
-                positions=atoms.positions,
-                cutoff=self.graph_cutoff_angstrom,
-            )
-
-        num_edges = len(senders)
-
-        _displacement_fun = None
-        self.base_graph = create_graph_from_atoms(
-            self.atoms,
-            senders,
-            receivers,
-            _displacement_fun,
-            self.allowed_atomic_numbers,
-            cell=self.atoms.cell,
-            shifts=shifts,
+        chem_system = ChemicalSystem.from_ase_atoms(self.atoms)
+        self.base_graph = Graph.from_chemical_system(
+            chem_system,
+            self.graph_cutoff_angstrom,
+            long_range_cutoff_angstrom=self.long_range_cutoff_angstrom,
         )
+
+        num_edges = len(self.base_graph.senders)
         self.current_edge_capacity = ceil(self.edge_capacity_multiplier * num_edges)
         self.current_node_capacity = ceil(
             self.node_capacity_multiplier * len(self.atoms)
         )
-        Calculator.__init__(self)
-
-    def calculate(
-        self,
-        atoms: Atoms | None = None,
-        properties: list[str] | None = None,
-        system_changes: list[str] = all_changes,
-    ) -> None:
-        """Compute properties (``forces`` and/or ``energy``) and save them in
-        ``self.results`` dictionary for ASE simulation.
-
-        Args:
-            atoms: Atomic structure. Defaults to ``None``.
-            properties: List of what needs to be calculated.
-                        Can be any combination of ``"energy"``, ``"forces"``.
-                        Defaults to ``None``.
-            system_changes: List of what has changed since last calculation.
-                            Can be any combination of these six: ``"positions"``,
-                            ``"numbers"``, ``"cell"``, ``"pbc"``, ``initial_charges``
-                            and ``"initial_magmoms"``.
-                            Defaults to ``ase.calculators.calculator.all_changes``.
-        """
-        if atoms is None:
-            raise ValueError("Variable atoms should not be None.")
-        if properties is None:
-            properties = ["energy", "forces"]
-        Calculator.calculate(self, atoms, properties, system_changes)
-
-        # compute new edge info
-        if np.any(atoms.pbc):
-            senders, receivers, shifts = neighbour_list(
-                quantities="ijS",
-                cell=atoms.cell,
-                pbc=atoms.pbc,
-                positions=atoms.positions,
-                cutoff=self.graph_cutoff_angstrom,
+        if self.long_range_cutoff_angstrom is not None:
+            num_long_range_edges = len(self.base_graph.senders_long_range)
+            self.current_long_range_edge_capacity = ceil(
+                self.edge_capacity_multiplier * num_long_range_edges
             )
         else:
-            cell, cell_origin = get_no_pbc_cell(
-                atoms.positions, self.graph_cutoff_angstrom
-            )
-            senders, receivers, shifts = neighbour_list(
-                quantities="ijS",
-                cell=cell,
-                cell_origin=cell_origin,
-                pbc=atoms.pbc,
-                positions=atoms.positions,
-                cutoff=self.graph_cutoff_angstrom,
-            )
+            self.current_long_range_edge_capacity = None
+        Calculator.__init__(self)
+
+    def _prepare_graph(self, atoms: Atoms) -> Graph:
+        """Prepare a batched Graph object for the given atoms.
+
+        Args:
+            atoms: The atoms object.
+        Returns:
+            The prepared graph, batched with a dummy graph for prediction.
+        """
+        chem_system = ChemicalSystem.from_ase_atoms(atoms, get_property_fields=False)
+
+        graph = Graph.from_chemical_system(
+            chem_system,
+            self.graph_cutoff_angstrom,
+            long_range_cutoff_angstrom=self.long_range_cutoff_angstrom,
+        )
+
+        if not self.allow_nodes_to_change:
+            if len(atoms) != len(self.atoms):
+                raise RuntimeError(
+                    "The number of nodes changed in between two 'calculate' calls, but "
+                    "'allow_nodes_to_change=False' was set."
+                )
 
         # See if padding still enough
-        num_edges = len(senders)
+        num_edges = len(graph.senders)
         if self.current_edge_capacity < num_edges:
             self.current_edge_capacity = ceil(self.edge_capacity_multiplier * num_edges)
             logger.debug(
@@ -171,42 +132,73 @@ class MLIPForceFieldASECalculator(Calculator):
                 self.node_capacity_multiplier * len(atoms)
             )
             logger.debug(
-                "The edge capacity has been reset to %s.", self.current_edge_capacity
+                "The node capacity has been reset to %s.", self.current_node_capacity
             )
+        n_edge_long_range = None
+        if self.long_range_cutoff_angstrom is not None:
+            num_long_range_edges = len(graph.senders_long_range)
+            if self.current_long_range_edge_capacity < num_long_range_edges:
+                self.current_long_range_edge_capacity = ceil(
+                    self.edge_capacity_multiplier * num_long_range_edges
+                )
+                logger.debug(
+                    "The long-range edge capacity has been reset to %s.",
+                    self.current_long_range_edge_capacity,
+                )
+            n_edge_long_range = self.current_long_range_edge_capacity + 1
 
-        if self.allow_nodes_to_change:
-            _displacement_fun = None
-            graph = create_graph_from_atoms(
-                atoms,
-                senders,
-                receivers,
-                _displacement_fun,
-                self.allowed_atomic_numbers,
-                cell=atoms.cell,
-                shifts=shifts,
-            )
-        else:
-            graph = self.base_graph._replace(
-                senders=senders,
-                receivers=receivers,
-                nodes=self.base_graph.nodes._replace(positions=atoms.positions),
-                edges=self.base_graph.edges._replace(shifts=shifts),
-                n_edge=np.array([len(senders)]),
-            )
-
-        # Batch with dummy
+        # Batch with dummy to ensure fixed size nodes and edges between calls
         batched_graph = next(
             dynamically_batch(
                 [graph],
                 n_node=self.current_node_capacity + 1,
                 n_edge=self.current_edge_capacity + 1,
                 n_graph=2,
+                n_edge_long_range=n_edge_long_range,
             )
         )
 
+        return batched_graph
+
+    def calculate(
+        self,
+        atoms: Atoms | None = None,
+        properties: list[str] | None = None,
+        system_changes: list[str] = all_changes,
+    ) -> None:
+        """Compute properties and save them in results dictionary for ASE simulation.
+
+        Args:
+            atoms: Atomic structure. Defaults to `None`.
+            properties: List of what needs to be calculated.
+                        Can be any combination of `"energy"`, `"forces"`.
+                        Defaults to `None`.
+            system_changes: List of what has changed since last calculation.
+                            Can be any combination of these six: `"positions"`,
+                            `"numbers"`, `"cell"`, `"pbc"`, `"initial_charges"`
+                            and `"initial_magmoms"`.
+                            Defaults to `ase.calculators.calculator.all_changes`.
+        """
+        if atoms is None:
+            raise ValueError("Variable atoms should not be None.")
+        if properties is None:
+            properties = ["energy", "forces"]
+        Calculator.calculate(self, atoms, properties, system_changes)
+
+        batched_graph = self._prepare_graph(atoms)
+
         # Run predictions
-        predictions = self.model_apply_fun(self.model_params, batched_graph)
+        predictions = self.model_apply_fun(
+            self.model_params, batched_graph
+        ).to_prediction()
+
         if "energy" in properties:
-            self.results["energy"] = np.array(predictions.energy[0])
+            # If explosion, energy output can be a scalar array
+            energy = (
+                predictions.energy[0]
+                if predictions.energy.shape
+                else predictions.energy
+            )
+            self.results["energy"] = np.array(energy)
         if "forces" in properties:
             self.results["forces"] = np.array(predictions.forces)[: len(atoms), :]

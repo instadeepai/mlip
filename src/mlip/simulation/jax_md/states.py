@@ -19,9 +19,16 @@ from jax_md.partition import NeighborList
 
 @jax_compatible_dataclass
 class SystemState:
-    """Holds the state of the system that is simulated."""
+    """Holds the state of the system that is simulated.
+
+    Attributes:
+        neighbors: The short-range neighbor list.
+        long_range_neighbors: The long-range neighbor list, or `None` if the
+                              force field has no long-range cutoff.
+    """
 
     neighbors: NeighborList
+    long_range_neighbors: NeighborList | None = None
 
 
 @jax_compatible_dataclass
@@ -33,6 +40,7 @@ class EpisodeLog:
     velocities: jnp.ndarray
     temperature: jnp.ndarray
     kinetic_energy: jnp.ndarray
+    cell: jnp.ndarray
 
 
 @jax_compatible_dataclass

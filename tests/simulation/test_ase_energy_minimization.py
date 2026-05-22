@@ -19,9 +19,10 @@ from mlip.simulation.enums import SimulationType
 from mlip.simulation.state import SimulationState
 
 
-def test_minimization_can_be_run_with_ase_backend(setup_system_and_mace_model) -> None:
-    init_conf, _, _, mace_ff = setup_system_and_mace_model
-    atoms = deepcopy(init_conf)
+def test_minimization_can_be_run_with_ase_backend(
+    quadratic_force_field, setup_system
+) -> None:
+    atoms = deepcopy(setup_system[0])
 
     md_config = ASESimulationEngine.Config(
         simulation_type=SimulationType.MINIMIZATION,
@@ -41,7 +42,7 @@ def test_minimization_can_be_run_with_ase_backend(setup_system_and_mace_model) -
         assert state.temperature is None
         assert state.forces is not None
 
-    engine = ASESimulationEngine(atoms, mace_ff, md_config)
+    engine = ASESimulationEngine(atoms, quadratic_force_field, md_config)
     engine.attach_logger(_mock_logger)
 
     engine.run()

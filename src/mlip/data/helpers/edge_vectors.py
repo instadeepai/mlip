@@ -25,7 +25,6 @@ def get_edge_vectors(
     shifts: np.ndarray,  # [n_edges, 3]
     cell: Optional[np.ndarray],  # [n_graph, 3, 3]
     n_edge: np.ndarray,  # [n_graph]
-    use_np: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute positions of sender and receiver nodes of each edge.
 
@@ -56,8 +55,6 @@ def get_edge_vectors(
                 Output `S` of `ase.neighborlist.primitive_neighbor_list`.
         cell: The cell of each graph. Array of shape ``[n_graph, 3, 3]``.
         n_edge: The number of edges of each graph. Array of shape ``[n_graph]``.
-        use_np: Whether to use `numpy` or `jax.numpy` for the computation. Default
-                is `False`, which means `jax.numpy` is used.
 
     Returns:
         The positions of the sender and receiver nodes of each edge.
@@ -66,21 +63,15 @@ def get_edge_vectors(
     vectors_receivers = positions[receivers]  # [n_edges, 3]
 
     if cell is not None:
-        if use_np:
-            np_ = np
-            kwargs_num_edges = {}
-        else:
-            np_ = jnp
-            kwargs_num_edges = {"total_repeat_length": receivers.shape[0]}
-
-        shifts = np_.einsum(
+        num_edges = receivers.shape[0]
+        shifts = jnp.einsum(
             "ei,eij->ej",
             shifts,  # [n_edges, 3]
-            np_.repeat(
+            jnp.repeat(
                 cell,  # [n_graph, 3, 3]
                 n_edge,  # [n_graph]
                 axis=0,
-                **kwargs_num_edges,
+                total_repeat_length=num_edges,
             ),  # [n_edges, 3, 3]
         )  # [n_edges, 3]
         vectors_senders -= shifts  # minus sign to match results with ASE
@@ -95,7 +86,6 @@ def get_edge_relative_vectors(
     shifts: np.ndarray,  # [n_edges, 3]
     cell: Optional[np.ndarray],  # [n_graph, 3, 3]
     n_edge: np.ndarray,  # [n_graph]
-    use_np: bool = False,
 ) -> np.ndarray:
     """Compute the relative edge vectors from senders to receivers.
 
@@ -118,8 +108,6 @@ def get_edge_relative_vectors(
                 functionality, and labelled `S` by ASE.
         cell: The unit cells of each graph, an array of shape `[n_graph, 3, 3]`.
         n_edge: The number of edges for each graph, an array of shape `[n_graph]`.
-        use_np: Whether to use `numpy` or `jax.numpy` for the computation. Default
-                is `False`, which means `jax.numpy` is used.
 
     Returns:
         The relative edge vectors, labelled `D` by ASE.
@@ -131,6 +119,5 @@ def get_edge_relative_vectors(
         shifts=shifts,
         cell=cell,
         n_edge=n_edge,
-        use_np=use_np,
     )
     return vectors_receivers - vectors_senders

@@ -12,30 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, TypeAlias
+from typing import TYPE_CHECKING, Callable, TypeAlias
 
 from jax import Array
-from jraph import GraphsTuple
 
-from mlip.data.helpers.data_prefetching import (
-    PrefetchIterator,
-    UnsqueezeGraphDatasetWrapper,
-)
-from mlip.data.helpers.graph_dataset import GraphDataset
 from mlip.typing.prediction import Prediction
+
+if TYPE_CHECKING:
+    from mlip.graph import Graph
 
 # ParameterDict from flax.linen
 ModelParameters: TypeAlias = dict[str, dict[str, Array | dict]]
 
 # ForceFieldPredictor.apply
-ModelPredictorFun: TypeAlias = Callable[[ModelParameters, GraphsTuple], Prediction]
+ModelPredictorFun: TypeAlias = Callable[[ModelParameters, "Graph"], Prediction]
 
 # LossFunction : (predictions, graph, epoch, eval_metrics) -> (loss, metrics)
 LossFunction: TypeAlias = Callable[
-    [Prediction, GraphsTuple, int, bool],
+    ["Graph", "Graph", int, bool],
     tuple[Array, dict[str, Array]],
 ]
-
-GraphDatasetLike: TypeAlias = (
-    GraphDataset | PrefetchIterator | UnsqueezeGraphDatasetWrapper
-)

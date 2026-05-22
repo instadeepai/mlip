@@ -14,37 +14,55 @@ please see the dedicated section :ref:`below <load_zip_model>`.
 
 Our MLIP models exist in two abstraction levels:
 
-* On the one hand, we have the pure neural networks,
+* On the one hand, we have the **pure neural networks**,
   which are classes derived from
-  :py:class:`MLIPNetwork <mlip.models.mlip_network.MLIPNetwork>`. As a general rule,
-  these raw models take in as input a graph's edge vectors and node representations and
-  output a vector of node energies.
+  :py:class:`MLIPNetwork <mlip.models.mlip_network.MLIPNetwork>`. These models take in
+  as input a :py:class:`Graph <mlip.graph.Graph>` and output a
+  :py:class:`Graph <mlip.graph.Graph>`. In the networks implemented in the library, we
+  populate at least the `"energy"` field in the `Graph.nodes.features` dictionary
+  with the node energies, optionally additional fields for other property predictions,
+  such as atomic partial charges. However, the `Graph`-to-`Graph` signature is designed
+  in a general way so that a newly added
+  :py:class:`MLIPNetwork <mlip.models.mlip_network.MLIPNetwork>` can decide to populate
+  other fields, as long as the next abstraction level described below is adapted to
+  handle this downstream. Note that many of the layers and blocks inside the
+  networks are implemented with the `Graph`-to-`Graph` signature.
 
-* On the other hand, we wrap these models into force
-  fields which take care of computing properties such as total energy, forces, or stress
-  from the MLIP network's output and themselves take a `jraph.GraphsTuple` object
-  from the `jraph <https://jraph.readthedocs.io/en/latest/>`_
-  library as input. The flax module that implements this is
-  :py:class:`ForceFieldPredictor <mlip.models.predictor.ForceFieldPredictor>`, however,
-  we recommend to mostly interact with the class
-  :py:class:`ForceField <mlip.models.force_field.ForceField>` which makes handling of a
+* On the other hand, we **wrap these models into force fields**
+  which take care of computing properties such as total energy, forces, stress,
+  Hessians, or atomic partial charges
+  from the MLIP network's output. These also take a :py:class:`Graph <mlip.graph.Graph>`
+  object as input and can output either an output :py:class:`Graph <mlip.graph.Graph>`
+  or :py:class:`Prediction <mlip.typing.prediction.Prediction>` (more details later).
+  The flax module that implements this is
+  :py:class:`ForceFieldPredictor <mlip.models.predictors.predictor.ForceFieldPredictor>`
+  (or actually, its derived classes), however,
+  we recommend interacting with the class
+  :py:class:`ForceField <mlip.models.force_field.ForceField>`, which makes handling a
   force field as one object (that is aware of its parameters) easier and is the main
-  class for passing a model between training and simulation.
+  class for passing a model between training and simulation. More information on
+  how the
+  :py:class:`ForceFieldPredictor <mlip.models.predictors.predictor.ForceFieldPredictor>`
+  classes work internally can be found in a dedicated section
+  :ref:`below <predictor_details>`.
 
-The library currently interfaces three MLIP model architectures, i.e., MLIP network
+The library currently interfaces four MLIP model architectures, i.e., MLIP network
 implementations:
 
 * `MACE <https://arxiv.org/abs/2206.07697>`_
-  (class: :py:class:`Mace <mlip.models.mace.models.Mace>`),
+  (class: :py:class:`Mace <mlip.models.mace.network.Mace>`),
 * `NequIP <https://www.nature.com/articles/s41467-022-29939-5>`_
-  (class: :py:class:`Nequip <mlip.models.nequip.models.Nequip>`), and
+  (class: :py:class:`Nequip <mlip.models.nequip.network.Nequip>`),
 * `ViSNet <https://www.nature.com/articles/s41467-023-43720-2>`_
-  (class: :py:class:`Visnet <mlip.models.visnet.models.Visnet>`).
+  (class: :py:class:`Visnet <mlip.models.visnet.network.Visnet>`), and
+* `eSEN <https://arxiv.org/abs/2502.12147>`_
+  (class: :py:class:`Esen <mlip.models.esen.network.Esen>`).
 
 These networks can be created from their configuration
 (:py:class:`MaceConfig <mlip.models.mace.config.MaceConfig>`,
-:py:class:`NequipConfig <mlip.models.nequip.config.NequipConfig>`, or
-:py:class:`VisnetConfig <mlip.models.visnet.config.VisnetConfig>`) and a
+:py:class:`NequipConfig <mlip.models.nequip.config.NequipConfig>`,
+:py:class:`VisnetConfig <mlip.models.visnet.config.VisnetConfig>`, or
+:py:class:`EsenConfig <mlip.models.esen.config.EsenConfig>`) and a
 :py:class:`DatasetInfo <mlip.data.dataset_info.DatasetInfo>` object
 that one obtained after the :ref:`data processing step <get_dataset_info>`. For the
 sake of simplified usage, the config objects can be directly accessed from the network
@@ -81,16 +99,38 @@ We can run a prediction with an MLIP force field like this:
 
 .. code-block:: python
 
-    graph = _get_jraph_graph_from_somewhere()  # placeholder
+    graph = _get_graph_from_somewhere()  # placeholder
+
+    # Option 1: output a prediction
     prediction = force_field(graph)
 
-The ``prediction`` includes several properties and is a dataclass of type
-:py:class:`Prediction <mlip.typing.prediction.Prediction>`. The properties other than
-energy and forces are only predicted optionally
-(see ``predict_stress`` argument of `ForceField.from_mlip_network`).
+    # Option 2: output a prediction graph
+    output_graph = force_field.calculate(graph)
 
-If the input ``graph`` object (type: ``jraph.GraphsTuple``) contains multiple subgraphs,
-for example, if it represents a batch, we can get the energy and forces of the ``i``-th
+For option 1, the ``prediction`` includes several properties and is a dataclass of type
+:py:class:`Prediction <mlip.typing.prediction.Prediction>`.
+
+Which properties are predicted depends on the ones requested via the
+`required_properties` attribute of the
+:py:class:`ForceFieldPredictor <mlip.models.predictors.predictor.ForceFieldPredictor>`.
+By default, this includes energies and forces, but additional required properties
+can be passed either when creating a force field via the
+:py:meth:`ForceField.from_mlip_network <mlip.models.force_field.ForceField.from_mlip_network>`
+method or when loading an already trained force field
+(see :ref:`below <load_zip_model>`). Required properties are passed and stored as
+a :py:class:`Properties <mlip.typing.properties.Properties>` dataclass.
+
+**Important caveat:** For Hessian matrix predictions, it is *not* sufficient to
+set `Properties(hessian=True)` for the required properties, but additionally, one must
+call :py:meth:`Graph.request_full_hessian <mlip.graph.Graph.request_full_hessian>` to
+obtain an updated graph before running a prediction on it. This only applies when
+predicting on a graph directly, it is not applicable to the training workflow, and is
+handled automatically when running :ref:`batched inference <batched_inference>`. See
+the `Hessian tutorial notebook <https://github.com/instadeepai/mlip/blob/main/tutorials/hessian_model_training_tutorial.ipynb>`_
+for an explicit example.
+
+If the input `Graph` object contains multiple subgraphs,
+for example, if it represents a batch, we can get the energy and forces of the `i`-th
 subgraph like this:
 
 .. code-block:: python
@@ -102,39 +142,26 @@ subgraph like this:
     num_nodes_before_i = sum(graph.n_node[j] for j in range(0, i))
     forces_i = prediction.forces[num_nodes_before_i : num_nodes_before_i + graph.n_node[i]]
 
+In option 2, the `calculate()` method yields a prediction `Graph` that stores the
+resulting properties in its attributes. Note that a `Prediction` can be created from
+a `Graph` easily via
+:py:meth:`Graph.to_prediction <mlip.graph.Graph.to_prediction>`.
 
-**Important caveat:**
+**Easiest way to create a single input graph from an XYZ file:**
 
-A :py:class:`ForceField <mlip.models.force_field.ForceField>` can only process
-graphs (of type `jraph.GraphsTuple`) that have at least two subgraphs in them.
-Calling the force field on a graph that is not formally a batch will result in a
-`ValueError`. This means that if you are working with these graph objects directly,
-make sure a single graph of interest is always batched with a minimal dummy graph.
-We recommend to use the function
-:py:func:`create_graph_from_chemical_system() <mlip.data.helpers.graph_creation.create_graph_from_chemical_system>`
-to prepare graphs as this allows to pass the argument
-`batch_it_with_minimal_dummy=True` for convenience. An example is shown below:
+The following example demonstrates how to create a simple `Graph` object for a molecule
+stored in the common XYZ file format:
 
 .. code-block:: python
 
-    import numpy as np
+    import ase.io
     from mlip.data import ChemicalSystem
-    from mlip.data.helpers import create_graph_from_chemical_system
+    from mlip.graph import Graph
 
-    # Example H2O molecule:
-    #   - H (Z=1) has specie index 0
-    #   - O (Z=8) has specie index 3 (H, C, N come first)
-    system = ChemicalSystem(
-        atomic_numbers = np.array([1, 8, 1]),
-        atomic_species = np.array([0, 3, 0]),
-        positions = np.array([[-.5, .0, .0], [.0, .2, .0], [.5, .0, .0]]),
-    )
+    molecule = ase.io.read("/path/to/molecule.xyz")
 
-    graph = create_graph_from_chemical_system(
-        chemical_system=system,
-        distance_cutoff_angstrom=5,
-        batch_it_with_minimal_dummy=True,
-    )
+    chem_system = ChemicalSystem.from_ase_atoms(molecule)
+    graph = Graph.from_chemical_system(chem_system, graph_cutoff_angstrom=5.0)
 
 .. _load_zip_model:
 
@@ -152,19 +179,41 @@ pre-trained models with, you can use the function
 
     force_field = load_model_from_zip(Mace, "path/to/model.zip")
 
+The required properties can also be passed to
+:py:func:`load_model_from_zip <mlip.models.model_io.load_model_from_zip>` as
+a :py:class:`Properties <mlip.typing.properties.Properties>` dataclass. Note that
+by default, the required properties are only energy and forces.
+
+If the model needs graph-level metadata during inference, pass an
+:py:class:`InferenceContext <mlip.models.inference_context.InferenceContext>` while
+loading. The returned force field stores the resolved context. For
+Mixture-of-Experts (MoE) models, the
+loader also contracts experts for that fixed context. See example code below:
+
+.. code-block:: python
+
+    from mlip.models import InferenceContext, Mace
+    from mlip.models.model_io import load_model_from_zip
+
+    force_field = load_model_from_zip(
+        Mace,
+        "path/to/model.zip",
+        inference_context=InferenceContext(dataset_name="organics"),
+    )
+
 Subsequently, you can use the returned force field
 (type: :py:class:`ForceField <mlip.models.force_field.ForceField>`) for
-any downstream tasks.
+any downstream tasks (e.g., MD simulations or batched inference).
 
 .. _load_trained_model:
 
 Load a trained model from an Orbax checkpoint
 ---------------------------------------------
 
-To load a trained model from an `orbax <https://orbax.readthedocs.io/en/latest/>`_
+To load a trained model from an `Orbax <https://orbax.readthedocs.io/en/latest/>`_
 checkpoint, one can use the
 :py:func:`load_parameters_from_checkpoint() <mlip.models.params_loading.load_parameters_from_checkpoint>`
-helper function:
+function:
 
 .. code-block:: python
 
@@ -175,7 +224,7 @@ helper function:
 
     # Load parameters
     loaded_params = load_parameters_from_checkpoint(
-        local_checkpoint_dir="path/to/checkpoint/directory",  # must be local
+        checkpoint_dir="path/to/checkpoint/directory",
         initial_params=initial_force_field.params,
         epoch_to_load=157,
         load_ema_params=False,
@@ -183,3 +232,81 @@ helper function:
 
     # Create new force field with those loaded parameters
     force_field = ForceField(initial_force_field.predictor, loaded_params)
+
+In the final line of the example above, it is assumed that the
+:py:class:`InferenceContext <mlip.models.inference_context.InferenceContext>` is
+`None`.
+
+.. _predictor_details:
+
+Details on `ForceFieldPredictor`
+--------------------------------
+
+This section reports additional details on the design of the
+:py:class:`ForceFieldPredictor <mlip.models.predictors.predictor.ForceFieldPredictor>`
+class and its derived classes. While it is not necessary to understand the design as
+an applied user that interacts mostly with the
+:py:class:`ForceField <mlip.models.force_field.ForceField>` directly, it can still be
+useful, and furthermore, it is absolutely crucial to understand for users that aim to
+develop new models and plan to implement their own derived predictor classes.
+
+The purpose of the
+:py:class:`ForceFieldPredictor <mlip.models.predictors.predictor.ForceFieldPredictor>`
+is to convert the raw output of a
+:py:class:`MLIPNetwork <mlip.models.mlip_network.MLIPNetwork>` to a prediction
+:py:class:`Graph <mlip.graph.Graph>` that contains all required properties in the
+intended fields, for example, forces in `Graph.nodes.forces` and energy in
+`Graph.globals.energy`. This conversion typically contains two parts, (1)
+**differentiation** and (2) **applying an energy head** that may compute the final graph
+energy differently based on the raw node energies (e.g., with or without long-range
+interactions).
+
+While the base
+:py:class:`ForceFieldPredictor <mlip.models.predictors.predictor.ForceFieldPredictor>`
+class contains a `compute_energy` implementation (it calls the MLIP network, applies
+the energy head, and evaluates the final energy and optionally partial charges),
+it delegates the implementation of
+its `compute_forces_and_stress` method, which remains abstract because it is one of the
+two custom behaviors of a predictor implementation (see (1) above). For (2), the
+energy head is an attribute of the predictor
+(`energy_head: Callable[[Graph], Array] | None = None`) with `None` resulting in a
+default energy head. The energy head is a unit that takes in a `Graph` and returns
+an energy array (i.e., total energy for each graph in a potentially batched graph).
+
+The current state of the library contains **two predictor implementations**:
+
+* The :py:class:`ConservativePredictor <mlip.models.predictors.conservative_predictor.ConservativePredictor>`
+  that computes energies, forces, and stress conservatively, i.e., the forces are
+  the derivative of the energy with respect to the atomic coordinates. The name hints
+  at the fact that future versions of the library are planned to include a
+  direct force predictor.
+
+* The :py:class:`HessianPredictor <mlip.models.predictors.hessian_predictor.HessianPredictor>`
+  that, in addition to energies, forces, and stress, also computes the Hessian matrix
+  (or, during training, a subset of rows subsampled from the Hessian).
+
+Two energy heads are included in *mlip* currently: the
+**standard energy head** and a **long-range interaction variant** that applies an
+additional Coulomb potential.
+
+**Important:** When interacting with our models via the
+:py:class:`ForceField <mlip.models.force_field.ForceField>` class, as is typically
+the case, the force field automatically takes care of selecting the correct predictor
+class and energy head that matches the required properties and MLIP network config.
+
+However, user-defined energy heads can be useful, for instance, for adding surrogate
+potentials to a force field. A custom force field with a custom energy head can easily
+be defined via inheritance by overriding the `get_energy_head` method, like this:
+
+.. code-block:: python
+
+    from mlip.models import ForceField
+
+    def custom_energy_head(graph):
+        # custom energy head implementation
+
+    class CustomForceField(ForceField):
+
+        @classmethod
+        def get_energy_head(cls, *args, **kwargs):
+            return custom_energy_head

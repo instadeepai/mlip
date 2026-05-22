@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 
 class _EmptyNode:
@@ -27,8 +27,8 @@ empty_node = _EmptyNode()
 def flatten_dict(
     xs: dict,
     keep_empty_nodes: bool = False,
-    is_leaf: Optional[Callable[[Any, dict], bool]] = None,
-    sep: Optional[str] = None,
+    is_leaf: Callable[[Any, dict], bool] | None = None,
+    sep: str | None = None,
 ):
     """Flatten a nested dictionary.
 
@@ -91,7 +91,7 @@ def flatten_dict(
     return _flatten(xs, ())
 
 
-def unflatten_dict(xs: dict, sep: Optional[str] = None):
+def unflatten_dict(xs: dict, sep: str | None = None):
     """Unflatten a dictionary.
 
     See `flatten_dict`

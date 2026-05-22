@@ -9,6 +9,10 @@ Simulation Enums
 
 .. autoclass:: SimulationType
 
+.. _simulation_enums_md_integrator:
+
+.. autoclass:: MDIntegrator
+
 .. _simulation_enums_backend:
 
 .. autoclass:: SimulationBackend

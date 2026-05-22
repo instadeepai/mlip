@@ -5,12 +5,13 @@
 Graph Dataset Builder
 =====================
 
+.. autoclass:: BuilderMode
+    :members:
+
 .. autoclass:: GraphDatasetBuilder
 
     .. automethod:: __init__
 
-    .. automethod:: prepare_datasets
-
-    .. automethod:: get_splits
+    .. automethod:: get_datasets
 
     .. autoproperty:: dataset_info

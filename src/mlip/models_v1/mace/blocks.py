@@ -1,0 +1,176 @@
+# MIT License
+# Copyright (c) 2022 mace-jax
+# See https://github.com/ACEsuit/mace-jax/blob/main/MIT.md
+#
+# Copyright 2025 InstaDeep Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from typing import Callable, Tuple
+
+import e3nn_jax as e3nn
+import flax.linen as nn
+import jax
+import jax.numpy as jnp
+
+from mlip.models_v1.mace.message_passing import MessagePassingConvolution
+from mlip.models_v1.mace.symmetric_contraction import SymmetricContraction
+
+
+class LinearReadoutBlock(nn.Module):
+    output_irreps: e3nn.Irreps
+
+    @nn.compact
+    def __call__(self, x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+        output_irreps = e3nn.Irreps(self.output_irreps)
+        # x = [n_nodes, irreps]
+        return e3nn.flax.Linear(output_irreps)(x)  # [n_nodes, output_irreps]
+
+
+class NonLinearReadoutBlock(nn.Module):
+    hidden_irreps: e3nn.Irreps
+    output_irreps: e3nn.Irreps
+    activation: Callable | None = None
+    gate: Callable | None = None
+
+    @nn.compact
+    def __call__(self, x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+        hidden_irreps = e3nn.Irreps(self.hidden_irreps)
+        output_irreps = e3nn.Irreps(self.output_irreps)
+
+        # x = [n_nodes, irreps]
+        num_vectors = hidden_irreps.filter(
+            drop=["0e", "0o"]
+        ).num_irreps  # Multiplicity of (l > 0) irreps
+        x = e3nn.flax.Linear(
+            (hidden_irreps + e3nn.Irreps(f"{num_vectors}x0e")).simplify()
+        )(x)
+        x = e3nn.gate(x, even_act=self.activation, even_gate_act=self.gate)
+        return e3nn.flax.Linear(output_irreps)(x)  # [n_nodes, output_irreps]
+
+
+class EquivariantProductBasisBlock(nn.Module):
+    target_irreps: e3nn.Irreps
+    correlation: int
+    num_species: int
+    symmetric_tensor_product_basis: bool = True
+    off_diagonal: bool = False
+    gate_nodes: bool = False
+
+    def node_gating(
+        self, node_feats: e3nn.IrrepsArray, node_species: jnp.ndarray
+    ) -> e3nn.IrrepsArray:
+        node_scalars = node_feats.filter(e3nn.Irreps("0e")).array
+        w = self.param(
+            "species_wise_gate_weights",
+            nn.initializers.normal(stddev=1 / jnp.sqrt(node_scalars.shape[-1])),
+            (
+                self.num_species,
+                node_scalars.shape[-1],
+                node_feats.irreps.num_irreps,
+            ),
+        )[node_species]
+        b = self.param(
+            "species_wise_gate_bias",
+            nn.initializers.normal(),
+            (self.num_species, node_feats.irreps.num_irreps),
+        )[node_species]
+        node_feats = node_feats * (jax.vmap(jnp.matmul)(node_scalars, w) + b)
+        return node_feats
+
+    @nn.compact
+    def __call__(
+        self,
+        node_feats: e3nn.IrrepsArray,  # [n_nodes, feature * irreps]
+        node_species: jnp.ndarray,  # [n_nodes, ] int
+    ) -> e3nn.IrrepsArray:
+        target_irreps = e3nn.Irreps(self.target_irreps)
+        node_feats = node_feats.mul_to_axis().remove_zero_chunks()
+        node_feats = SymmetricContraction(
+            keep_irrep_out={ir for _, ir in target_irreps},
+            correlation=self.correlation,
+            num_species=self.num_species,
+            gradient_normalization="element",
+            symmetric_tensor_product_basis=self.symmetric_tensor_product_basis,
+            off_diagonal=self.off_diagonal,
+        )(node_feats, node_species)
+        node_feats = node_feats.axis_to_mul()
+
+        if self.gate_nodes:
+            node_feats = self.node_gating(node_feats, node_species)
+
+        return e3nn.flax.Linear(target_irreps)(node_feats)
+
+
+class InteractionBlock(nn.Module):
+    target_irreps: e3nn.Irreps
+    avg_num_neighbors: float
+    l_max: int
+    activation: Callable
+    species_embedding_dim: int | None = None
+    deterministic_scatter_ops: bool = False
+
+    @nn.compact
+    def __call__(
+        self,
+        edge_vectors: e3nn.IrrepsArray,  # [n_edges, 3]
+        node_feats: e3nn.IrrepsArray,  # [n_nodes, irreps]
+        radial_embeddings: jnp.ndarray,  # [n_edges, radial_embedding_dim]
+        senders: jnp.ndarray,  # [n_edges, ]
+        receivers: jnp.ndarray,  # [n_edges, ]
+        edge_species_feat: jnp.ndarray
+        | None = None,  # [n_edges, species_embedding_dim * 3]
+    ) -> Tuple[e3nn.IrrepsArray, e3nn.IrrepsArray]:
+        assert node_feats.ndim == 2
+        assert edge_vectors.ndim == 2
+        assert radial_embeddings.ndim == 2
+        if self.species_embedding_dim is not None:
+            assert edge_species_feat is not None
+
+        target_irreps = e3nn.Irreps(self.target_irreps)
+
+        node_feats = e3nn.flax.Linear(node_feats.irreps, name="linear_up")(node_feats)
+
+        node_feats = MessagePassingConvolution(
+            self.avg_num_neighbors,
+            target_irreps,
+            self.l_max,
+            self.activation,
+            species_embedding_dim=self.species_embedding_dim,
+            deterministic_scatter_ops=self.deterministic_scatter_ops,
+        )(
+            edge_vectors,
+            node_feats,
+            radial_embeddings,
+            senders,
+            receivers,
+            edge_species_feat,
+        )
+        node_feats = e3nn.flax.Linear(target_irreps, name="linear_down")(node_feats)
+
+        assert node_feats.ndim == 2
+        return node_feats  # [n_nodes, target_irreps]
+
+
+class ScaleShiftBlock(nn.Module):
+    scale: float
+    shift: float
+
+    @nn.compact
+    def __call__(self, x: e3nn.IrrepsArray) -> e3nn.IrrepsArray:
+        return self.scale * x + self.shift
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(scale={self.scale:.6f}, shift={self.shift:.6f})"
+        )

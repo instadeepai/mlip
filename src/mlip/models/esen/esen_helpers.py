@@ -449,7 +449,7 @@ class EdgeDegreeEmbedding(nn.Module):
         x: jax.Array,
         x_edge: jax.Array,
         edge_index: jax.Array,
-        wigner_and_m_mapping_inv: jax.Array,
+        wigner_and_m_mapping: jax.Array,
         edge_envelope: jax.Array,
         node_offset: int = 0,
     ) -> jax.Array:
@@ -459,15 +459,14 @@ class EdgeDegreeEmbedding(nn.Module):
             -1, self.m_0_num_coefficients, self.sphere_channels
         )  # [E, m0, C]
 
-        pad_m = self.m_all_num_coefficients - self.m_0_num_coefficients
-        x_edge_embed = jnp.pad(
-            x_edge_m0,
-            ((0, 0), (0, pad_m), (0, 0)),
-            mode="constant",
-        )
+        wigner_inv_m0 = jnp.swapaxes(wigner_and_m_mapping, 1, 2)[
+            :, :, : self.m_0_num_coefficients
+        ]
 
         x_edge_embed = jnp.einsum(
-            "eij,ejc->eic", wigner_and_m_mapping_inv, x_edge_embed
+            "eij,ejc->eic",
+            wigner_inv_m0,
+            x_edge_m0,
         )
 
         x_edge_embed = x_edge_embed * edge_envelope
@@ -489,7 +488,7 @@ class EdgeDegreeEmbedding(nn.Module):
         x: jax.Array,
         x_edge: jax.Array,
         edge_index: tuple[jax.Array, jax.Array],
-        wigner_and_m_mapping_inv: jax.Array,
+        wigner_and_m_mapping: jax.Array,
         edge_envelope: jax.Array,
         node_offset: int = 0,
     ) -> jax.Array:
@@ -499,7 +498,7 @@ class EdgeDegreeEmbedding(nn.Module):
             x: [E, num_coefficients, sphere_channels]
             x_edge: [E, num_coefficients, sphere_channels]
             edge_index: [E, 2]
-            wigner_and_m_mapping_inv: [E, num_coefficients, num_coefficients]
+            wigner_and_m_mapping: [E, num_coefficients, num_coefficients]
             edge_envelope: [E, 1, 1]
             node_offset: int
 
@@ -507,5 +506,5 @@ class EdgeDegreeEmbedding(nn.Module):
             [E, num_coefficients, sphere_channels]
         """
         return self._forward_chunk(
-            x, x_edge, edge_index, wigner_and_m_mapping_inv, edge_envelope, node_offset
+            x, x_edge, edge_index, wigner_and_m_mapping, edge_envelope, node_offset
         )

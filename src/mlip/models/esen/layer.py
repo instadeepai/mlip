@@ -45,6 +45,7 @@ class ESENLayer(nn.Module):
     act_type: Literal["gate"]
     num_experts: int | None = None
     deterministic_scatter_ops: bool = False
+    use_remat_edgewise: bool = False
 
     def setup(self) -> None:
         """Initializes the Esen layer."""
@@ -57,7 +58,8 @@ class ESENLayer(nn.Module):
         )
 
         # edgewise
-        self.edge_wise = Edgewise(
+        EdgewiseCls = nn.remat(Edgewise) if self.use_remat_edgewise else Edgewise
+        self.edge_wise = EdgewiseCls(
             sphere_channels=self.sphere_channels,
             hidden_channels=self.hidden_channels,
             l_max=self.l_max,
@@ -250,7 +252,6 @@ class Edgewise(nn.Module):
         edge_feats = graph.edges.features["latent"]
         senders, receivers = graph.senders, graph.receivers
         wigner_and_m_mapping = graph.edges.features["wigner_and_m_mapping"]
-        wigner_and_m_mapping_inv = graph.edges.features["wigner_and_m_mapping_inv"]
         edge_envelope = graph.edges.features["envelope"]
 
         num_nodes = node_feats.shape[0]
@@ -293,6 +294,7 @@ class Edgewise(nn.Module):
         edge_messages = edge_messages * edge_envelope
 
         # Rotate back
+        wigner_and_m_mapping_inv = jnp.swapaxes(wigner_and_m_mapping, 1, 2)
         edge_messages = jnp.einsum(
             "eij,ejc->eic", wigner_and_m_mapping_inv, edge_messages
         )

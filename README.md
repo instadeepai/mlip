@@ -88,6 +88,9 @@ To install the **CUDA 13 version of JAX and e3j** binaries alongside *mlip*, run
 pip install "mlip[cuda13]"
 ```
 
+The alias `cuda` can be used instead of `cuda13` for backwards
+compatibility with *mlip* v1.
+
 To install the CUDA 12 version instead, run:
 
 ```bash

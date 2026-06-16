@@ -221,7 +221,7 @@ def test_hessian_losses(setup_system):
     pred_graph = graph.replace_nodes(forces=forces, hessian=hessian)
     ref_graph = graph.replace_nodes(forces=forces + 0.3, hessian=hessian + 0.6)
 
-    assert MSEHessianLoss()(pred_graph, ref_graph) == pytest.approx(0.288)
+    assert MSEHessianLoss()(pred_graph, ref_graph) == pytest.approx(0.36)
     assert HuberHessianLoss()(pred_graph, ref_graph) == pytest.approx(0.00595)
 
 

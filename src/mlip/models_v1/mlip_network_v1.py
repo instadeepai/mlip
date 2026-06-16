@@ -41,6 +41,7 @@ class MLIPNetworkV1(MLIPNetwork):
     config: pydantic.BaseModel
     dataset_info: DatasetInfo
 
+    # Only (energy, forces, stress) available for V1 models
     available_properties: Properties = Properties(stress=True)
 
     def __call__(

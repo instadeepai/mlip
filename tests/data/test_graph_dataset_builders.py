@@ -858,3 +858,33 @@ class TestGraphDatasetBuilderValidation:
                 mode=BuilderMode.TRAINING,
                 dataset_info=mismatched_info,
             )
+
+
+@pytest.mark.parametrize(
+    "batch_size,expected_n_node,expected_n_edge",
+    [
+        (2, [3, 3, 1], [3, 3, 2]),
+        (4, [3, 3, 7, 0, 0], [3, 3, 10, 0, 0]),
+    ],
+)
+def test_autofill_batch_dims_creates_correct_dummy_graphs(
+    batch_size, expected_n_node, expected_n_edge, make_customizable_graph
+):
+    """Test that auto-filled `max_n_X` values result in correct batching."""
+    graphs = [make_customizable_graph(n_nodes=3, n_edges=3) for _ in range(2)]
+    config = GraphDatasetBuilderConfig(batch_size=batch_size)
+    max_n_node, max_n_edge, _ = (
+        SingleGraphDatasetBuilder._determine_autofill_batch_dimensions_static(
+            graphs, config
+        )
+    )
+    ds = GraphDataset(
+        graphs=graphs,
+        batch_size=batch_size,
+        max_n_node=max_n_node,
+        max_n_edge=max_n_edge,
+        shuffle=False,
+    )
+    batch = next(iter(ds))
+    assert list(batch.n_node) == expected_n_node
+    assert list(batch.n_edge) == expected_n_edge

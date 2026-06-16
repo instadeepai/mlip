@@ -188,26 +188,21 @@ class VisnetLayer(nn.Module):
 
         return v_j, vec_j
 
-    @nn.nowrap
-    def _vector_rejection(
-        self, vec: jax.Array, spherical_feats: jax.Array
-    ) -> jax.Array:
-        # Implement vector rejection logic using JAX
-        vec_proj = (vec * jnp.expand_dims(spherical_feats, 2)).sum(
-            axis=1, keepdims=True
-        )
-        return vec - vec_proj * jnp.expand_dims(spherical_feats, 2)
-
     def _edge_update(
         self,
-        vec_i: jax.Array,
-        vec_j: jax.Array,
+        vec_i_proj: jax.Array,
+        vec_j_proj: jax.Array,
         d_ij: jax.Array,
         f_ij: jax.Array,
     ) -> jax.Array:
-        w1 = self._vector_rejection(self.w_trg_proj(vec_i), d_ij)
-        w2 = self._vector_rejection(self.w_src_proj(vec_j), -d_ij)
-        w_dot = (w1 * w2).sum(axis=1)
+        # Algebraically identical to the original torch code for the vector rejection
+        a, b, s = vec_i_proj, vec_j_proj, d_ij
+        s_expanded = jnp.expand_dims(s, 2)
+        a_dot_b = (a * b).sum(axis=1)
+        a_dot_s = (a * s_expanded).sum(axis=1)
+        b_dot_s = (b * s_expanded).sum(axis=1)
+        s_norm_sq = (s**2).sum(axis=1, keepdims=True)
+        w_dot = a_dot_b + a_dot_s * b_dot_s * (s_norm_sq - 2.0)
         df_ij = self.act(self.f_proj(f_ij)) * w_dot
         return df_ij
 
@@ -312,9 +307,11 @@ class VisnetLayer(nn.Module):
         dvec = vec3 * jnp.expand_dims(o1, 1) + vec_out
 
         if not self.last_layer:
+            vector_feats_trg = self.w_trg_proj(vector_feats)
+            vector_feats_src = self.w_src_proj(vector_feats)
             df_ij = self._edge_update(
-                vector_feats[graph.receivers, :],
-                vec_j,
+                vector_feats_trg[graph.receivers, :],
+                vector_feats_src[graph.senders, :],
                 graph.edges.features["spherical_embedding"],
                 edge_feats,
             )

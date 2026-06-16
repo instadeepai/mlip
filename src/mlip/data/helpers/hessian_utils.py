@@ -240,23 +240,55 @@ def get_hessian_processing_functions() -> tuple[
     return pad_systems_hessians, process_graph_hessian
 
 
-def single_graph_hessian_from_batch(
+def request_all_hessian_rows_batched(batched_graph: Graph) -> Graph:
+    """Set `sample_hessian_rows` to request the full Hessian for all graphs in a batch.
+
+    Rather than jacrev operating on `total_padded_nodes*3` independent outputs, this
+    mimics the subsampled-rows path used in `HessianPredictor`, such that jacrev
+    differentiates `max_n_atoms*3` summed outputs instead, requiring less memory.
+
+    R = max(n_atoms_per_graph) * 3. For graphs with fewer atoms, the extra row slots
+    are redirected to a padding graph, so they contribute nothing to the Jacobian sum.
+
+    Hessians computed with this setting of `sample_hessian_rows` will be of shape
+    (total_nodes, R, 3).
+    """
+    padding_mask = batched_graph.graph_mask()
+    batch_size = batched_graph.num_graphs
+    n_node = batched_graph.n_node[padding_mask]
+
+    R = int(n_node.max()) * 3
+    graph_starts_3 = np.concatenate([[0], np.cumsum(n_node[:-1])]) * 3
+    # Rows beyond the real atom count are redirected to padding graph
+    padding_force_idx = int(n_node.sum()) * 3
+
+    row_offsets = np.arange(R)[None, :]  # (1, R)
+    valid = row_offsets < (n_node * 3)[:, None]  # (n_real_graphs, R)
+    sampled_rows = np.where(
+        valid, graph_starts_3[:, None] + row_offsets, padding_force_idx
+    )
+    # Pad to (batch_size, R) to include a slot for the padding graph
+    sampled_rows = np.pad(sampled_rows, ((0, batch_size - len(n_node)), (0, 0)))
+
+    return batched_graph.replace_globals(sample_hessian_rows=jnp.array(sampled_rows))
+
+
+def single_graph_hessian_from_subsampled_batch(
     batch_hessian: Array, system_start: int, system_end: int
 ) -> Array:
-    """Retrieve the Hessian of a single graph from the batched graph Hessian.
+    """Retrieve a single graph's Hessian from the subsampled-rows batch output.
 
-    Args:
-        batch_hessian (Array): Hessian of the whole batched graph.
-        system_start (int): Index of the first node of the system.
-        system_end (int): Index of the last node of the system.
-
-    Returns:
-    The retrieved Hessian of a single graph from a batched graph Hessian.
+    After `request_all_hessian_rows_batched`, `nodes.hessian` has shape
+    (total_nodes, R, 3). We extract the per-system (n_atoms, 3, n_atoms, 3) Hessian.
     """
-    graph_hessian = batch_hessian[
-        system_start:system_end,
-        :,
-        system_start:system_end,
-        :,
-    ]
-    return graph_hessian
+    n_atoms = system_end - system_start
+
+    # (n_atoms, n_atoms*3, 3): local[col_i, r, col_j] = H_g[r//3, r%3, col_i, col_j]
+    # Rows beyond n_atoms*3 are zero (padding forces) and are excluded with :n_atoms*3
+    local = batch_hessian[system_start:system_end, : n_atoms * 3]
+
+    # Split R=n_atoms*3 -> (n_atoms, 3): axes become (col_i, row_i, row_j, col_j)
+    local = local.reshape(n_atoms, n_atoms, 3, 3)
+
+    # Transpose to (row_i, row_j, col_i, col_j)
+    return local.transpose(1, 2, 0, 3)

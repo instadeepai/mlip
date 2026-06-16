@@ -2,7 +2,7 @@
 
 .. module:: mlip.graph.batching_helpers
 
-Batching Helpers
+Batching helpers
 ================
 
 .. autofunction:: batch_graphs

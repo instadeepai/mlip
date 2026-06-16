@@ -116,6 +116,14 @@ class EsenConfig(MLIPNetworkConfig):
         deterministic_scatter_ops: Whether to use deterministic scatter operations in
             the forward pass, ensuring deterministic energy outputs. Setting to
             `True` makes prediction slower. Default is `False`.
+        use_remat_edgewise: Whether to rematerialize `Edgewise`. Can result in
+            significant memory cost reduction, but higher runtime. Can be used for
+            training, and switched off at inference. Default is `False`.
+            Note that config values of a trained force field can be adjusted after
+            loading via `force_field = force_field.replace_config(**kwargs)`.
+        use_quaternion: Whether to use quaternion for wigner-d computation. This
+            provides better gradient stability for edges close to the Y-axis
+            Default is `True`.
     """
 
     num_species: int | None = None
@@ -140,6 +148,8 @@ class EsenConfig(MLIPNetworkConfig):
     use_total_charge_embedding: bool = False
     embed_activation: Activation = Activation.SILU
     deterministic_scatter_ops: bool = False
+    use_remat_edgewise: bool = False
+    use_quaternion: bool = True
 
     @model_validator(mode="after")
     def _enforce_partial_charges_for_coulomb_term(self) -> Self:

@@ -139,11 +139,6 @@ class TestEsenBlocks:
             ((self.l_max + 1) ** 2),
             ((self.l_max + 1) ** 2),
         )
-        assert graph.edges.features["wigner_and_m_mapping_inv"].shape == (
-            self.n_edges,
-            ((self.l_max + 1) ** 2),
-            ((self.l_max + 1) ** 2),
-        )
 
     def test_esen_embedding_block_rot_equivariance(self):
         graph_in = self.embedding_block_input()

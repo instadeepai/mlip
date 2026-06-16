@@ -310,7 +310,7 @@ class MSEHessianLoss(LossTerm):
             sum_nodes_of_the_same_graph(
                 ref_graph,
                 jnp.append(  # append 0 to match length (n_node + 1)
-                    jnp.mean(jnp.square(hessian_ref - hessian_pred), axis=(0, -1)), 0
+                    jnp.mean(jnp.square(hessian_ref - hessian_pred), axis=(-1, -2)), 0
                 ),
             ),
             ref_graph.n_node,

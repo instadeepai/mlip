@@ -25,10 +25,11 @@ from mlip.data import (
     GraphDatasetBuilderConfig,
     SingleGraphDatasetBuilder,
 )
-from mlip.data.helpers.hessian_utils import single_graph_hessian_from_batch
-from mlip.data.helpers.type_aliases import (
-    GraphDatasetLike,
+from mlip.data.helpers.hessian_utils import (
+    request_all_hessian_rows_batched,
+    single_graph_hessian_from_subsampled_batch,
 )
+from mlip.data.helpers.type_aliases import GraphDatasetLike
 from mlip.graph import Graph
 from mlip.models import ForceField
 from mlip.typing import Prediction
@@ -63,12 +64,9 @@ def run_inference_on_a_single_batch(
     batch_hessians = []
     batch_partial_charges = []
 
-    # Requesting full Hessian explicitly will
-    # result in computing full Hessian matrices
-    # in case `HessianPredictor` is used. If a different
-    # predictor class (e.g., ConservativePredictor) is used,
-    # this won't have any impact.
-    batch = batch.request_full_hessian()
+    # Use the row-summing trick: jacrev over n_atoms*3 summed outputs instead of
+    # total_padded_nodes*3 independent outputs, saving ~batch_size backward passes.
+    batch = request_all_hessian_rows_batched(batch)
     output = jitted_force_field_fun(batch)
     mask = batch.graph_mask()
 
@@ -82,7 +80,7 @@ def run_inference_on_a_single_batch(
             batch_energies.append(float(output.energy[i]))
 
             if output.hessian is not None:
-                graph_hessian = single_graph_hessian_from_batch(
+                graph_hessian = single_graph_hessian_from_subsampled_batch(
                     output.hessian, graph_start, graph_end
                 )
 

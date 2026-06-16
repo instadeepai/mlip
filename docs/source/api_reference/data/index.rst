@@ -16,7 +16,7 @@ This module contains all code related to dataset reading and processing.
     chemical_systems_readers/index
     chemical_system
     dataset_info
-    dataset_configs
+    dataset_builder_config
     graph_dataset
     combined_graph_dataset
     data_prefetching

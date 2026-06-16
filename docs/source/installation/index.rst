@@ -19,6 +19,9 @@ Use this command instead to install the GPU-compatible version:
 
 **This command installs the CUDA 13 version of JAX.**
 
+Note that the alias `cuda` can be used instead of `cuda13` for backwards compatibility
+with *mlip* v1.
+
 To install the CUDA 12 version instead, run:
 
 .. code-block:: bash

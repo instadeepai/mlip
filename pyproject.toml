@@ -1,6 +1,6 @@
 [project]
 name = "mlip"
-version = "0.2.0"
+version = "0.2.1"
 description = "Machine Learning Interatomic Potentials in JAX"
 license-files = [
     "LICENSE"
@@ -40,29 +40,32 @@ dependencies = [
     "h5py >=3.12.1",
     "tqdm >=4.0",
     "tqdm-loggable >=0.2",
-    "e3j >=0.1.0b0, <0.1.1",
+    "e3j >=0.1.0b3, <0.1.1",
 ]
 
 [project.optional-dependencies]
 cuda13 = [
     "jax[cuda13] >= 0.8.0",
     "jaxlib >= 0.8.0",
-    "e3j_ops >= 0.1.0b0, < 0.1.1"
+    "e3j_ops >= 0.1.0b3, < 0.1.1"
+]
+cuda = [
+    "mlip[cuda13]"
 ]
 cuda13_local = [
     "jax[cuda13_local] >= 0.8.0",
     "jaxlib >= 0.8.0",
-    "e3j_ops >= 0.1.0b0, < 0.1.1"
+    "e3j_ops >= 0.1.0b3, < 0.1.1"
 ]
 cuda12 = [
     "jax[cuda12] >=0.4.32",
     "jaxlib >=0.4.32",
-    "e3j_ops >= 0.1.0b0, < 0.1.1"
+    "e3j_ops >= 0.1.0b3, < 0.1.1"
 ]
 cuda12_local = [
     "jax[cuda12_local] >=0.4.32",
     "jaxlib >=0.4.32",
-    "e3j_ops >= 0.1.0b0, < 0.1.1"
+    "e3j_ops >= 0.1.0b3, < 0.1.1"
 ]
 tpu = [
     "jax[tpu]>=0.5.2",

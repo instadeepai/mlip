@@ -60,6 +60,11 @@ class VisnetConfig(MLIPNetworkConfig):
         deterministic_scatter_ops: Whether to use deterministic scatter operations in
             the forward pass, ensuring deterministic energy outputs. Setting to
             `True` makes prediction slower. Default is `False`.
+        use_remat: Whether to rematerialize `VisnetLayer`. Can result in
+            significant memory cost reduction, but higher runtime. Can be used for
+            training, and switched off at inference. Default is `False`.
+            Note that config values of a trained force field can be adjusted after
+            loading via `force_field = force_field.replace_config(**kwargs)`.
     """
 
     num_layers: PositiveInt = 4
@@ -79,6 +84,7 @@ class VisnetConfig(MLIPNetworkConfig):
     use_total_charge_embedding: bool = False
     embed_activation: Activation = Activation.SILU
     deterministic_scatter_ops: bool = False
+    use_remat: bool = False
 
     @model_validator(mode="after")
     def _enforce_partial_charges_for_coulomb_term(self) -> Self:

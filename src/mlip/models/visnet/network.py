@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+import flax.linen as nn
+
 from mlip.data.dataset_info import DatasetInfo
 from mlip.graph import Graph
 from mlip.models.blocks import (
@@ -108,8 +110,10 @@ class Visnet(MLIPNetwork):
             deterministic_scatter_ops=self.config.deterministic_scatter_ops,
         )
 
+        VisnetLayerCls = nn.remat(VisnetLayer) if self.config.use_remat else VisnetLayer
+
         self.visnet_layers = [
-            VisnetLayer(
+            VisnetLayerCls(
                 num_heads=self.config.num_heads,
                 num_channels=self.config.num_channels,
                 activation=self.config.activation,

@@ -34,6 +34,7 @@ from mlip.models.blocks import (
 from mlip.models.esen.coefficient_mapping import CoefficientMapping
 from mlip.models.esen.esen_helpers import NODE_OFFSET, EdgeDegreeEmbedding
 from mlip.models.esen.eulers import eulers_to_wigner, init_edge_rot_euler_angles
+from mlip.models.esen.quaternion.wigner_hybrid import axis_angle_wigner_hybrid
 from mlip.models.options import RadialBasis, RadialEnvelope, parse_radial_envelope
 from mlip.utils.safe_norm import safe_norm
 
@@ -86,6 +87,7 @@ class EsenEmbeddingBlock(nn.Module):
     edge_channels_list: list[int]
     activation_fn: Callable = jax.nn.silu
     deterministic_scatter_ops: bool = False
+    use_quaternion: bool = True
 
     def setup(self) -> None:
         """Initializes the embedding layers for node species, radial functions,"""
@@ -161,7 +163,6 @@ class EsenEmbeddingBlock(nn.Module):
         - edge features: graph.edges.features["embedding"]
         - edge envelope: graph.edges.features["envelope"]
         - wigner and m mapping: graph.nodes.features["wigner_and_m_mapping"]
-        - wigner and m mapping inverse: graph.nodes.features["wigner_and_m_mapping_inv"]
 
         Args:
             graph: Graph containing node features with "species" and edge vectors.
@@ -194,7 +195,7 @@ class EsenEmbeddingBlock(nn.Module):
             -1, 1, 1
         )
 
-        (wigner_and_m_mapping, wigner_and_m_mapping_inv) = self._get_rotmat_and_wigner(
+        wigner_and_m_mapping = self._get_rotmat_and_wigner(
             edge_vectors,  # In Torch: graph_dict["edge_distance_vec"]
         )
 
@@ -212,7 +213,7 @@ class EsenEmbeddingBlock(nn.Module):
             node_feats,
             edge_feats,
             edge_index,
-            wigner_and_m_mapping_inv,
+            wigner_and_m_mapping,
             edge_envelope,
             NODE_OFFSET,
         )
@@ -224,7 +225,6 @@ class EsenEmbeddingBlock(nn.Module):
             embedding=edge_feats,
             envelope=edge_envelope,
             wigner_and_m_mapping=wigner_and_m_mapping,
-            wigner_and_m_mapping_inv=wigner_and_m_mapping_inv,
         )
 
         return graph
@@ -239,7 +239,6 @@ class EsenEmbeddingBlock(nn.Module):
         Returns:
           wigner_and_m_mapping:      [E, M, K']
                                      where M = rows of to_m, K' == K or reduced
-          wigner_and_m_mapping_inv:  [E, K', M]
         """
         jd_file_path = BASE_DIR / "Jd.npz"
         jd_data = np.load(jd_file_path, allow_pickle=True)
@@ -250,23 +249,29 @@ class EsenEmbeddingBlock(nn.Module):
                 for l_number in range(self.l_max + 1)
             ]
 
-        # Euler angles -> Wigner-D (full basis, block-diagonal in l, but stored dense)
-        euler_angles = init_edge_rot_euler_angles(
-            edge_distance_vecs, key=jax.random.PRNGKey(42)
-        )
-        wigner = eulers_to_wigner(
-            eulers=euler_angles, start_l_max=0, end_l_max=self.l_max, jd=jd_buffers
-        )
-        wigner_inv = jnp.swapaxes(wigner, 1, 2)
+        if self.use_quaternion:
+            wigner = axis_angle_wigner_hybrid(
+                edge_distance_vecs,
+                self.l_max,
+                jd_buffers,
+                key=jax.random.PRNGKey(42),
+            )
+        else:
+            # Euler angles -> Wigner-D
+            # (full basis, block-diagonal in l, but stored dense)
+            euler_angles = init_edge_rot_euler_angles(
+                edge_distance_vecs, key=jax.random.PRNGKey(42)
+            )
+            wigner = eulers_to_wigner(
+                eulers=euler_angles, start_l_max=0, end_l_max=self.l_max, jd=jd_buffers
+            )
 
         # select the subset of coefficients used when m_max < l_max
         if self.m_max != self.l_max:
             wigner = wigner[:, self.coefficient_index, :]
-            wigner_inv = wigner_inv[:, :, self.coefficient_index]
 
         # M-mapping reindex matrix (to_m) on the m/“row” side.
         to_m = jnp.asarray(self.mapping_reduced.to_m, dtype=wigner.dtype)
         wigner_and_m_mapping = jnp.einsum("mk,nkj->nmj", to_m, wigner)
-        wigner_and_m_mapping_inv = jnp.einsum("njk,mk->njm", wigner_inv, to_m)
 
-        return wigner_and_m_mapping, wigner_and_m_mapping_inv
+        return wigner_and_m_mapping

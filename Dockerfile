@@ -8,7 +8,10 @@ RUN pip install "mlip[cuda13]" huggingface_hub notebook
 
 RUN wget https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/simulation_tutorial.ipynb \
          https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/model_training_tutorial.ipynb \
-         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/model_addition_tutorial.ipynb
+         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/model_addition_tutorial.ipynb \
+         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/advanced_simulation_tutorial.ipynb \
+         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/moe_training_and_inference_tutorial.ipynb \
+         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/hessian_model_training_tutorial.ipynb
 
 EXPOSE 8888
 

@@ -16,6 +16,7 @@ import logging
 from copy import deepcopy
 
 import ase
+import jax
 import numpy as np
 import pytest
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -212,3 +213,17 @@ def test_batched_inference_with_hessian_predictor(
     assert len(result) == num_structures
     assert result[-1].forces.shape == (len(atoms) - 1, 3)
     assert result[-1].hessian.shape == (len(atoms) - 1, 3, len(atoms) - 1, 3)
+    # Ensure quadratic FF produces non-trivial Hessians
+    for i in range(num_structures):
+        assert result[i].hessian is not None
+        assert np.linalg.norm(result[i].hessian) > 0.0
+
+    # Manually compute the full Hessian for each structure and compare with `result`
+    jitted_ff = jax.jit(quadratic_hessian_force_field)
+    single_graph_dataset = _graph_dataset_from_atoms(structures, batch_size=1)
+    for i, single_batch in enumerate(single_graph_dataset):
+        _single_batch = single_batch.replace_globals(sample_hessian_rows=np.array(True))
+        output = jitted_ff(_single_batch)
+        n = len(structures[i])
+        expected_hessian = output.hessian[:n, :, :n, :]
+        np.testing.assert_allclose(result[i].hessian, expected_hessian, rtol=1e-5)

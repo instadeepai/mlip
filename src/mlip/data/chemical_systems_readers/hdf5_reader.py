@@ -44,17 +44,25 @@ class Hdf5Reader(ChemicalSystemsReader):
             all_systems.extend(self._load_single_file(filepath))
         return all_systems
 
+    @staticmethod
+    def _visit_groups(file):
+        groups = []
+
+        def append_group(_, item):
+            if isinstance(item, h5py.Group) and item.parent.name == "/":
+                groups.append(item)
+
+        file.visititems(append_group)
+        return groups
+
     def _read_file(self, filepath: str | os.PathLike) -> ChemicalSystems:
         """Read structures from an HDF5 file and convert each to a
         :class:`~mlip.data.chemical_system.ChemicalSystem`."""
         with h5py.File(filepath, "r") as h5file:
-            struct_names = list(h5file.keys())
+            groups = self._visit_groups(h5file)
             if self.num_to_load:
-                struct_names = struct_names[: self.num_to_load]
-            return [
-                self._hdf5_row_to_chemical_system(h5file[struct_name])
-                for struct_name in struct_names
-            ]
+                groups = groups[: self.num_to_load]
+            return [self._hdf5_row_to_chemical_system(group) for group in groups]
 
     def _hdf5_row_to_chemical_system(
         self,

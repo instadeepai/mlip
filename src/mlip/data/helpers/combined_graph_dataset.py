@@ -185,7 +185,11 @@ class CombinedGraphDataset:
             self.state = self.state.replace(
                 num_graphs_processed=self.state.num_graphs_processed + 1
             )
-            yield next(iterators[ds_idx])
+            try:
+                item = next(iterators[ds_idx])
+            except StopIteration:
+                continue
+            yield item
         self.state = self.state.replace(rng=next_rng, num_graphs_processed=jnp.int32(0))
 
     def _get_regular_interleaving_indices(

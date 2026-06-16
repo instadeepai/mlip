@@ -300,8 +300,13 @@ class SingleGraphDatasetBuilder:
 
     @staticmethod
     def _find_max_n_node(graphs: list[Graph], batch_size: int) -> int:
-        """Compute `max_n_node`, resizing if the largest graph
-        exceeds the batch capacity."""
+        """Compute `max_n_node`, and resize if largest graph exceeds capacity.
+
+        `max_n_node` is computed as the median number of nodes across all graphs, which
+        is then multiplied by `batch_size` to determine the number of nodes returned in
+        a batch (+1 for padding). If this estimate isn't sufficient to fit the largest
+        graph, the value of `max_n_node` is adjusted to make it sufficient.
+        """
         max_n_node, max_num_atoms = (
             SingleGraphDatasetBuilder._get_median_and_max_n_node(graphs)
         )
@@ -313,14 +318,20 @@ class SingleGraphDatasetBuilder:
 
     @staticmethod
     def _find_max_n_edge(graphs: list[Graph], max_n_node: int, batch_size: int) -> int:
-        """Compute `max_n_edge`, resizing if the largest graph
-        exceeds the batch capacity."""
-        median_n_nei, max_total_edges = (
+        """Compute `max_n_edge`, and resize if largest graph exceeds capacity.
+
+        `max_n_edge` is computed as ceil(median_neighbors_per_node * max_n_node / 2),
+        giving an estimate of the typical edge count for a graph of max_n_node atoms.
+        This is multiplied by batch_size * 2 to determine the total edge capacity of a
+        batch (+1 for padding). If this estimate isn't sufficient to fit the largest
+        graph, the value of `max_n_edge` is adjusted to make it sufficient.
+        """
+        median_n_nei_per_node, max_total_edges = (
             SingleGraphDatasetBuilder._get_median_num_neighbors_and_max_total_edges(
                 graphs
             )
         )
-        max_n_edge = median_n_nei * max_n_node // 2
+        max_n_edge = int(np.ceil(median_n_nei_per_node * max_n_node / 2))
 
         if max_n_edge * batch_size * 2 < max_total_edges:
             logger.debug("Largest graph does not fit into batch -> resizing it.")

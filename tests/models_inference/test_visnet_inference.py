@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+from dataclasses import replace
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -20,6 +23,8 @@ from numpy.testing import assert_allclose
 
 from mlip.data import ChemicalSystem
 from mlip.graph import Graph
+from mlip.models.force_field import ForceField
+from mlip.models.visnet.network import Visnet
 
 
 def test_visnet_outputs_correct_forces_and_energies_for_single_graph(
@@ -47,6 +52,31 @@ def test_visnet_outputs_correct_forces_and_energies_for_single_graph(
 
     assert result.stress is not None and np.any(result.stress != 0.0)
     assert result.pressure is not None and np.any(result.pressure != 0.0)
+
+
+def test_visnet_with_use_remat_matches_without(
+    setup_system, visnet_config, dataset_info, visnet_force_field
+):
+    _, graph = setup_system
+    no_remat_config = visnet_config.model_copy(update={"use_remat": False})
+    no_remat_model = Visnet(no_remat_config, dataset_info)
+    no_remat_ff = ForceField(
+        replace(visnet_force_field.predictor, mlip_network=no_remat_model),
+        visnet_force_field.params,
+    )
+
+    remat_config = visnet_config.model_copy(update={"use_remat": True})
+    remat_model = Visnet(remat_config, dataset_info)
+    remat_ff = ForceField(
+        replace(visnet_force_field.predictor, mlip_network=remat_model),
+        visnet_force_field.params,
+    )
+
+    no_remat_result = jax.jit(no_remat_ff)(graph)
+    remat_result = jax.jit(remat_ff)(graph)
+
+    assert jnp.allclose(no_remat_result.energy, remat_result.energy, atol=1e-5)
+    assert jnp.allclose(no_remat_result.forces, remat_result.forces, atol=1e-3)
 
 
 def test_visnet_model_versions_consistent(

@@ -138,6 +138,7 @@ class Esen(MLIPNetwork):
             mapping_reduced=self.mapping_reduced,
             edge_channels_list=self.edge_channels_list,
             activation_fn=parse_activation(self.config.embed_activation),
+            use_quaternion=self.config.use_quaternion,
         )
 
         self.moe_config = self.config.moe
@@ -170,6 +171,7 @@ class Esen(MLIPNetwork):
                 act_type=self.config.act_type,
                 num_experts=self.num_experts,
                 deterministic_scatter_ops=self.config.deterministic_scatter_ops,
+                use_remat_edgewise=self.config.use_remat_edgewise,
             )
             for _ in range(self.config.num_layers)
         ]

@@ -1,7 +1,7 @@
 .. _esen:
 
-ESEN
-======
+eSEN
+====
 
 .. module:: mlip.models.esen.network
 

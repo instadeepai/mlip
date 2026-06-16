@@ -45,6 +45,20 @@ class ForceFieldPredictorV1(ConservativePredictor):
     required_properties: Properties
     energy_head: Callable[[Graph], Array] | None = None
 
+    def __post_init__(self):
+        available = self.mlip_network.available_properties.true_fields()
+        unsupported = [
+            prop
+            for prop in self.required_properties.true_fields()
+            if prop not in available
+        ]
+        if unsupported:
+            raise ValueError(
+                "The mlip network is not compatible with the required properties. "
+                f"The following properties are not available: {unsupported}."
+            )
+        super().__post_init__()
+
     def compute_energy(
         self, positions: Array, strains: Array, graph: Graph
     ) -> tuple[Energy, Graph]:

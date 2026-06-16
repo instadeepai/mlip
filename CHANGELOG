@@ -1,5 +1,17 @@
 # Changelog
 
+## Release 0.2.1
+
+- Reducing memory requirements for Hessian predictions in batched inference drastically.
+- Optimizing eSEN implementation, introducing (1) Quaternion method to compute Wigner
+  D matrices, and (2) `use_remat_edgewise` flag to rematerialize `Edgewise`.
+- Improving file reading efficiency in `Hdf5Reader`.
+- Fixing `CombinedGraphDataset` by catching `StopIteration` runtime error.
+- Fixing `MSEHessianLoss` to use correct axes for aggregation.
+- Updating advanced simulation and Hessian tutorial notebooks.
+- Fixing memory bottleneck in ViSNet, adding rematerialisation option with `use_remat`.
+- Upgrading e3j dependency to minimum version of 0.1.0b3.
+
 ## Release 0.2.0
 
 - Introducing breaking API updates in multiple places, see Migration guide in

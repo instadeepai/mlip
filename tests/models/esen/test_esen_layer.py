@@ -92,10 +92,10 @@ class TestESENLayer:
     def wigner_and_m_mapping(
         self, edge_vectors: jax.Array
     ) -> tuple[jax.Array, jax.Array]:
-        wigner_and_m_mapping, wigner_and_m_mapping_inv = (
-            self.embedding_block()._get_rotmat_and_wigner(edge_vectors)
+        wigner_and_m_mapping = self.embedding_block()._get_rotmat_and_wigner(
+            edge_vectors
         )
-        return wigner_and_m_mapping, wigner_and_m_mapping_inv
+        return wigner_and_m_mapping
 
     def input_dict(self) -> dict[str, jax.Array]:
         n_nodes = 10
@@ -106,9 +106,7 @@ class TestESENLayer:
         edge_feats = jnp.ones(shape=(n_edges, self.sphere_channels))
         edge_envelope = jnp.ones(shape=(n_edges, 1, 1))
         edge_vectors = jnp.ones(shape=(n_edges, 3))
-        wigner_and_m_mapping, wigner_and_m_mapping_inv = self.wigner_and_m_mapping(
-            edge_vectors
-        )
+        wigner_and_m_mapping = self.wigner_and_m_mapping(edge_vectors)
         graph_definition_kwargs = {}
         graph_definition_kwargs.update(
             minval=0, maxval=n_nodes, shape=(n_edges,), key=self.key
@@ -123,7 +121,6 @@ class TestESENLayer:
             "latent_edge": edge_feats,
             "vectors": edge_vectors,
             "wigner_and_m_mapping": wigner_and_m_mapping,
-            "wigner_and_m_mapping_inv": wigner_and_m_mapping_inv,
             "envelope": edge_envelope,
             "senders": senders,
             "receivers": receivers,
@@ -168,9 +165,7 @@ class TestESENLayer:
 
         # f(g(x)): rotate equivariant inputs, then run
         egde_vectors_rot = graph.edges.features["vectors"] @ rotation
-        wigner_and_m_mapping_rot, wigner_and_m_mapping_inv_rot = (
-            self.wigner_and_m_mapping(egde_vectors_rot)
-        )
+        wigner_and_m_mapping_rot = self.wigner_and_m_mapping(egde_vectors_rot)
         node_feats_rot = jnp.einsum(
             "ijk, jl -> ilk", graph.nodes.features["latent"], rot_matrix_irreps
         )
@@ -179,7 +174,6 @@ class TestESENLayer:
         )
         rotated_graph = rotated_graph.update_edge_features(
             wigner_and_m_mapping=wigner_and_m_mapping_rot,
-            wigner_and_m_mapping_inv=wigner_and_m_mapping_inv_rot,
         )
 
         # f(g(x)): rotate equivariant inputs, then run

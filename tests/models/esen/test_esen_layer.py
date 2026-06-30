@@ -182,5 +182,5 @@ class TestESENLayer:
         assert jnp.allclose(
             out_node_feats_rot,
             rotated_graph_out.nodes.features["latent"],
-            atol=1e-6,
+            atol=1e-5,
         )

@@ -1,0 +1,820 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Models" href="models.html"><link rel="prev" title="User guide" href="index.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Data processing - MLIP documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">MLIP  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">MLIP  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation/index.html">Installation</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">User guide</a><input aria-label="Toggle navigation of User guide" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Data processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="training.html">Model training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inference.html">Batched Inference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simulations.html">Simulations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="finetuning.html">Model fine-tuning</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../migration_guide/index.html">Migration guide: v1 to v2</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api_reference/index.html">API reference</a><input aria-label="Toggle navigation of API reference" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/data/index.html">Data processing</a><input aria-label="Toggle navigation of Data processing" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/graph.html">Graph</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/single_graph_dataset_builder.html">Single Graph Dataset Builder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/graph_dataset_builder.html">Graph Dataset Builder</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/index.html">Chemical System Readers</a><input aria-label="Toggle navigation of Chemical System Readers" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/chemical_systems_reader.html">Chemical Systems Reader: Interface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/extxyz_reader.html">Extxyz Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/hdf5_reader.html">HDF5 Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api_reference/data/chemical_systems_readers/ase_atoms_reader.html"><code class="docutils literal notranslate"><span class="pre">ase.Atoms</span></code> Reader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/chemical_system.html">Chemical System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/dataset_info.html">Dataset Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/dataset_builder_config.html">Dataset builder config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/graph_dataset.html">Graph Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/combined_graph_dataset.html">Combined Graph Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/data_prefetching.html">Data parallelization and batch prefetching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/data_split.html">Data split</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/batching_helpers.html">Batching helpers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/data/helper_functions.html">Helper functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/models/index.html">Models</a><input aria-label="Toggle navigation of Models" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/mlip_network.html">MLIP Network: Base Class</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/config.html">MLIPNetworkConfig</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/mace.html">MACE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/esen.html">eSEN</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/nequip.html">NequIP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/visnet.html">ViSNet</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/predictor.html">Force Field predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/conservative_predictor.html">Conservative Predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/hessian_predictor.html">Hessian Predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/force_field.html">Force Field</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/inference_context.html">Inference Context</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/blocks.html">Blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/readout.html">Readout blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/prediction.html">Prediction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/properties.html">Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/io.html">Model I/O</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/loss.html">Loss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/models/options.html">Model options: Enum classes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/training/index.html">Model training</a><input aria-label="Toggle navigation of Model training" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_loop.html">Training Loop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_loop_config.html">Training Loop Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_state.html">Training state</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_step.html">Training step</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/optimizer.html">Optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/ema.html">Exponential Moving Average (EMA)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/training_io_handling.html">IO handling during training</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/evaluation.html">Model evaluation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/training/finetuning.html">Fine-tuning utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/simulation/index.html">Simulations</a><input aria-label="Toggle navigation of Simulations" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/simulation_engine.html">Simulation Engine: Interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/sim_config.html">Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/simulation_state.html">Simulation State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/enums.html">Simulation Enums</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/graph_creation_jaxmd.html">Create graph from ASE atoms for JAX-MD</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/jaxmd_engine.html">JAX-MD Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/jaxmd_sim_config.html">JAX-MD Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/ase_engine.html">ASE Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/ase_calculator.html">MLIP ASE Calculator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/ase_sim_config.html">ASE Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/temperature_scheduling.html">Temperature scheduling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/batched_inference.html">Batched inference</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/neb_engine.html">NEB Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/neb_config.html">NEB Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/metadynamics_engine.html">Metadynamics Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/metadynamics_config.html">Metadynamics Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/simulation/metadynamics_potential_configs.html">Metadynamics Potential Configs</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api_reference/utils/index.html">Utilities</a><input aria-label="Toggle navigation of Utilities" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api_reference/utils/multihost.html">Multi-host utilities</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/user_guide/data_processing.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="data-processing">
+<span id="id1"></span><h1>Data processing<a class="headerlink" href="#data-processing" title="Link to this heading">¶</a></h1>
+<section id="set-up-the-graph-dataset-builder">
+<h2>Set up the graph dataset builder<a class="headerlink" href="#set-up-the-graph-dataset-builder" title="Link to this heading">¶</a></h2>
+<p>To train a model (or optionally, to run batched inference), one needs to process
+the data into objects of type
+<a class="reference internal" href="../api_reference/data/graph_dataset.html#mlip.data.graph_dataset.GraphDataset" title="mlip.data.graph_dataset.GraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDataset</span></code></a>.
+This can be achieved by using the
+<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder" title="mlip.data.graph_dataset_builder.GraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code></a>
+class, which can be instantiated from:</p>
+<ul class="simple">
+<li><p>its associated pydantic config,</p></li>
+<li><p>a builder mode (<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.BuilderMode" title="mlip.data.graph_dataset_builder.BuilderMode"><code class="xref py py-class docutils literal notranslate"><span class="pre">BuilderMode</span></code></a>),</p></li>
+<li><p>a dictionary of chemical systems readers that are derived from the
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/chemical_systems_reader.html#mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader" title="mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChemicalSystemsReader</span></code></a>
+base class, and</p></li>
+<li><p>optionally, a <a class="reference internal" href="../api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo" title="mlip.data.dataset_info.DatasetInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetInfo</span></code></a> object
+that should be used instead of being computed by the builder
+(see <a class="reference internal" href="#get-dataset-info"><span class="std std-ref">this</span></a> section below for more information on that class),</p></li>
+</ul>
+<p>and internally uses the
+<a class="reference internal" href="../api_reference/data/single_graph_dataset_builder.html#mlip.data.single_graph_dataset_builder.SingleGraphDatasetBuilder" title="mlip.data.single_graph_dataset_builder.SingleGraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">SingleGraphDatasetBuilder</span></code></a>
+class that processes just a single dataset split. More information on the single-split
+pathway can be found <a class="reference internal" href="#single-split-builder"><span class="std std-ref">below</span></a>.</p>
+<p>Depending on the builder mode, the dictionary <code class="code docutils literal notranslate"><span class="pre">readers</span></code> may have a different
+structure. For the following, we assume the standard training case corresponding to the
+<code class="code docutils literal notranslate"><span class="pre">BuilderMode.TRAINING</span></code> mode. See sections below for a guide to the other builder modes
+(<a class="reference internal" href="#multi-builder-mode"><span class="std std-ref">fine-tuning and multi-dataset training</span></a>,
+and <a class="reference internal" href="#custom-builder-mode"><span class="std std-ref">custom</span></a>).</p>
+<p>Below, we provide a simple code example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphDatasetBuilder</span><span class="p">,</span> <span class="n">BuilderMode</span>
+
+<span class="c1"># The reader classes are placeholders for the moment</span>
+<span class="n">readers</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>  <span class="c1"># &quot;train&quot; key is mandatory</span>
+    <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+    <span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+<span class="p">}</span>
+
+<span class="n">builder_config</span> <span class="o">=</span> <span class="n">GraphDatasetBuilder</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span>
+    <span class="n">graph_cutoff_angstrom</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">graph_dataset_builder</span> <span class="o">=</span> <span class="n">GraphDatasetBuilder</span><span class="p">(</span>
+    <span class="n">readers</span><span class="p">,</span>
+    <span class="n">builder_config</span><span class="p">,</span>
+    <span class="n">BuilderMode</span><span class="o">.</span><span class="n">TRAINING</span><span class="p">,</span>  <span class="c1"># could be omitted as it&#39;s the default</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>In the example above, we set some example values for the settings in the
+<a class="reference internal" href="../api_reference/data/dataset_configs.html#mlip.data.configs.GraphDatasetBuilderConfig" title="mlip.data.configs.GraphDatasetBuilderConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDatasetBuilderConfig</span></code></a>.
+To simplify the coding effort, we allow access to this config object directly
+via <code class="code docutils literal notranslate"><span class="pre">GraphDatasetBuilder.Config</span></code>. Check out the API reference of the class to see the
+full set of configurable values and what their defaults have been set to.</p>
+<p><strong>Important:</strong> The key <code class="code docutils literal notranslate"><span class="pre">&quot;train&quot;</span></code> is a reserved key that must be present when using
+<code class="code docutils literal notranslate"><span class="pre">BuilderMode.TRAINING</span></code>. This signals to the builder that this is the dataset split to
+base the dataset info computation on (see <a class="reference internal" href="#get-dataset-info"><span class="std std-ref">here</span></a>). The other
+keys can be freely chosen.</p>
+<p>The chemical systems reader is an instance of a
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/chemical_systems_reader.html#mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader" title="mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChemicalSystemsReader</span></code></a>
+class.
+This class allows to read a dataset into lists of
+<a class="reference internal" href="../api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem" title="mlip.data.chemical_system.ChemicalSystem"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChemicalSystem</span></code></a> objects via
+its <code class="docutils literal notranslate"><span class="pre">load()</span></code> member function. You can either implement your own derived class to do
+this for your custom dataset format, or you can employ one of the
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/index.html#chemical-systems-readers"><span class="std std-ref">built-in implementations</span></a>, for example, the
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/extxyz_reader.html#mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader" title="mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtxyzReader</span></code></a>
+for datasets stored in extended XYZ format:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExtxyzReader</span>
+
+<span class="c1"># This can also be a list of files if multiple files make up one dataset</span>
+<span class="n">dataset_file</span> <span class="o">=</span> <span class="s2">&quot;/path/to/dataset.xyz&quot;</span>
+
+<span class="c1"># If data is stored locally</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">ExtxyzReader</span><span class="p">(</span><span class="n">dataset_file</span><span class="p">)</span>
+
+<span class="c1"># If data is on remote storage, one can also provide a data download function</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">ExtxyzReader</span><span class="p">(</span><span class="n">dataset_file</span><span class="p">,</span> <span class="n">data_download_fun</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In the example above, the <code class="docutils literal notranslate"><span class="pre">data_download_fun</span></code> is a simple function that takes in
+a source and a target path and performs the download operation. See the API reference
+of <a class="reference internal" href="../api_reference/data/chemical_systems_readers/chemical_systems_reader.html#mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader" title="mlip.data.chemical_systems_readers.chemical_systems_reader.ChemicalSystemsReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChemicalSystemsReader</span></code></a>
+for information on other configuration options.</p>
+<p>Moreover, please note that we also provide some helper functions for splitting a
+dataset which are documented <a class="reference internal" href="../api_reference/data/data_split.html#data-split"><span class="std std-ref">here</span></a>.</p>
+</section>
+<section id="built-in-graph-dataset-readers-data-formats">
+<h2>Built-in graph dataset readers: data formats<a class="headerlink" href="#built-in-graph-dataset-readers-data-formats" title="Link to this heading">¶</a></h2>
+<p>As mentioned above, three built-in core readers are currently provided:
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/extxyz_reader.html#mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader" title="mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtxyzReader</span></code></a>,
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/hdf5_reader.html#mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader" title="mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hdf5Reader</span></code></a>.
+and
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/ase_atoms_reader.html#mlip.data.chemical_systems_readers.ase_atoms_reader.ASEAtomsReader" title="mlip.data.chemical_systems_readers.ase_atoms_reader.ASEAtomsReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ASEAtomsReader</span></code></a>.</p>
+<p>They each support their own data format.
+To train an MLIP model, we need a dataset of atomic systems
+with the following features per system with specific units:</p>
+<ul class="simple">
+<li><p>the positions (i.e., coordinates) of the atoms in the structure in Angstrom</p></li>
+<li><p>the element numbers of the atoms</p></li>
+<li><p>the forces of the atoms in eV / Angstrom</p></li>
+<li><p>the energy of the structure in eV</p></li>
+<li><p>(optional) the stress of the structure in eV / Angstrom<sup>3</sup></p></li>
+<li><p>(optional) the periodic boundary conditions</p></li>
+<li><p>(optional) the energy Hessian in eV / Angstrom<sup>2</sup></p></li>
+<li><p>(optional) the atomic partial charges</p></li>
+<li><p>(depending on model architecture) the total system charge and spin multiplicity</p></li>
+</ul>
+<p>For a detailed description of the data format required by the
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/extxyz_reader.html#mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader" title="mlip.data.chemical_systems_readers.extxyz_reader.ExtxyzReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtxyzReader</span></code></a>,
+see <a class="reference internal" href="../api_reference/data/chemical_systems_readers/extxyz_reader.html#extxyz-reader"><span class="std std-ref">here</span></a>.</p>
+<p>For a detailed description of the data format required by the
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/hdf5_reader.html#mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader" title="mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hdf5Reader</span></code></a>,
+see <a class="reference internal" href="../api_reference/data/chemical_systems_readers/hdf5_reader.html#hdf5-reader"><span class="std std-ref">here</span></a>.</p>
+<p>For a detailed description of the data format required by the
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/ase_atoms_reader.html#mlip.data.chemical_systems_readers.ase_atoms_reader.ASEAtomsReader" title="mlip.data.chemical_systems_readers.ase_atoms_reader.ASEAtomsReader"><code class="xref py py-class docutils literal notranslate"><span class="pre">ASEAtomsReader</span></code></a>,
+see <a class="reference internal" href="../api_reference/data/chemical_systems_readers/ase_atoms_reader.html#ase-atoms-reader"><span class="std std-ref">here</span></a>.</p>
+</section>
+<section id="start-data-pre-processing">
+<h2>Start data pre-processing<a class="headerlink" href="#start-data-pre-processing" title="Link to this heading">¶</a></h2>
+<p>Once you have the <code class="docutils literal notranslate"><span class="pre">graph_dataset_builder</span></code> set up, you can start the pre-processing of
+the data and at the end fetch the resulting datasets:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">splits</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">get_datasets</span><span class="p">()</span>
+
+<span class="c1"># Dictionary keys are same as in input readers dictionary</span>
+<span class="n">train_set</span><span class="p">,</span> <span class="n">validation_set</span><span class="p">,</span> <span class="n">test_set</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">splits</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">],</span> <span class="n">splits</span><span class="p">[</span><span class="s2">&quot;validation&quot;</span><span class="p">],</span> <span class="n">splits</span><span class="p">[</span><span class="s2">&quot;test&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The resulting datasets are of type
+<a class="reference internal" href="../api_reference/data/graph_dataset.html#mlip.data.graph_dataset.GraphDataset" title="mlip.data.graph_dataset.GraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDataset</span></code></a>
+as mentioned above. For example, to process the batches in the training set, one
+can execute:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">num_graphs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_set</span><span class="o">.</span><span class="n">graphs</span><span class="p">)</span>
+<span class="n">num_batches</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_set</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">train_set</span><span class="p">:</span>
+    <span class="n">_process_batch_in_some_way</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that the individual graphs and batches are of
+type <a class="reference internal" href="../api_reference/data/graph.html#mlip.graph.Graph" title="mlip.graph.Graph"><code class="xref py py-class docutils literal notranslate"><span class="pre">Graph</span></code></a>.</p>
+<p>Also, you could use the <a class="reference external" href="https://docs.python.org/3/library/pickle.html">pickle</a>
+library to save the pre-processed splits to disk
+in order to restore them later, for instance, when experimenting with
+multiple training runs that do not differ in their datasets (to avoid re-processing).</p>
+</section>
+<section id="get-sharded-batches">
+<h2>Get sharded batches<a class="headerlink" href="#get-sharded-batches" title="Link to this heading">¶</a></h2>
+<p>If one wants to generate batches that are sharded across devices and prefetched, the
+arguments to the <code class="docutils literal notranslate"><span class="pre">get_datasets()</span></code> method of the
+<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder" title="mlip.data.graph_dataset_builder.GraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code></a>
+must be set to the following:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">splits</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">get_datasets</span><span class="p">(</span><span class="n">prefetch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">train_set</span><span class="p">,</span> <span class="n">valid_set</span><span class="p">,</span> <span class="n">test_set</span> <span class="o">=</span> <span class="n">splits</span>
+</pre></div>
+</div>
+<p>After this step, the resulting datasets are not of type
+<a class="reference internal" href="../api_reference/data/graph_dataset.html#mlip.data.graph_dataset.GraphDataset" title="mlip.data.graph_dataset.GraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDataset</span></code></a> anymore,
+but they become
+<a class="reference internal" href="../api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.PrefetchIterator" title="mlip.data.helpers.data_prefetching.PrefetchIterator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PrefetchIterator</span></code></a> type
+instead, which implements batch prefetching on top of the
+<a class="reference internal" href="../api_reference/data/data_prefetching.html#mlip.data.helpers.data_prefetching.ParallelGraphDataset" title="mlip.data.helpers.data_prefetching.ParallelGraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">ParallelGraphDataset</span></code></a>
+class. It also implements an iterator that can be called to obtain sharded batches
+(e.g., <code class="code docutils literal notranslate"><span class="pre">for</span> <span class="pre">batch</span> <span class="pre">in</span> <span class="pre">parallel_graph_dataset:</span> <span class="pre">do_something(batch)</span></code>), however,
+note that it does not have a <code class="code docutils literal notranslate"><span class="pre">graphs</span></code> member that can be accessed directly.</p>
+<p>Note that using <a class="reference external" href="https://docs.python.org/3/library/pickle.html">pickle</a> is not
+possible to save these objects to disk due to some unhashable components in the
+prefetching logic, however, it is possible to save the underlying
+<code class="code docutils literal notranslate"><span class="pre">PrefetchIterator.iterable</span></code> and restore the <code class="code docutils literal notranslate"><span class="pre">PrefetchIterator</span></code> manually from it
+upon loading.</p>
+</section>
+<section id="get-dataset-info">
+<span id="id3"></span><h2>Get dataset info<a class="headerlink" href="#get-dataset-info" title="Link to this heading">¶</a></h2>
+<p>The builder class also populates a dataclass of type
+<a class="reference internal" href="../api_reference/data/dataset_info.html#mlip.data.dataset_info.DatasetInfo" title="mlip.data.dataset_info.DatasetInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DatasetInfo</span></code></a>, which contains
+metadata about the dataset that are relevant to the models while training and must be
+stored together with the models for these to be usable. The populated instance of this
+dataclass can be accessed easily like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Note: this will raise an exception if accessed</span>
+<span class="c1"># before get_datasets() is run</span>
+<span class="n">dataset_info</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">dataset_info</span>
+</pre></div>
+</div>
+<p>Usually, this object is computed by the builder based on the dataset(s), but it is also
+possible to pass a pre-computed dataset info to the builder.</p>
+</section>
+<section id="custom-system-pre-processing-and-batch-post-processing">
+<span id="pre-post-proc"></span><h2>Custom system pre-processing and batch post-processing<a class="headerlink" href="#custom-system-pre-processing-and-batch-post-processing" title="Link to this heading">¶</a></h2>
+<p>The <code class="code docutils literal notranslate"><span class="pre">get_datasets()</span></code> method of the
+<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder" title="mlip.data.graph_dataset_builder.GraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code></a>
+allows the user to specify custom system pre-processing and batch post-processing
+functions.</p>
+<p>These are provided as lists of simple <code class="code docutils literal notranslate"><span class="pre">Callable</span></code> objects. Their purpose and signatures
+are this:</p>
+<ul class="simple">
+<li><p><strong>System pre-processing:</strong> These functions are of signature
+<code class="code docutils literal notranslate"><span class="pre">list[ChemicalSystem]</span> <span class="pre">-&gt;</span> <span class="pre">list[ChemicalSystem]</span></code> and are applied to the
+<a class="reference internal" href="../api_reference/data/chemical_system.html#mlip.data.chemical_system.ChemicalSystem" title="mlip.data.chemical_system.ChemicalSystem"><code class="xref py py-class docutils literal notranslate"><span class="pre">ChemicalSystem</span></code></a> lists (output
+of <code class="code docutils literal notranslate"><span class="pre">load()</span></code> method of readers) before they are converted to
+<a class="reference internal" href="../api_reference/data/graph.html#mlip.graph.Graph" title="mlip.graph.Graph"><code class="xref py py-class docutils literal notranslate"><span class="pre">Graph</span></code></a> objects.</p></li>
+<li><p><strong>Graph/batch post-processing:</strong> These functions are of signature
+<code class="code docutils literal notranslate"><span class="pre">Graph</span> <span class="pre">-&gt;</span> <span class="pre">Graph</span></code> and are applied to the <a class="reference internal" href="../api_reference/data/graph.html#mlip.graph.Graph" title="mlip.graph.Graph"><code class="xref py py-class docutils literal notranslate"><span class="pre">Graph</span></code></a> that
+represents the batches just before they are yielded by the iterator of the
+<a class="reference internal" href="../api_reference/data/graph_dataset.html#mlip.data.graph_dataset.GraphDataset" title="mlip.data.graph_dataset.GraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDataset</span></code></a> object.
+The builder itself only forwards these functions to the constructor of the
+<a class="reference internal" href="../api_reference/data/graph_dataset.html#mlip.data.graph_dataset.GraphDataset" title="mlip.data.graph_dataset.GraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDataset</span></code></a>.</p></li>
+</ul>
+<p>An example of where this functionality is used can be found in the section
+<a class="reference internal" href="#hessian-training"><span class="std std-ref">Data processing for training on Hessian labels</span></a> below.</p>
+</section>
+<section id="dataset-processing-for-fine-tuning-or-multi-dataset-training">
+<span id="multi-builder-mode"></span><h2>Dataset processing for fine-tuning or multi-dataset training<a class="headerlink" href="#dataset-processing-for-fine-tuning-or-multi-dataset-training" title="Link to this heading">¶</a></h2>
+<p>For multi-head fine-tuning (MHFT) or multi-dataset training (e.g., for an
+eSEN Mixture-of-Experts model), we provide the <code class="code docutils literal notranslate"><span class="pre">BuilderMode.MULTI</span></code> mode.
+For an example of using multi-datasets to train an eSEN Mixture-of-Experts model,
+see the
+<a class="reference external" href="https://github.com/instadeepai/mlip/blob/main/tutorials/moe_training_and_inference_tutorial.ipynb">MoE training and inference tutorial notebook</a>.</p>
+<p>For this mode, the dictionary <code class="code docutils literal notranslate"><span class="pre">readers</span></code> will be a nested dictionary of datasets
+and splits. The only difference between the two use cases of MHFT and multi-dataset
+training is that the reserved “replay” key needs to be given as the name for one of the
+datasets in the MHFT case, which triggers that the builder uses a pre-computed dataset
+info for that split (needs to be given and taken from the pre-trained model).</p>
+<p>See the example below (code is provided for the MHFT case but differences
+for the multi-dataset training case are explained in comments):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphDatasetBuilder</span><span class="p">,</span> <span class="n">BuilderMode</span>
+
+<span class="c1"># For multi-dataset training, the &quot;replay&quot; set would for instance</span>
+<span class="c1"># just be called &quot;ds_0&quot;</span>
+<span class="n">readers</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;replay&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;ds_1&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;ds_2&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+
+<span class="c1"># For multi-dataset training, the dataset info would just be</span>
+<span class="c1"># passed as None</span>
+<span class="n">pretrained_ff</span> <span class="o">=</span> <span class="n">_get_pretrained_force_field</span><span class="p">()</span>
+<span class="n">preset_dataset_info</span> <span class="o">=</span> <span class="n">pretrained_ff</span><span class="o">.</span><span class="n">dataset_info</span>
+
+<span class="n">graph_dataset_builder</span> <span class="o">=</span> <span class="n">GraphDatasetBuilder</span><span class="p">(</span>
+    <span class="n">readers</span><span class="p">,</span>
+    <span class="n">GraphDatasetBuilder</span><span class="o">.</span><span class="n">Config</span><span class="p">(),</span>
+    <span class="n">BuilderMode</span><span class="o">.</span><span class="n">MULTI</span><span class="p">,</span>
+    <span class="n">dataset_info</span><span class="o">=</span><span class="n">preset_dataset_info</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Datasets are combined for each split</span>
+<span class="n">splits</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">get_datasets</span><span class="p">()</span>
+<span class="n">train_set</span><span class="p">,</span> <span class="n">validation_set</span> <span class="o">=</span> <span class="n">splits</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">],</span> <span class="n">splits</span><span class="p">[</span><span class="s2">&quot;validation&quot;</span><span class="p">]</span>
+
+<span class="c1"># Single combined dataset info object (not a dictionary)</span>
+<span class="n">dataset_info</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">dataset_info</span>
+</pre></div>
+</div>
+</section>
+<section id="builder-mode-buildermode-custom">
+<span id="custom-builder-mode"></span><h2>Builder mode <code class="code docutils literal notranslate"><span class="pre">BuilderMode.CUSTOM</span></code><a class="headerlink" href="#builder-mode-buildermode-custom" title="Link to this heading">¶</a></h2>
+<p>When using the custom builder mode, a flat dictionary <code class="code docutils literal notranslate"><span class="pre">readers</span></code> can be passed, and each
+split is processed independently (i.e., each split will get its independent dataset
+info computed unless a pre-computed one is passed):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphDatasetBuilder</span><span class="p">,</span> <span class="n">BuilderMode</span>
+
+<span class="n">readers</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;ds_1&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+    <span class="s2">&quot;ds_2&quot;</span><span class="p">:</span> <span class="n">_get_chemical_systems_reader</span><span class="p">(),</span>
+<span class="p">}</span>
+
+<span class="n">graph_dataset_builder</span> <span class="o">=</span> <span class="n">GraphDatasetBuilder</span><span class="p">(</span>
+    <span class="n">readers</span><span class="p">,</span>
+    <span class="n">GraphDatasetBuilder</span><span class="o">.</span><span class="n">Config</span><span class="p">(),</span>
+    <span class="n">BuilderMode</span><span class="o">.</span><span class="n">CUSTOM</span><span class="p">,</span>
+    <span class="n">dataset_info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># if passed, this one is used for all splits</span>
+<span class="p">)</span>
+
+<span class="c1"># Both, the splits and the dataset info are now dictionaries</span>
+<span class="n">splits</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">get_datasets</span><span class="p">()</span>
+<span class="n">dataset_info</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">dataset_info</span>
+</pre></div>
+</div>
+</section>
+<section id="single-split-dataset-building">
+<span id="single-split-builder"></span><h2>Single split dataset building<a class="headerlink" href="#single-split-dataset-building" title="Link to this heading">¶</a></h2>
+<p>When building just a single dataset split (e.g., for any inference task), the
+<a class="reference internal" href="../api_reference/data/single_graph_dataset_builder.html#mlip.data.single_graph_dataset_builder.SingleGraphDatasetBuilder" title="mlip.data.single_graph_dataset_builder.SingleGraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">SingleGraphDatasetBuilder</span></code></a>
+should be used (it is also used internally by the
+<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder" title="mlip.data.graph_dataset_builder.GraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code></a>).</p>
+<p>It is straightforward to use as its API is analogous to the
+<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder" title="mlip.data.graph_dataset_builder.GraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code></a>
+API. The config class is of the identical type. However,
+instead of accepting a dictionary of readers, it accepts a single reader
+(or a list, which results in a simple concatenation of the datasets). The method
+<code class="code docutils literal notranslate"><span class="pre">get_dataset()</span></code> has an identical signature to the <code class="code docutils literal notranslate"><span class="pre">get_datasets()</span></code> method of the
+multi-split builder. The single split builder also allows passing a pre-defined
+dataset info instead of computing one for the given dataset.</p>
+<p>Note that this class is also used internally in the
+<a class="reference internal" href="../api_reference/simulation/batched_inference.html#mlip.inference.batched_inference.run_batched_inference" title="mlip.inference.batched_inference.run_batched_inference"><code class="xref py py-func docutils literal notranslate"><span class="pre">run_batched_inference()</span></code></a>
+function when the user passes a list of <code class="code docutils literal notranslate"><span class="pre">ase.Atoms</span></code> to it.</p>
+</section>
+<section id="data-processing-for-training-on-hessian-labels">
+<span id="hessian-training"></span><h2>Data processing for training on Hessian labels<a class="headerlink" href="#data-processing-for-training-on-hessian-labels" title="Link to this heading">¶</a></h2>
+<p>For training on Hessian labels, dataset files containing reference Hessians
+are currently required to be in HDF5 format.
+When reading HDF5 groups that correspond to systems with Hessians, the reader will
+attempt to retrieve the property using <code class="docutils literal notranslate"><span class="pre">&quot;hessian&quot;</span></code> as the default key name.
+If the provided files store
+the Hessian label under a different key,
+the default property name must be overwritten when instantiating the
+<a class="reference internal" href="../api_reference/data/chemical_systems_readers/hdf5_reader.html#mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader" title="mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader"><code class="xref py py-class docutils literal notranslate"><span class="pre">Hdf5Reader</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Hdf5Reader</span>
+
+<span class="n">reader</span> <span class="o">=</span> <span class="n">Hdf5Reader</span><span class="p">(</span>
+    <span class="n">filepath</span><span class="p">,</span>
+    <span class="n">data_download_fun</span><span class="p">,</span>
+    <span class="n">property_name_mapping</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;hessian&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;hessian-property-key-name&gt;&quot;</span><span class="p">},</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>When calling <code class="code docutils literal notranslate"><span class="pre">get_datasets()</span></code> of the
+<a class="reference internal" href="../api_reference/data/graph_dataset_builder.html#mlip.data.graph_dataset_builder.GraphDatasetBuilder" title="mlip.data.graph_dataset_builder.GraphDatasetBuilder"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDatasetBuilder</span></code></a>,
+additional system pre-processing and batch post-processing functions must be applied.
+See section <a class="reference internal" href="#pre-post-proc"><span class="std std-ref">Custom system pre-processing and batch post-processing</span></a> above for an introduction to the concept.</p>
+<p>We provide these functions, as they are required for setting up Hessian training.
+For system pre-processing, it is:
+<code class="xref py py-func docutils literal notranslate"><span class="pre">pad_systems_hessians</span></code>.
+This function pads all Hessian matrices to the maximum system size <code class="code docutils literal notranslate"><span class="pre">N</span></code>,
+transforming shapes from <code class="code docutils literal notranslate"><span class="pre">(n,</span> <span class="pre">3,</span> <span class="pre">n,</span> <span class="pre">3)</span></code> to <code class="code docutils literal notranslate"><span class="pre">(n,</span> <span class="pre">3,</span> <span class="pre">N,</span> <span class="pre">3)</span></code> (<code class="code docutils literal notranslate"><span class="pre">n</span></code> is the number of atoms
+for a given system)
+to enable the batching of Hessians with heterogeneous shapes.
+For batch post-processing, it is:
+<code class="xref py py-func docutils literal notranslate"><span class="pre">process_graph_hessian</span></code>.
+It must be partially initialized with <code class="code docutils literal notranslate"><span class="pre">num_hessian_rows</span></code>, indicating the number
+of rows to be sampled from the full Hessian (i.e., the number of randomly
+chosen force components to be differentiated with respect to all atomic coordinates).
+This number is user-defined, and we recommend using a value between 4 and 16
+depending on the computational cost that can be afforded.</p>
+<p>These functions are passed during the building process:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+
+<span class="n">post_proc</span> <span class="o">=</span> <span class="p">[</span><span class="n">partial</span><span class="p">(</span><span class="n">process_graph_hessian</span><span class="p">,</span> <span class="n">num_rows</span><span class="o">=</span><span class="n">num_hessian_rows</span><span class="p">)]</span>
+<span class="n">pre_proc</span> <span class="o">=</span> <span class="p">[</span><span class="n">pad_systems_hessians</span><span class="p">]</span>
+
+<span class="n">splits</span> <span class="o">=</span> <span class="n">graph_dataset_builder</span><span class="o">.</span><span class="n">get_datasets</span><span class="p">(</span>
+    <span class="n">systems_preprocessing</span><span class="o">=</span><span class="n">pre_proc</span><span class="p">,</span>
+    <span class="n">graph_postprocessing</span><span class="o">=</span><span class="n">post_proc</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>In practice, generating Hessian references with quantum chemistry methods
+is a computationally expensive process,
+which limits the availability of large-scale Hessian-annotated data.
+Therefore, when training Hessian-aware models
+on large-scale molecular data, the dominant scenario is typically one where only a
+small fraction of the dataset contains Hessian labels.</p>
+<p>To avoid burdening the entire dataset with the restrictions and computational overhead
+required for the Hessian-annotated
+portion (e.g., padding operations and specific batching parameters), we provide the
+<a class="reference internal" href="../api_reference/data/combined_graph_dataset.html#mlip.data.helpers.combined_graph_dataset.CombinedGraphDataset" title="mlip.data.helpers.combined_graph_dataset.CombinedGraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">CombinedGraphDataset</span></code></a> class.
+This class allows to train on heterogeneous datasets, each maintaining its own
+batching parameters and data processing steps.</p>
+<p>In a nutshell, when training on large-scale data where only a subset is
+annotated with Hessians, we recommend using the
+<a class="reference internal" href="../api_reference/data/combined_graph_dataset.html#mlip.data.helpers.combined_graph_dataset.CombinedGraphDataset" title="mlip.data.helpers.combined_graph_dataset.CombinedGraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">CombinedGraphDataset</span></code></a>
+class instead of the standard
+<a class="reference internal" href="../api_reference/data/graph_dataset.html#mlip.data.graph_dataset.GraphDataset" title="mlip.data.graph_dataset.GraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">GraphDataset</span></code></a>.
+Below is an example workflow:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">mlip.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombinedGraphDataset</span>
+
+<span class="c1"># Create dataset splits (train, validation, test) for non-Hessian dataset</span>
+<span class="n">non_hessian_splits</span> <span class="o">=</span> <span class="n">_create_non_hessian_splits</span><span class="p">()</span>
+
+<span class="c1"># Create dataset splits (train, validation, test) for Hessian dataset</span>
+<span class="n">hessian_splits</span> <span class="o">=</span> <span class="n">_create_hessian_splits</span><span class="p">()</span>
+
+<span class="c1"># Combine non-Hessian and Hessian splits into combined dataset objects</span>
+<span class="n">splits</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">split_name</span><span class="p">:</span> <span class="n">CombinedGraphDataset</span><span class="o">.</span><span class="n">init</span><span class="p">(</span>
+        <span class="n">graph_datasets</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">non_hessian_splits</span><span class="p">[</span><span class="n">split_name</span><span class="p">],</span>
+            <span class="n">hessian_splits</span><span class="p">[</span><span class="n">split_name</span><span class="p">]</span>
+        <span class="p">],</span>
+        <span class="n">interleaving_method</span><span class="o">=</span><span class="s2">&quot;regular&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">split_name</span> <span class="ow">in</span> <span class="n">split_names</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The combined graph datasets can then be passed to the training loop in exactly the same
+way as the normal graph datasets. During training, batches will be yielded from each
+of the sub-datasets either in a random or regular interleaving fashion, depending on the
+given <code class="code docutils literal notranslate"><span class="pre">interleaving_method</span></code> argument.</p>
+<p>See the API reference for
+<a class="reference internal" href="../api_reference/data/combined_graph_dataset.html#mlip.data.helpers.combined_graph_dataset.CombinedGraphDataset" title="mlip.data.helpers.combined_graph_dataset.CombinedGraphDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">CombinedGraphDataset</span></code></a>
+for more information on multi-host handling and different interleaving methods
+between dataset types.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="models.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Models</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">User guide</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2025, InstaDeep
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Data processing</a><ul>
+<li><a class="reference internal" href="#set-up-the-graph-dataset-builder">Set up the graph dataset builder</a></li>
+<li><a class="reference internal" href="#built-in-graph-dataset-readers-data-formats">Built-in graph dataset readers: data formats</a></li>
+<li><a class="reference internal" href="#start-data-pre-processing">Start data pre-processing</a></li>
+<li><a class="reference internal" href="#get-sharded-batches">Get sharded batches</a></li>
+<li><a class="reference internal" href="#get-dataset-info">Get dataset info</a></li>
+<li><a class="reference internal" href="#custom-system-pre-processing-and-batch-post-processing">Custom system pre-processing and batch post-processing</a></li>
+<li><a class="reference internal" href="#dataset-processing-for-fine-tuning-or-multi-dataset-training">Dataset processing for fine-tuning or multi-dataset training</a></li>
+<li><a class="reference internal" href="#builder-mode-buildermode-custom">Builder mode <code class="code docutils literal notranslate"><span class="pre">BuilderMode.CUSTOM</span></code></a></li>
+<li><a class="reference internal" href="#single-split-dataset-building">Single split dataset building</a></li>
+<li><a class="reference internal" href="#data-processing-for-training-on-hessian-labels">Data processing for training on Hessian labels</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

@@ -1,0 +1,1016 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html"><link rel="next" title="Single Graph Dataset Builder" href="single_graph_dataset_builder.html"><link rel="prev" title="Data processing" href="index.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Graph - MLIP documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MLIP  documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MLIP  documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../installation/index.html">Installation</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../user_guide/index.html">User guide</a><input aria-label="Toggle navigation of User guide" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/data_processing.html">Data processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/models.html">Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/training.html">Model training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/inference.html">Batched Inference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/simulations.html">Simulations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/finetuning.html">Model fine-tuning</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../migration_guide/index.html">Migration guide: v1 to v2</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../index.html">API reference</a><input aria-label="Toggle navigation of API reference" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 current has-children"><a class="reference internal" href="index.html">Data processing</a><input aria-label="Toggle navigation of Data processing" checked="" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">Graph</a></li>
+<li class="toctree-l3"><a class="reference internal" href="single_graph_dataset_builder.html">Single Graph Dataset Builder</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graph_dataset_builder.html">Graph Dataset Builder</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="chemical_systems_readers/index.html">Chemical System Readers</a><input aria-label="Toggle navigation of Chemical System Readers" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="chemical_systems_readers/chemical_systems_reader.html">Chemical Systems Reader: Interface</a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemical_systems_readers/extxyz_reader.html">Extxyz Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemical_systems_readers/hdf5_reader.html">HDF5 Reader</a></li>
+<li class="toctree-l4"><a class="reference internal" href="chemical_systems_readers/ase_atoms_reader.html"><code class="docutils literal notranslate"><span class="pre">ase.Atoms</span></code> Reader</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="chemical_system.html">Chemical System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dataset_info.html">Dataset Info</a></li>
+<li class="toctree-l3"><a class="reference internal" href="dataset_builder_config.html">Dataset builder config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="graph_dataset.html">Graph Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="combined_graph_dataset.html">Combined Graph Dataset</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data_prefetching.html">Data parallelization and batch prefetching</a></li>
+<li class="toctree-l3"><a class="reference internal" href="data_split.html">Data split</a></li>
+<li class="toctree-l3"><a class="reference internal" href="batching_helpers.html">Batching helpers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="helper_functions.html">Helper functions</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../models/index.html">Models</a><input aria-label="Toggle navigation of Models" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../models/mlip_network.html">MLIP Network: Base Class</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/config.html">MLIPNetworkConfig</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/mace.html">MACE</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/esen.html">eSEN</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/nequip.html">NequIP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/visnet.html">ViSNet</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/predictor.html">Force Field predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/conservative_predictor.html">Conservative Predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/hessian_predictor.html">Hessian Predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/force_field.html">Force Field</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/inference_context.html">Inference Context</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/blocks.html">Blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/readout.html">Readout blocks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/prediction.html">Prediction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/properties.html">Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/io.html">Model I/O</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/loss.html">Loss</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../models/options.html">Model options: Enum classes</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../training/index.html">Model training</a><input aria-label="Toggle navigation of Model training" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../training/training_loop.html">Training Loop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/training_loop_config.html">Training Loop Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/training_state.html">Training state</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/training_step.html">Training step</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/optimizer.html">Optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/ema.html">Exponential Moving Average (EMA)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/training_io_handling.html">IO handling during training</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/evaluation.html">Model evaluation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../training/finetuning.html">Fine-tuning utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../simulation/index.html">Simulations</a><input aria-label="Toggle navigation of Simulations" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/simulation_engine.html">Simulation Engine: Interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/sim_config.html">Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/simulation_state.html">Simulation State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/enums.html">Simulation Enums</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/graph_creation_jaxmd.html">Create graph from ASE atoms for JAX-MD</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/jaxmd_engine.html">JAX-MD Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/jaxmd_sim_config.html">JAX-MD Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/ase_engine.html">ASE Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/ase_calculator.html">MLIP ASE Calculator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/ase_sim_config.html">ASE Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/temperature_scheduling.html">Temperature scheduling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/batched_inference.html">Batched inference</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/neb_engine.html">NEB Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/neb_config.html">NEB Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/metadynamics_engine.html">Metadynamics Simulation Engine</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/metadynamics_config.html">Metadynamics Simulation Config</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../simulation/metadynamics_potential_configs.html">Metadynamics Potential Configs</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../utils/index.html">Utilities</a><input aria-label="Toggle navigation of Utilities" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../utils/multihost.html">Multi-host utilities</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/api_reference/data/graph.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="module-mlip.graph">
+<span id="graph"></span><span id="id1"></span><h1>Graph<a class="headerlink" href="#module-mlip.graph" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="mlip.graph.Graph">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">mlip.graph.</span></span><span class="sig-name descname"><span class="pre">Graph</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nodes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mlip.graph.GraphNodes" title="mlip.graph.graph.GraphNodes"><span class="pre">GraphNodes</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">edges</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mlip.graph.GraphEdges" title="mlip.graph.graph.GraphEdges"><span class="pre">GraphEdges</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">globals</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mlip.graph.GraphGlobals" title="mlip.graph.graph.GraphGlobals"><span class="pre">GraphGlobals</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_node</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_edge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">senders</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">receivers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_edge_long_range</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">senders_long_range</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">receivers_long_range</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edges_long_range</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#mlip.graph.GraphEdges" title="mlip.graph.graph.GraphEdges"><span class="pre">GraphEdges</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mlip.graph.Graph" title="Link to this definition">¶</a></dt>
+<dd><p>The <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> class defining a single graph or a batch of graphs.</p>
+<p>Modeled after <code class="code docutils literal notranslate"><span class="pre">jraph.GraphsTuple</span></code>, but with additional methods.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.nodes">
+<span class="sig-name descname"><span class="pre">nodes</span></span><a class="headerlink" href="#mlip.graph.Graph.nodes" title="Link to this definition">¶</a></dt>
+<dd><p>The node features of the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#mlip.graph.GraphNodes" title="mlip.graph.graph.GraphNodes">mlip.graph.graph.GraphNodes</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.edges">
+<span class="sig-name descname"><span class="pre">edges</span></span><a class="headerlink" href="#mlip.graph.Graph.edges" title="Link to this definition">¶</a></dt>
+<dd><p>The edge features of the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#mlip.graph.GraphEdges" title="mlip.graph.graph.GraphEdges">mlip.graph.graph.GraphEdges</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.globals">
+<span class="sig-name descname"><span class="pre">globals</span></span><a class="headerlink" href="#mlip.graph.Graph.globals" title="Link to this definition">¶</a></dt>
+<dd><p>The global features of the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#mlip.graph.GraphGlobals" title="mlip.graph.graph.GraphGlobals">mlip.graph.graph.GraphGlobals</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.n_node">
+<span class="sig-name descname"><span class="pre">n_node</span></span><a class="headerlink" href="#mlip.graph.Graph.n_node" title="Link to this definition">¶</a></dt>
+<dd><p>The number of nodes in the graph (or a vector if a batch).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.n_edge">
+<span class="sig-name descname"><span class="pre">n_edge</span></span><a class="headerlink" href="#mlip.graph.Graph.n_edge" title="Link to this definition">¶</a></dt>
+<dd><p>The number of edges in the graph (or a vector if a batch).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.senders">
+<span class="sig-name descname"><span class="pre">senders</span></span><a class="headerlink" href="#mlip.graph.Graph.senders" title="Link to this definition">¶</a></dt>
+<dd><p>The sender indices of the edges of the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.receivers">
+<span class="sig-name descname"><span class="pre">receivers</span></span><a class="headerlink" href="#mlip.graph.Graph.receivers" title="Link to this definition">¶</a></dt>
+<dd><p>The receiver indices of the edges of the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.n_edge_long_range">
+<span class="sig-name descname"><span class="pre">n_edge_long_range</span></span><a class="headerlink" href="#mlip.graph.Graph.n_edge_long_range" title="Link to this definition">¶</a></dt>
+<dd><p>The number of long range edges in the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.senders_long_range">
+<span class="sig-name descname"><span class="pre">senders_long_range</span></span><a class="headerlink" href="#mlip.graph.Graph.senders_long_range" title="Link to this definition">¶</a></dt>
+<dd><p>The sender indices of the long range edges.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.receivers_long_range">
+<span class="sig-name descname"><span class="pre">receivers_long_range</span></span><a class="headerlink" href="#mlip.graph.Graph.receivers_long_range" title="Link to this definition">¶</a></dt>
+<dd><p>The receiver indices of the long range edges.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.edges_long_range">
+<span class="sig-name descname"><span class="pre">edges_long_range</span></span><a class="headerlink" href="#mlip.graph.Graph.edges_long_range" title="Link to this definition">¶</a></dt>
+<dd><p>Edge information for long-range edges if present.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#mlip.graph.GraphEdges" title="mlip.graph.graph.GraphEdges">mlip.graph.graph.GraphEdges</a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.from_chemical_system">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_chemical_system</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chemical_system</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="chemical_system.html#mlip.data.chemical_system.ChemicalSystem" title="mlip.data.chemical_system.ChemicalSystem"><span class="pre">ChemicalSystem</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">graph_cutoff_angstrom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_range_cutoff_angstrom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.from_chemical_system" title="Link to this definition">¶</a></dt>
+<dd><p>Create a <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object from a chemical system and dataset info.</p>
+<p>This includes computing the senders/receivers/shifts for the system and
+otherwise just transferring data 1-to-1 to the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>chemical_system</strong> – The chemical system object.</p></li>
+<li><p><strong>graph_cutoff_angstrom</strong> – The graph distance cutoff in Angstrom.</p></li>
+<li><p><strong>long_range_cutoff_angstrom</strong> – The long range distance cutoff in Angstrom.
+If None, long range interactions are not computed.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object for the given chemical system.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.Graph.num_graphs">
+<span class="sig-name descname"><span class="pre">num_graphs</span></span><a class="headerlink" href="#mlip.graph.Graph.num_graphs" title="Link to this definition">¶</a></dt>
+<dd><p>Number of graphs in the (possibly batched, possibly padded) graph.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.replace_nodes">
+<span class="sig-name descname"><span class="pre">replace_nodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.replace_nodes" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object where <code class="code docutils literal notranslate"><span class="pre">nodes</span></code> attribute are replaced.</p>
+<p>Keyword arguments are forwarded to the <code class="code docutils literal notranslate"><span class="pre">.replace()</span></code> call on the nodes
+dataclass.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.replace_edges">
+<span class="sig-name descname"><span class="pre">replace_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.replace_edges" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object where <code class="code docutils literal notranslate"><span class="pre">edges</span></code> attribute are replaced.</p>
+<p>Keyword arguments are forwarded to the <code class="code docutils literal notranslate"><span class="pre">.replace()</span></code> call on the edges
+dataclass.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.replace_globals">
+<span class="sig-name descname"><span class="pre">replace_globals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.replace_globals" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object where <code class="code docutils literal notranslate"><span class="pre">globals</span></code> attribute are replaced.</p>
+<p>Keyword arguments are forwarded to the <code class="code docutils literal notranslate"><span class="pre">.replace()</span></code> call on the globals
+dataclass.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.update_node_features">
+<span class="sig-name descname"><span class="pre">update_node_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.update_node_features" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object where <code class="code docutils literal notranslate"><span class="pre">nodes</span></code> attribute are replaced.</p>
+<p>Keyword arguments are forwarded to the <code class="code docutils literal notranslate"><span class="pre">.replace()</span></code> call on the nodes
+dataclass.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.update_edge_features">
+<span class="sig-name descname"><span class="pre">update_edge_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.update_edge_features" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object where <code class="code docutils literal notranslate"><span class="pre">edges</span></code> attribute are replaced.</p>
+<p>Keyword arguments are forwarded to the <code class="code docutils literal notranslate"><span class="pre">.replace()</span></code> call on the nodes
+dataclass.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.update_global_features">
+<span class="sig-name descname"><span class="pre">update_global_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.update_global_features" title="Link to this definition">¶</a></dt>
+<dd><p>Returns the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object where <code class="code docutils literal notranslate"><span class="pre">globals</span></code> attribute are replaced.</p>
+<p>Keyword arguments are forwarded to the <code class="code docutils literal notranslate"><span class="pre">.replace()</span></code> call on the globals
+dataclass.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.request_full_hessian">
+<span class="sig-name descname"><span class="pre">request_full_hessian</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Self</span></span></span><a class="headerlink" href="#mlip.graph.Graph.request_full_hessian" title="Link to this definition">¶</a></dt>
+<dd><p>Returns a graph that has <code class="code docutils literal notranslate"><span class="pre">sample_hessian_rows=np.array(True)</span></code> in the globals.</p>
+<p>Required for inference pipelines.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.node_mask">
+<span class="sig-name descname"><span class="pre">node_mask</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="headerlink" href="#mlip.graph.Graph.node_mask" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates the node padding mask array for the graph.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">True</span></code> refers to a real node, while <code class="code docutils literal notranslate"><span class="pre">False</span></code> refers to a dummy node in
+the (batched) graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The node padding mask.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.graph_mask">
+<span class="sig-name descname"><span class="pre">graph_mask</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span></span></span><a class="headerlink" href="#mlip.graph.Graph.graph_mask" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluates the graph padding mask array for the batched graph.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">True</span></code> refers to a real graph, while <code class="code docutils literal notranslate"><span class="pre">False</span></code> refers to a dummy graph in
+the batched graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The graph padding mask.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.to_prediction">
+<span class="sig-name descname"><span class="pre">to_prediction</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="../models/prediction.html#mlip.typing.prediction.Prediction" title="mlip.typing.prediction.Prediction"><span class="pre">Prediction</span></a></span></span><a class="headerlink" href="#mlip.graph.Graph.to_prediction" title="Link to this definition">¶</a></dt>
+<dd><p>Creates a <code class="code docutils literal notranslate"><span class="pre">Prediction</span></code> object from the current graph, which contains all the
+properties of the graph that are also part of a prediction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The prediction.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.edge_vectors">
+<span class="sig-name descname"><span class="pre">edge_vectors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">use_np</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></span><a class="headerlink" href="#mlip.graph.Graph.edge_vectors" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the relative edge vectors from senders to receivers.</p>
+<p>We use <code class="code docutils literal notranslate"><span class="pre">displ_fun</span></code> if available, otherwise edge vectors are computed directly
+using the <code class="code docutils literal notranslate"><span class="pre">positions</span></code> and <code class="code docutils literal notranslate"><span class="pre">shifts</span></code>. In the case of PBCs, sender nodes are
+translated from the unit cell to the receiver’s nearest neighbouring cell:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># If `displ_fun` is None, this method returns:</span>
+<span class="n">vectors</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[</span><span class="n">receivers</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="n">positions</span><span class="p">[</span><span class="n">senders</span><span class="p">]</span> <span class="o">-</span> <span class="n">shifts</span> <span class="o">@</span> <span class="n">cell</span><span class="p">)</span>
+
+<span class="c1"># Equivalent to this line from the ASE docs:</span>
+<span class="n">D</span> <span class="o">=</span> <span class="n">positions</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-</span> <span class="n">positions</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">S</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">cell</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>use_np</strong> – Whether to use <code class="code docutils literal notranslate"><span class="pre">numpy</span></code> or <code class="code docutils literal notranslate"><span class="pre">jax.numpy</span></code> for the computation. Default
+is <code class="code docutils literal notranslate"><span class="pre">False</span></code>, which means <code class="code docutils literal notranslate"><span class="pre">jax.numpy</span></code> is used.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The relative edge vectors, labelled <code class="code docutils literal notranslate"><span class="pre">D</span></code> by ASE.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mlip.graph.Graph.long_range_edge_vectors">
+<span class="sig-name descname"><span class="pre">long_range_edge_vectors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">use_np</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></span><a class="headerlink" href="#mlip.graph.Graph.long_range_edge_vectors" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the relative long-range edge vectors from senders to receivers.</p>
+<p>Mirrors <code class="code docutils literal notranslate"><span class="pre">self.edge_vectors()</span></code> for the long range graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>use_np</strong> – Whether to use <code class="code docutils literal notranslate"><span class="pre">numpy</span></code> or <code class="code docutils literal notranslate"><span class="pre">jax.numpy</span></code> for the
+computation. Default is <code class="code docutils literal notranslate"><span class="pre">False</span></code>, which means
+<code class="code docutils literal notranslate"><span class="pre">jax.numpy</span></code> is used.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The relative long-range edge vectors.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mlip.graph.GraphNodes">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">mlip.graph.</span></span><span class="sig-name descname"><span class="pre">GraphNodes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">atomic_numbers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">positions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forces</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">partial_charges</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hessian</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">~jax.Array</span> <span class="pre">|</span> <span class="pre">~numpy.ndarray</span> <span class="pre">|</span> <span class="pre">~numpy.bool</span> <span class="pre">|</span> <span class="pre">~numpy.number</span> <span class="pre">|</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">complex</span> <span class="pre">|</span> <span class="pre">~e3nn_jax._src.irreps_array.IrrepsArray]</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mlip.graph.GraphNodes" title="Link to this definition">¶</a></dt>
+<dd><p>Features of the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object related to nodes.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphNodes.atomic_numbers">
+<span class="sig-name descname"><span class="pre">atomic_numbers</span></span><a class="headerlink" href="#mlip.graph.GraphNodes.atomic_numbers" title="Link to this definition">¶</a></dt>
+<dd><p>The atomic numbers of the nodes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphNodes.positions">
+<span class="sig-name descname"><span class="pre">positions</span></span><a class="headerlink" href="#mlip.graph.GraphNodes.positions" title="Link to this definition">¶</a></dt>
+<dd><p>The positions of the nodes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphNodes.forces">
+<span class="sig-name descname"><span class="pre">forces</span></span><a class="headerlink" href="#mlip.graph.GraphNodes.forces" title="Link to this definition">¶</a></dt>
+<dd><p>The forces on the nodes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphNodes.partial_charges">
+<span class="sig-name descname"><span class="pre">partial_charges</span></span><a class="headerlink" href="#mlip.graph.GraphNodes.partial_charges" title="Link to this definition">¶</a></dt>
+<dd><p>The partial charges of the nodes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphNodes.hessian">
+<span class="sig-name descname"><span class="pre">hessian</span></span><a class="headerlink" href="#mlip.graph.GraphNodes.hessian" title="Link to this definition">¶</a></dt>
+<dd><p>The Hessian matrix (second derivatives of energy w.r.t. node positions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphNodes.features">
+<span class="sig-name descname"><span class="pre">features</span></span><a class="headerlink" href="#mlip.graph.GraphNodes.features" title="Link to this definition">¶</a></dt>
+<dd><p>Any additional node features stored inside a dictionary / PyTree.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex | e3nn_jax._src.irreps_array.IrrepsArray]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mlip.graph.GraphEdges">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">mlip.graph.</span></span><span class="sig-name descname"><span class="pre">GraphEdges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">shifts:</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">~jax.Array</span> <span class="pre">|</span> <span class="pre">~numpy.ndarray</span> <span class="pre">|</span> <span class="pre">~numpy.bool</span> <span class="pre">|</span> <span class="pre">~numpy.number</span> <span class="pre">|</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">complex</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">displ_fun:</span> <span class="pre">~typing.Callable[[~jax.Array</span> <span class="pre">|</span> <span class="pre">~numpy.ndarray</span> <span class="pre">|</span> <span class="pre">~numpy.bool</span> <span class="pre">|</span> <span class="pre">~numpy.number</span> <span class="pre">|</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">complex,</span> <span class="pre">~jax.Array</span> <span class="pre">|</span> <span class="pre">~numpy.ndarray</span> <span class="pre">|</span> <span class="pre">~numpy.bool</span> <span class="pre">|</span> <span class="pre">~numpy.number</span> <span class="pre">|</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">complex],</span> <span class="pre">~jax.Array</span> <span class="pre">|</span> <span class="pre">~numpy.ndarray</span> <span class="pre">|</span> <span class="pre">~numpy.bool</span> <span class="pre">|</span> <span class="pre">~numpy.number</span> <span class="pre">|</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">complex]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">features:</span> <span class="pre">dict[str,</span> <span class="pre">~jax.Array</span> <span class="pre">|</span> <span class="pre">~numpy.ndarray</span> <span class="pre">|</span> <span class="pre">~numpy.bool</span> <span class="pre">|</span> <span class="pre">~numpy.number</span> <span class="pre">|</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">complex</span> <span class="pre">|</span> <span class="pre">~e3nn_jax._src.irreps_array.IrrepsArray]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></em><span class="sig-paren">)</span><a class="headerlink" href="#mlip.graph.GraphEdges" title="Link to this definition">¶</a></dt>
+<dd><p>Features of the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object related to edges.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphEdges.shifts">
+<span class="sig-name descname"><span class="pre">shifts</span></span><a class="headerlink" href="#mlip.graph.GraphEdges.shifts" title="Link to this definition">¶</a></dt>
+<dd><p>Shift vectors to compute edge vectors from positions taking into account
+PBCs. Either this needs to be specified or the <code class="code docutils literal notranslate"><span class="pre">displ_fun</span></code> attribute
+instead, but not both. If both exist, shifts will be used.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphEdges.displ_fun">
+<span class="sig-name descname"><span class="pre">displ_fun</span></span><a class="headerlink" href="#mlip.graph.GraphEdges.displ_fun" title="Link to this definition">¶</a></dt>
+<dd><p>Alternative to <code class="code docutils literal notranslate"><span class="pre">shifts</span></code> to compute edge vectors from positions
+taking into account PBCs. The displacement function should be
+vmapped already, meaning it can take in a position matrix for
+senders and receivers and output the edge vector matrix. Moreover,
+the displacement function must be wrapped in
+<code class="code docutils literal notranslate"><span class="pre">jax.tree_util.Partial</span></code> in order to be compatible with jitting.
+Note that if the displacement function pathway is applied,
+stress cannot be calculated as a property. In the future,
+these two pathways may be unified.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Callable[[jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex, jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex], jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex] | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphEdges.features">
+<span class="sig-name descname"><span class="pre">features</span></span><a class="headerlink" href="#mlip.graph.GraphEdges.features" title="Link to this definition">¶</a></dt>
+<dd><p>Any additional edge features stored inside a dictionary / PyTree.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex | e3nn_jax._src.irreps_array.IrrepsArray]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">mlip.graph.</span></span><span class="sig-name descname"><span class="pre">GraphGlobals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">energy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stress</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pressure</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dipole_moment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_corrected_charge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin_multiplicity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_hessian_rows</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_dummy_for_init</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Array</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">complex</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">~jax.Array</span> <span class="pre">|</span> <span class="pre">~numpy.ndarray</span> <span class="pre">|</span> <span class="pre">~numpy.bool</span> <span class="pre">|</span> <span class="pre">~numpy.number</span> <span class="pre">|</span> <span class="pre">bool</span> <span class="pre">|</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">complex</span> <span class="pre">|</span> <span class="pre">~e3nn_jax._src.irreps_array.IrrepsArray]</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#mlip.graph.GraphGlobals" title="Link to this definition">¶</a></dt>
+<dd><p>Global features of the <code class="code docutils literal notranslate"><span class="pre">Graph</span></code> object.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.cell">
+<span class="sig-name descname"><span class="pre">cell</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.cell" title="Link to this definition">¶</a></dt>
+<dd><p>The cell definition. Important for PBCs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.weight">
+<span class="sig-name descname"><span class="pre">weight</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.weight" title="Link to this definition">¶</a></dt>
+<dd><p>The weight of the graph, which can be used inside a loss function.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.energy">
+<span class="sig-name descname"><span class="pre">energy</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.energy" title="Link to this definition">¶</a></dt>
+<dd><p>The energy.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.stress">
+<span class="sig-name descname"><span class="pre">stress</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.stress" title="Link to this definition">¶</a></dt>
+<dd><p>The stress.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.pressure">
+<span class="sig-name descname"><span class="pre">pressure</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.pressure" title="Link to this definition">¶</a></dt>
+<dd><p>The pressure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.charge">
+<span class="sig-name descname"><span class="pre">charge</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.charge" title="Link to this definition">¶</a></dt>
+<dd><p>The total charge of the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.non_corrected_charge">
+<span class="sig-name descname"><span class="pre">non_corrected_charge</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.non_corrected_charge" title="Link to this definition">¶</a></dt>
+<dd><p>The total charge of the graph before correction. Required
+for the total charge term of the loss during training.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.spin_multiplicity">
+<span class="sig-name descname"><span class="pre">spin_multiplicity</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.spin_multiplicity" title="Link to this definition">¶</a></dt>
+<dd><p>The spin multiplicity of the graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.sample_hessian_rows">
+<span class="sig-name descname"><span class="pre">sample_hessian_rows</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.sample_hessian_rows" title="Link to this definition">¶</a></dt>
+<dd><p>Indices of force terms to sample for sampled Hessian
+prediction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.dataset_idx">
+<span class="sig-name descname"><span class="pre">dataset_idx</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.dataset_idx" title="Link to this definition">¶</a></dt>
+<dd><p>An index pointing to which dataset this graph belongs to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.is_dummy_for_init">
+<span class="sig-name descname"><span class="pre">is_dummy_for_init</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.is_dummy_for_init" title="Link to this definition">¶</a></dt>
+<dd><p>Whether this graph is a dummy graph just used for model
+initialization. By default, this is set to <code class="code docutils literal notranslate"><span class="pre">None</span></code> which means false (but
+false is not used to allow shape-based evaluation of this field). Will be
+set to <code class="code docutils literal notranslate"><span class="pre">np.array(True)</span></code> for the dummy initialization graph.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | complex | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="mlip.graph.GraphGlobals.features">
+<span class="sig-name descname"><span class="pre">features</span></span><a class="headerlink" href="#mlip.graph.GraphGlobals.features" title="Link to this definition">¶</a></dt>
+<dd><p>Any additional global features stored inside a dictionary / PyTree.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, jax.Array | numpy.ndarray | numpy.bool | numpy.number | bool | int | float | complex | e3nn_jax._src.irreps_array.IrrepsArray]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="single_graph_dataset_builder.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Single Graph Dataset Builder</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Data processing</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2025, InstaDeep
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Graph</a><ul>
+<li><a class="reference internal" href="#mlip.graph.Graph"><code class="docutils literal notranslate"><span class="pre">Graph</span></code></a><ul>
+<li><a class="reference internal" href="#mlip.graph.Graph.nodes"><code class="docutils literal notranslate"><span class="pre">Graph.nodes</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.edges"><code class="docutils literal notranslate"><span class="pre">Graph.edges</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.globals"><code class="docutils literal notranslate"><span class="pre">Graph.globals</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.n_node"><code class="docutils literal notranslate"><span class="pre">Graph.n_node</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.n_edge"><code class="docutils literal notranslate"><span class="pre">Graph.n_edge</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.senders"><code class="docutils literal notranslate"><span class="pre">Graph.senders</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.receivers"><code class="docutils literal notranslate"><span class="pre">Graph.receivers</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.n_edge_long_range"><code class="docutils literal notranslate"><span class="pre">Graph.n_edge_long_range</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.senders_long_range"><code class="docutils literal notranslate"><span class="pre">Graph.senders_long_range</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.receivers_long_range"><code class="docutils literal notranslate"><span class="pre">Graph.receivers_long_range</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.edges_long_range"><code class="docutils literal notranslate"><span class="pre">Graph.edges_long_range</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.from_chemical_system"><code class="docutils literal notranslate"><span class="pre">Graph.from_chemical_system()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.num_graphs"><code class="docutils literal notranslate"><span class="pre">Graph.num_graphs</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.replace_nodes"><code class="docutils literal notranslate"><span class="pre">Graph.replace_nodes()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.replace_edges"><code class="docutils literal notranslate"><span class="pre">Graph.replace_edges()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.replace_globals"><code class="docutils literal notranslate"><span class="pre">Graph.replace_globals()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.update_node_features"><code class="docutils literal notranslate"><span class="pre">Graph.update_node_features()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.update_edge_features"><code class="docutils literal notranslate"><span class="pre">Graph.update_edge_features()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.update_global_features"><code class="docutils literal notranslate"><span class="pre">Graph.update_global_features()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.request_full_hessian"><code class="docutils literal notranslate"><span class="pre">Graph.request_full_hessian()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.node_mask"><code class="docutils literal notranslate"><span class="pre">Graph.node_mask()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.graph_mask"><code class="docutils literal notranslate"><span class="pre">Graph.graph_mask()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.to_prediction"><code class="docutils literal notranslate"><span class="pre">Graph.to_prediction()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.edge_vectors"><code class="docutils literal notranslate"><span class="pre">Graph.edge_vectors()</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.Graph.long_range_edge_vectors"><code class="docutils literal notranslate"><span class="pre">Graph.long_range_edge_vectors()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mlip.graph.GraphNodes"><code class="docutils literal notranslate"><span class="pre">GraphNodes</span></code></a><ul>
+<li><a class="reference internal" href="#mlip.graph.GraphNodes.atomic_numbers"><code class="docutils literal notranslate"><span class="pre">GraphNodes.atomic_numbers</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphNodes.positions"><code class="docutils literal notranslate"><span class="pre">GraphNodes.positions</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphNodes.forces"><code class="docutils literal notranslate"><span class="pre">GraphNodes.forces</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphNodes.partial_charges"><code class="docutils literal notranslate"><span class="pre">GraphNodes.partial_charges</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphNodes.hessian"><code class="docutils literal notranslate"><span class="pre">GraphNodes.hessian</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphNodes.features"><code class="docutils literal notranslate"><span class="pre">GraphNodes.features</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mlip.graph.GraphEdges"><code class="docutils literal notranslate"><span class="pre">GraphEdges</span></code></a><ul>
+<li><a class="reference internal" href="#mlip.graph.GraphEdges.shifts"><code class="docutils literal notranslate"><span class="pre">GraphEdges.shifts</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphEdges.displ_fun"><code class="docutils literal notranslate"><span class="pre">GraphEdges.displ_fun</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphEdges.features"><code class="docutils literal notranslate"><span class="pre">GraphEdges.features</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals"><code class="docutils literal notranslate"><span class="pre">GraphGlobals</span></code></a><ul>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.cell"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.cell</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.weight"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.weight</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.energy"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.energy</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.stress"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.stress</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.pressure"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.pressure</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.charge"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.charge</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.non_corrected_charge"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.non_corrected_charge</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.spin_multiplicity"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.spin_multiplicity</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.sample_hessian_rows"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.sample_hessian_rows</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.dataset_idx"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.dataset_idx</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.is_dummy_for_init"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.is_dummy_for_init</span></code></a></li>
+<li><a class="reference internal" href="#mlip.graph.GraphGlobals.features"><code class="docutils literal notranslate"><span class="pre">GraphGlobals.features</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

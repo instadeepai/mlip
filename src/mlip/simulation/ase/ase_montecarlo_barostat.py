@@ -20,6 +20,8 @@ import jax.numpy as jnp
 import numpy as np
 from ase import units
 from ase.atoms import Atoms
+from ase.calculators.calculator import Calculator as ASECalculator
+from ase.calculators.calculator import all_changes
 
 from mlip.simulation.ase.mlip_ase_calculator import MLIPForceFieldASECalculator
 from mlip.simulation.montecarlo_barostat import (
@@ -39,7 +41,7 @@ class ASEMonteCarloBarostat:
     def __init__(
         self,
         atoms: Atoms,
-        base_calculator: MLIPForceFieldASECalculator,
+        base_calculator: MLIPForceFieldASECalculator | ASECalculator,
         temperature_getter: Callable[[], float],
         pressure_bar: float,
         molecule_indices: np.ndarray,
@@ -68,6 +70,11 @@ class ASEMonteCarloBarostat:
         Args:
             atoms: The ase.Atoms object.
             base_calculator: The base calculator to use for the energy calculation.
+                             Either an mlip `MLIPForceFieldASECalculator` or any
+                             external ASE calculator. Note that external ASE calculators
+                             are used as-is; unlike the mlip path they do not
+                             receive the high-precision/deterministic energy
+                             guarantees `create_high_precision_force_field` provides.
             temperature_getter: Function to get the external temperature in Kelvin.
             pressure_bar: Target (external) pressure in bar.
             molecule_indices: Topology definition. Example for 2 water molecules:
@@ -99,13 +106,16 @@ class ASEMonteCarloBarostat:
         self._tune_barostat_step = jax.jit(tune_barostat)
 
     def _setup_calculator(
-        self, base_calculator: MLIPForceFieldASECalculator
-    ) -> MLIPForceFieldASECalculator:
+        self, base_calculator: MLIPForceFieldASECalculator | ASECalculator
+    ) -> MLIPForceFieldASECalculator | ASECalculator:
         """Setup the calculator to use for the energy calculation in the barostat step.
 
         The Metropolis criterion requires high-precision and deterministic energy
         predictions, so we adapt the force field accordingly.
         """
+        if not isinstance(base_calculator, MLIPForceFieldASECalculator):
+            return base_calculator
+
         barostat_force_field = create_high_precision_force_field(
             base_calculator.force_field
         )
@@ -120,7 +130,9 @@ class ASEMonteCarloBarostat:
     def step(self):
         """Performs the update step of the Monte Carlo Barostat."""
         # Compute energy of the current state of the system
-        self._calculator.calculate(self.atoms, properties=["energy"])
+        self._calculator.calculate(
+            self.atoms, properties=["energy"], system_changes=all_changes
+        )
         energy_old = self._calculator.results["energy"]
 
         # Store old state info in case we reject the move
@@ -136,7 +148,9 @@ class ASEMonteCarloBarostat:
         # Calculate energy after the volume change
         self.atoms.set_cell(np.array(box_new))
         self.atoms.set_positions(np.array(pos_new))
-        self._calculator.calculate(self.atoms, properties=["energy"])
+        self._calculator.calculate(
+            self.atoms, properties=["energy"], system_changes=all_changes
+        )
         energy_new = self._calculator.results["energy"]
 
         # Accept or reject the volume change based on the Metropolis criterion

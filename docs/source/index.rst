@@ -40,8 +40,8 @@ It provides tools for:
       :link: user_guide/simulations
       :link-type: doc
 
-      Molecular dynamics, energy minimization, and transition state search with
-      multiple backends
+      Molecular dynamics, energy minimization, transition state search, and
+      metadynamics with multiple backends
 
    .. grid-item-card:: ⚡ State-of-the-art speed
 

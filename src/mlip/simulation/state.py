@@ -40,6 +40,8 @@ class SimulationState:
         kinetic_energy: The total kinetic energy along the trajectory in eV.
         cell: The cell vectors along the trajectory, with shape M x 3 x 3. The unit
               is Angstrom.
+        potential_energy: The total potential energy along the trajectory in eV.
+        partial_charges: The partial charges of each system along the trajectory.
         step: The current number of steps performed.
         compute_time_seconds: The compute time in seconds used so far for the run
                               (not including logging times).
@@ -52,6 +54,8 @@ class SimulationState:
     temperature: np.ndarray | list[np.ndarray] | None = None
     kinetic_energy: np.ndarray | list[np.ndarray] | None = None
     cell: np.ndarray | list[np.ndarray] | None = None
+    potential_energy: np.ndarray | list[np.ndarray] | None = None
+    partial_charges: np.ndarray | list[np.ndarray] | None = None
     step: int = 0
     compute_time_seconds: float = 0.0
 

@@ -51,7 +51,7 @@ def create_graph_from_atoms_and_edges(
             representation for use in the displ_fun.
         senders_long_range: Optional sender indexes of the long-range edges.
                             If provided together with `receivers_long_range`,
-                            the resulting graph will carry a long-range neighbour
+                            the resulting graph will carry a long-range neighbor
                             list using `displacement_fun` for vector computation.
         receivers_long_range: Optional receiver indexes of the long-range edges.
 

@@ -22,7 +22,7 @@ from flax.linen import initializers
 
 from mlip.graph import Graph
 from mlip.models.options import parse_activation
-from mlip.models.radial_embedding import cosine_cutoff
+from mlip.models.radial_embedding import cosine_cutoff, polynomial_envelope_updated
 from mlip.models.visnet.visnet_helpers import (
     LAYER_NORM_EPSILON,
     VEC_LAYER_NORM_EPSILON,
@@ -60,6 +60,7 @@ class VisnetLayer(nn.Module):
     last_layer: bool
     l_max: int  # Required for input shape assertions.
     deterministic_scatter_ops: bool = False
+    use_legacy_visnet: bool = False
 
     def setup(self) -> None:
         """Initializes the VisnetLayer module."""
@@ -78,8 +79,12 @@ class VisnetLayer(nn.Module):
         )
         self.act = parse_activation(self.activation)
         self.attn_act = parse_activation(self.attn_activation)
+        envelope = (
+            cosine_cutoff if self.use_legacy_visnet else polynomial_envelope_updated
+        )
         self.cutoff_fn = functools.partial(
-            cosine_cutoff, graph_cutoff_angstrom=self.graph_cutoff_angstrom
+            envelope,
+            graph_cutoff_angstrom=self.graph_cutoff_angstrom,
         )
 
         self.vec_proj = nn.Dense(
@@ -175,6 +180,47 @@ class VisnetLayer(nn.Module):
         distances: jax.Array,
         spherical_feats: jax.Array,
     ) -> tuple[jax.Array, jax.Array]:
+        """ViSNet message function (default).
+
+        Scales the attention logits by ``1/sqrt(head_dim)`` and applies a single
+        cutoff envelope to both the scalar (``v_j``) and vector (``vec_j``) messages,
+        so both vanish at the cutoff.
+        """
+        attn = (q_i * k_j * dk).sum(axis=-1) * (self.head_dim**-0.5)
+        attn = self.attn_act(attn)
+
+        v_j = v_j * dv
+        v_j = (v_j * jnp.expand_dims(attn, 2)).reshape(-1, self.num_channels)
+
+        s1, s2 = jnp.split(self.act(self.s_proj(v_j)), [self.num_channels], axis=1)
+        vec_j = vec_j * jnp.expand_dims(s1, 1) + jnp.expand_dims(
+            s2, 1
+        ) * jnp.expand_dims(spherical_feats, 2)
+
+        v_j = v_j * jnp.expand_dims(self.cutoff_fn(distances), 1)
+        vec_j = vec_j * jnp.expand_dims(self.cutoff_fn(distances), (1, 2))
+
+        return v_j, vec_j
+
+    def _message_fn_legacy_visnet(
+        self,
+        q_i: jax.Array,
+        k_j: jax.Array,
+        v_j: jax.Array,
+        vec_j: jax.Array,
+        dk: jax.Array,
+        dv: jax.Array,
+        distances: jax.Array,
+        spherical_feats: jax.Array,
+    ) -> tuple[jax.Array, jax.Array]:
+        """Legacy ViSNet message function (mlip <= 0.2.1), kept for backward
+        compatibility (enable with ``use_legacy_visnet=True``).
+
+        The cutoff is folded into the attention weights but not applied to the vector
+        message, so ``vec_j`` does not vanish at the cutoff (the ``s_proj`` bias leaks
+        through), giving energy/force discontinuities; there is also no attention-logit
+        scaling. The corrected ``_message_fn`` is the default.
+        """
         attn = (q_i * k_j * dk).sum(axis=-1)
         attn = self.attn_act(attn) * jnp.expand_dims(self.cutoff_fn(distances), 1)
 
@@ -277,7 +323,12 @@ class VisnetLayer(nn.Module):
         v_j = v_feats[graph.senders, :, :]
         vec_j = vector_feats[graph.senders, :, :]
 
-        node_msgs, vec_msgs = self._message_fn(
+        message_fn = (
+            self._message_fn_legacy_visnet
+            if self.use_legacy_visnet
+            else self._message_fn
+        )
+        node_msgs, vec_msgs = message_fn(
             q_i,
             k_j,
             v_j,

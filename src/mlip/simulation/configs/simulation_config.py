@@ -25,6 +25,7 @@ from mlip.simulation.enums import (
 from mlip.typing import PositiveFloat, PositiveInt
 
 DEFAULT_EDGE_CAPACITY_MULT = 1.25
+DEFAULT_SIMULATION_RANDOM_SEED = 42
 
 
 ThreeDimensionalListWithPositiveFloats = Annotated[
@@ -60,6 +61,11 @@ class SimulationConfig(pydantic.BaseModel):
             including padding. Defaults to 1.25.
         set_none_charge_to_zero: Whether to set a missing total charge on the
             simulated system to zero. Default is `True`.
+        random_seed: Random seed to use throughout the simulation.
+        independent_seeds_batched: When `True`, in batched simulations,  assign
+            each sub-simulation an independent random key (derived by splitting the
+            base key produced by the seed), resulting in decorrelated trajectories.
+            Has no effect for non-batched simulations. Defaults to `True`.
     """
 
     simulation_type: SimulationType = SimulationType.MD
@@ -69,6 +75,8 @@ class SimulationConfig(pydantic.BaseModel):
     box: PositiveFloat | ThreeDimensionalListWithPositiveFloats | None = None
     edge_capacity_multiplier: FloatLargerThanOrEqualToOne = DEFAULT_EDGE_CAPACITY_MULT
     set_none_charge_to_zero: bool = True
+    random_seed: int = DEFAULT_SIMULATION_RANDOM_SEED
+    independent_seeds_batched: bool = True
 
 
 class TemperatureScheduleConfig(pydantic.BaseModel):
@@ -123,6 +131,8 @@ class SimulationLogOutputs:
         kinetic_energy: Whether to save kinetic energies.
         temperature: Whether to save temperatures.
         cell: Whether to save cell vectors.
+        potential_energy: Whether to save potential energies.
+        partial_charges: Whether to save partial charges if predicted by the model.
     """
 
     positions: bool = True  # [T, N, 3]
@@ -131,3 +141,5 @@ class SimulationLogOutputs:
     kinetic_energy: bool = True  # [T]
     temperature: bool = True  # [T]
     cell: bool = True  # [T, 3, 3]
+    potential_energy: bool = True  # [T]
+    partial_charges: bool = True  # [T, N]

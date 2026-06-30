@@ -12,13 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 from copy import deepcopy
 
 import pytest
 
+import mlip.graph.batching_helpers as batching_helpers
 from mlip.data.graph_dataset_builder import GraphDataset
 from mlip.data.helpers.data_prefetching import ParallelGraphDataset
-from mlip.graph.batching_helpers import batch_graphs, pad_with_graphs
+from mlip.graph.batching_helpers import (
+    batch_graphs,
+    pad_with_graphs,
+)
+from mlip.graph.graph import GraphGlobals
 from mlip.graph.mask_helpers import get_graph_padding_mask, get_node_padding_mask
 
 
@@ -67,6 +73,26 @@ def test_graph_padding(setup_system):
 
     assert list(get_graph_padding_mask(padded_graph)) == [True, False, False, False]
     assert list(get_node_padding_mask(padded_graph)) == [True] * 10 + [False] * 7
+
+
+def test_global_pad_factories_covers_all_data_fields():
+    """Guard against adding a new optional global field but forgetting to register
+    it in `_GLOBAL_PAD_FACTORIES`, which would re-introduce the cryptic batching
+    error for mixed datasets."""
+    non_data_fields = {
+        "cell",  # always present
+        "weight",  # always present
+        "non_corrected_charge",  # set by model during inference
+        "dataset_idx",  # set in multi-dataset mode only
+        "sample_hessian_rows",  # set by Hessian batching logic
+        "is_dummy_for_init",  # internal init graph marker
+        "features",  # dict, handled separately
+    }
+    all_field_names = {f.name for f in dataclasses.fields(GraphGlobals)}
+    assert (
+        all_field_names - set(batching_helpers._GLOBAL_PAD_FACTORIES) - non_data_fields
+        == set()
+    )
 
 
 def test_error_is_raised_if_mask_computed_on_stacked_graph(setup_system):

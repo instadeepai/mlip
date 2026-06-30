@@ -28,6 +28,8 @@ from mlip.data import (
 )
 from mlip.data.graph_dataset import GraphDataset
 from mlip.inference import run_batched_inference
+from mlip.models import ForceField
+from mlip.typing.properties import Properties
 
 
 def _graph_dataset_from_atoms(
@@ -122,6 +124,44 @@ def test_batched_inference_works_correctly(
     assert result[0].stress is not None
     assert result[0].energy == pytest.approx(0.19749, abs=1e-3)
     assert result[0].forces[0][0] == pytest.approx(-0.04018, abs=1e-3)
+
+
+@pytest.mark.parametrize("batch_size", [1, 3])
+def test_batched_inference_energy_only(setup_system, quadratic_mlip, batch_size):
+    """Energy-only force fields must not crash and must return `forces=None`."""
+    energy_only_force_field = ForceField.from_mlip_network(
+        quadratic_mlip, Properties(energy=True, forces=False)
+    )
+
+    atoms, _ = setup_system
+    num_structures = 4
+    structures = [deepcopy(atoms) for _ in range(num_structures - 1)]
+    structures.append(
+        ase.Atoms(
+            numbers=structures[-1].numbers[1:],
+            positions=structures[-1].positions[1:, :],
+        )
+    )
+
+    graph_dataset = _graph_dataset_from_atoms(
+        structures, batch_size, energy_only_force_field.dataset_info
+    )
+    result = run_batched_inference(graph_dataset, energy_only_force_field)
+
+    assert len(result) == num_structures
+    for prediction in result:
+        assert isinstance(prediction.energy, float)
+        assert prediction.forces is None
+        assert prediction.stress is None
+        assert prediction.hessian is None
+
+    # Energy must match the full predictor that also computes forces.
+    full_force_field = ForceField.from_mlip_network(
+        quadratic_mlip, Properties(energy=True, forces=True)
+    )
+    full_result = run_batched_inference(graph_dataset, full_force_field)
+    for energy_only, full in zip(result, full_result):
+        assert energy_only.energy == pytest.approx(full.energy, abs=1e-5)
 
 
 def test_batched_inference_with_graph_without_edges(

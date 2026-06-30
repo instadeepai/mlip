@@ -19,6 +19,8 @@ import time
 import ase
 import numpy as np
 from ase import units
+from ase.calculators.calculator import PropertyNotImplementedError
+from ase.md import VelocityVerlet
 from ase.md.langevin import Langevin
 from ase.md.velocitydistribution import (
     MaxwellBoltzmannDistribution,
@@ -39,18 +41,23 @@ from mlip.simulation.utils import (
     resolve_atoms_charge_for_model,
 )
 
-SIMULATION_RANDOM_SEED = 42
-
 logger = logging.getLogger("mlip")
 
 
 class ASESimulationEngine(SimulationEngine):
     """Simulation engine handling simulations with the ASE backend.
 
-    For MD, the NVT-Langevin algorithm is used
-    (see `here <https://wiki.fysik.dtu.dk/ase/ase/md.html#module-ase.md.langevin>`__).
     For energy minimization, the BFGS algorithm is used
-    (see `here <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#ase.optimize.BFGS>`__).
+    (see `here <https://ase-lib.org/ase/optimize.html#ase.optimize.BFGS>`__).
+
+    For MD, the integrator/ensemble can be set via the `md_integrator` attribute
+    (see :py:class:`MDIntegrator <mlip.simulation.enums.MDIntegrator>`),
+    to use the NVT-Langevin algorithm
+    (see `here <https://ase-lib.org/ase/md.html#module-ase.md.langevin>`__);
+    the NPT-MC-Langevin algorithm, using Langevin dynamics with a Monte-Carlo Barostat
+    (see `here <https://docs.openmm.org/latest/userguide/theory/02_standard_forces.html#montecarlobarostat>`__);
+    or the NVE-Velocity-Verlet algorithm
+    (see `here <https://ase-lib.org/ase/md.html#module-ase.md.verlet>`__).
     """
 
     Config = ASESimulationConfig
@@ -134,7 +141,7 @@ class ASESimulationEngine(SimulationEngine):
             pressure_bar=self._config.pressure_bar,
             molecule_indices=np.array(self._config.molecule_indices),
             temperature_getter=_temperature_getter,
-            random_seed=SIMULATION_RANDOM_SEED,
+            random_seed=self._config.random_seed,
         )
 
     def run(self) -> None:
@@ -146,8 +153,8 @@ class ASESimulationEngine(SimulationEngine):
         """
         logger.info("Starting simulation...")
         self.atoms.calc = self.model_calculator
-        random.seed(SIMULATION_RANDOM_SEED)
-        _rng = np.random.default_rng(SIMULATION_RANDOM_SEED)
+        random.seed(self._config.random_seed)
+        _rng = np.random.default_rng(self._config.random_seed)
 
         if self.is_md_simulation:
             if self.atoms.get_velocities() is None or np.all(
@@ -162,23 +169,27 @@ class ASESimulationEngine(SimulationEngine):
                 Stationary(self.atoms)
                 ZeroRotation(self.atoms)
 
-            dyn = Langevin(
-                self.atoms,
-                timestep=self._config.timestep_fs * units.fs,
-                temperature_K=self._config.temperature_kelvin,
-                friction=self._config.friction,
-                rng=_rng,
-            )
-
-            if self._config.md_integrator == MDIntegrator.NPT_MC_LANGEVIN:
-                if self._config.molecule_indices is None:
-                    raise ValueError(
-                        "Molecule indices must be set for NPT simulations."
-                    )
-                barostat = self._setup_montecarlo_barostat(dyn)
-                dyn.attach(
-                    barostat.step, interval=self._config.barostat_update_interval
+            if self._config.md_integrator == MDIntegrator.NVE_VELOCITY_VERLET:
+                dyn = VelocityVerlet(
+                    self.atoms, timestep=self._config.timestep_fs * units.fs
                 )
+            else:  # md_integrator in (NVT_LANGEVIN, NPT_MC_LANGEVIN)
+                dyn = Langevin(
+                    self.atoms,
+                    timestep=self._config.timestep_fs * units.fs,
+                    temperature_K=self._config.temperature_kelvin,
+                    friction=self._config.friction,
+                    rng=_rng,
+                )
+                if self._config.md_integrator == MDIntegrator.NPT_MC_LANGEVIN:
+                    if self._config.molecule_indices is None:
+                        raise ValueError(
+                            "Molecule indices must be set for NPT simulations."
+                        )
+                    barostat = self._setup_montecarlo_barostat(dyn)
+                    dyn.attach(
+                        barostat.step, interval=self._config.barostat_update_interval
+                    )
         elif self._config.simulation_type == SimulationType.MINIMIZATION:
             dyn = BFGS(self.atoms, logfile=None)
         else:
@@ -222,7 +233,10 @@ class ASESimulationEngine(SimulationEngine):
         # set the beginning of this new interval in order to calculate total compute
         # time
 
-        if self.is_md_simulation:
+        if (
+            self.is_md_simulation
+            and self._config.md_integrator != MDIntegrator.NVE_VELOCITY_VERLET
+        ):
             dyn.attach(update_temperature)
 
         dyn.attach(begin_new_log_interval, interval=self._config.log_interval)
@@ -267,9 +281,9 @@ class ASESimulationEngine(SimulationEngine):
                 compute_time,
             )
 
-    def _update_temporary_list(self, name: str, new: np.ndarray) -> None:
+    def _update_temporary_list(self, name: str, new: np.ndarray | float) -> None:
         """Update one field of the temporary state as a list."""
-        new = new.astype(np.float32)  # Convert to float32 for lower memory usage.
+        new = np.asarray(new, dtype=np.float32)  # float32 for lower memory usage.
         current_value = getattr(self.temporary_state, name)
         if current_value is None:
             setattr(self.temporary_state, name, [new])
@@ -284,6 +298,16 @@ class ASESimulationEngine(SimulationEngine):
             self._update_temporary_list("positions", self.atoms.get_positions())
         if log_outputs.forces:
             self._update_temporary_list("forces", self.atoms.get_forces())
+        if log_outputs.potential_energy:
+            self._update_temporary_list(
+                "potential_energy", self.atoms.get_potential_energy()
+            )
+        if log_outputs.partial_charges:
+            try:
+                partial_charges = self.atoms.get_charges()
+                self._update_temporary_list("partial_charges", partial_charges)
+            except PropertyNotImplementedError:
+                pass
 
         if self.is_md_simulation:
             if log_outputs.temperature:
@@ -324,6 +348,10 @@ class ASESimulationEngine(SimulationEngine):
             self._update_state_array("positions")
         if log_outputs.forces:
             self._update_state_array("forces")
+        if log_outputs.potential_energy:
+            self._update_state_array("potential_energy")
+        if log_outputs.partial_charges:
+            self._update_state_array("partial_charges")
         self.state.step = step
         self.state.compute_time_seconds += compute_time
 

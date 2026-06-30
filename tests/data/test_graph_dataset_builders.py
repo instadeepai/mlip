@@ -733,13 +733,36 @@ class TestHomogenizeGraphFields:
 
     def test_no_op_when_fields_match(self, make_customizable_graph):
         """Homogenization is a no-op when all fields are uniformly None."""
-        g1 = make_customizable_graph(3, 3).replace_globals(stress=None, pressure=None)
-        g2 = make_customizable_graph(2, 2).replace_globals(stress=None, pressure=None)
+        g1 = make_customizable_graph(3, 3).replace_globals(
+            stress=None, pressure=None, spin_multiplicity=None
+        )
+        g2 = make_customizable_graph(2, 2).replace_globals(
+            stress=None, pressure=None, spin_multiplicity=None
+        )
 
         result = homogenize_graph_fields([g1, g2])
 
-        assert result[0].globals.stress is None
-        assert result[1].globals.stress is None
+        for key in ["stress", "pressure", "spin_multiplicity"]:
+            assert getattr(result[0].globals, key) is None, key
+            assert getattr(result[1].globals, key) is None, key
+
+    def test_fills_missing_spin_multiplicity_only_for_mixed_batches(
+        self, make_customizable_graph
+    ):
+        spin_array = np.array([2], dtype=np.int32)
+        g_with_spin = make_customizable_graph(3, 3).replace_globals(
+            spin_multiplicity=spin_array
+        )
+        g_without_spin = make_customizable_graph(2, 2)
+
+        result = homogenize_graph_fields([g_with_spin, g_without_spin])
+
+        assert np.all(result[0].globals.spin_multiplicity == spin_array)
+        assert np.all(np.isnan(result[1].globals.spin_multiplicity))
+
+        batched = batch_graphs(result)
+        assert np.asarray(batched.globals.spin_multiplicity)[0] == spin_array[0]
+        assert np.isnan(np.asarray(batched.globals.spin_multiplicity)[1])
 
 
 class TestGraphDatasetBuilderValidation:

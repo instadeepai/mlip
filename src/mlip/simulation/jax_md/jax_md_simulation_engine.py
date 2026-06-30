@@ -30,6 +30,10 @@ from mlip.graph import Graph, GraphEdges
 from mlip.simulation.configs.jax_md_config import JaxMDSimulationConfig
 from mlip.simulation.enums import MDIntegrator, SimulationType
 from mlip.simulation.exceptions import SimulationIsNotInitializedError
+from mlip.simulation.jax_md.auxiliary_properties import (
+    AuxiliaryProperties,
+    create_auxiliary_properties,
+)
 from mlip.simulation.jax_md.graph_creation import create_graph_from_atoms_and_edges
 from mlip.simulation.jax_md.helpers import (
     KCAL_PER_MOL_PER_ELECTRON_VOLT,
@@ -49,7 +53,11 @@ from mlip.simulation.jax_md.helpers import (
     make_batched_displ_fun,
     update_graph_in_simulation_step,
 )
-from mlip.simulation.jax_md.states import EpisodeLog, JaxMDSimulationState, SystemState
+from mlip.simulation.jax_md.states import (
+    EpisodeLog,
+    JaxMDSimulationState,
+    SystemState,
+)
 from mlip.simulation.simulation_engine import ForceField, SimulationEngine
 from mlip.simulation.temperature_scheduling import get_temperature_schedule
 from mlip.simulation.utils import (
@@ -57,12 +65,16 @@ from mlip.simulation.utils import (
     resolve_atoms_charge_for_model,
 )
 
-SIMULATION_RANDOM_SEED = 42
-
-ModelEnergyFun: TypeAlias = Callable[[np.ndarray, SystemState], np.ndarray]
-ModelForcesFun: TypeAlias = Callable[[np.ndarray, SystemState], np.ndarray]
+SingleOrBatchedArray: TypeAlias = np.ndarray | list[np.ndarray]
+ModelEnergyFun: TypeAlias = Callable[
+    [SingleOrBatchedArray, SystemState], SingleOrBatchedArray
+]
+ModelForcesFun: TypeAlias = Callable[
+    [SingleOrBatchedArray, SystemState],
+    SingleOrBatchedArray | tuple[SingleOrBatchedArray, AuxiliaryProperties],
+]
 UpdateGraphInSimStepFun: TypeAlias = Callable[
-    [SystemState | list[SystemState], np.ndarray | list[np.ndarray], Graph, bool], Graph
+    [SystemState | list[SystemState], SingleOrBatchedArray, Graph, bool], Graph
 ]
 
 logger = logging.getLogger("mlip")
@@ -71,15 +83,20 @@ logger = logging.getLogger("mlip")
 class JaxMDSimulationEngine(SimulationEngine):
     """Simulation engine handling simulations with the JAX-MD backend.
 
-    For MD, the NVT-Langevin algorithm is used
-    (see `here <https://jax-md.readthedocs.io/en/main/
-    jax_md.simulate.html#jax_md.simulate.nvt_langevin>`__).
-    For energy minimization, the FIRE algorithm is used
-    (see `here <https://jax-md.readthedocs.io/en/main/
-    jax_md.minimize.html#jax_md.minimize.fire_descent>`__).
-
     Batched MD simulations are supported. Just pass a list of `ase.Atoms` objects
     to the constructor. See deep-dive tutorials on simulations for more information.
+
+    For energy minimization, the FIRE algorithm is used
+    (see `here <https://jax-md.readthedocs.io/en/main/jax_md.minimize.html#jax_md.minimize.fire_descent>`__).
+
+    For MD, the integrator/ensemble can be set via the `md_integrator` attribute
+    (see :py:class:`MDIntegrator <mlip.simulation.enums.MDIntegrator>`),
+    to use the NVT-Langevin algorithm
+    (see `here <https://jax-md.readthedocs.io/en/main/jax_md.simulate.html#jax_md.simulate.nvt_langevin>`__);
+    the NPT-MC-Langevin algorithm, using Langevin dynamics with a Monte-Carlo Barostat
+    (see `here <https://docs.openmm.org/latest/userguide/theory/02_standard_forces.html#montecarlobarostat>`__);
+    or the NVE-Velocity-Verlet algorithm
+    (see `here <https://jax-md.readthedocs.io/en/main/jax_md.simulate.html#jax_md.simulate.nve>`__).
     """
 
     Config = JaxMDSimulationConfig
@@ -140,6 +157,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             raise ValueError("Empty 'ase.Atoms' detected in batch.")
         if self.is_batched_sim and 1 in self._num_atoms:
             raise ValueError("Single atom system detected in batch, not supported yet.")
+
         self.state.atomic_numbers = jax.tree.map(lambda a: a.numbers, atoms)
 
         self._init_box_and_displacement_fun()
@@ -249,7 +267,7 @@ class JaxMDSimulationEngine(SimulationEngine):
                 realloc_start_time = time.perf_counter()
                 self._reallocate_neighbors()
                 logger.info(
-                    "Reallocating neighbours took %.3f seconds. Rerunning episode now.",
+                    "Reallocating neighbors took %.3f seconds. Rerunning episode now.",
                     time.perf_counter() - realloc_start_time,
                 )
                 continue
@@ -419,10 +437,21 @@ class JaxMDSimulationEngine(SimulationEngine):
         return np.any(has_exploded)
 
     def _get_model_calculate_fun(
-        self, graph: Graph, force_field_model: ForceField, is_energy_fun: bool
+        self,
+        graph: Graph,
+        force_field_model: ForceField,
+        is_energy_fun: bool,
+        return_aux_properties: bool,
     ) -> ModelEnergyFun | ModelForcesFun:
         """This function returns the core force calculate function compatible with
         JAX-MD and also compatible with batched simulations if requested.
+
+        If `is_energy_fun` is passed as true, this is actually not a force function,
+        but instead an energy function (only used for NPT).
+
+        Depending on the parameter `return_aux_properties`, the return type of the
+        core force calculate function will be just the forces, or also the auxiliary
+        properties.
         """
 
         def calc_func(
@@ -434,8 +463,9 @@ class JaxMDSimulationEngine(SimulationEngine):
             update_graph_in_sim_step_fun: UpdateGraphInSimStepFun,
             forces_split_idx: list[int] | None,
             is_energy_fun: bool,
-            box: np.ndarray | list[np.ndarray] | None = self._initial_box,
-        ) -> np.ndarray | list[np.ndarray]:
+            return_aux_properties: bool,
+            box: SingleOrBatchedArray | None = self._initial_box,
+        ) -> SingleOrBatchedArray | tuple[SingleOrBatchedArray, AuxiliaryProperties]:
             updated_graph = update_graph_in_sim_step_fun(
                 system_state, positions, base_graph, is_batched_sim, box=box
             )
@@ -453,8 +483,15 @@ class JaxMDSimulationEngine(SimulationEngine):
                 * KCAL_PER_MOL_PER_ELECTRON_VOLT
             )
             if is_batched_sim:
-                return jnp.split(forces, forces_split_idx, axis=0)
-            return forces
+                forces = jnp.split(forces, forces_split_idx, axis=0)
+
+            if not return_aux_properties:
+                return forces
+
+            aux_properties = create_auxiliary_properties(
+                force_field_output, forces_split_idx, is_batched_sim
+            )
+            return forces, aux_properties
 
         forces_split_idx = None
         if self.is_batched_sim:
@@ -469,6 +506,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             update_graph_in_sim_step_fun=self._get_update_graph_in_sim_step_fun(),
             forces_split_idx=forces_split_idx,
             is_energy_fun=is_energy_fun,
+            return_aux_properties=return_aux_properties,
         )
 
     @staticmethod
@@ -488,7 +526,13 @@ class JaxMDSimulationEngine(SimulationEngine):
         sim_init_fun: Callable,
     ) -> jax_compatible_dataclass:
         """Initializing JAX-MD state either batched or non-batched."""
-        random_key = jax.random.PRNGKey(SIMULATION_RANDOM_SEED)
+        base_key = jax.random.PRNGKey(self._config.random_seed)
+        if self.is_batched_sim and self._config.independent_seeds_batched:
+            n = len(atoms) if isinstance(atoms, list) else 1
+            random_key = list(jax.random.split(base_key, n))
+        else:
+            random_key = base_key
+
         positions = jax.tree.map(lambda a: a.get_positions(), atoms)
         masses = jax.tree.map(get_masses, atoms)
 
@@ -500,6 +544,9 @@ class JaxMDSimulationEngine(SimulationEngine):
                 args = [random_key, positions, masses]
             elif self._config.md_integrator == MDIntegrator.NPT_MC_LANGEVIN:
                 args = [random_key, positions, self._initial_box, masses]
+            elif self._config.md_integrator == MDIntegrator.NVE_VELOCITY_VERLET:
+                _kT = self._config.temperature_kelvin * TEMPERATURE_CONVERSION_FACTOR
+                args = [random_key, positions, _kT, masses]
             else:
                 raise ValueError(
                     f"MD integrator {self._config.md_integrator} not supported."
@@ -517,6 +564,11 @@ class JaxMDSimulationEngine(SimulationEngine):
         one_dimensional = jnp.zeros((self._steps_per_episode,))
         atoms_by_three_dimensional = jnp.zeros((self._steps_per_episode, num_atoms, 3))
         three_by_three_dimensional = jnp.zeros((self._steps_per_episode, 3, 3))
+        atoms_by_one_dimensional = jnp.zeros((self._steps_per_episode, num_atoms))
+
+        should_log_partial_charges = (
+            is_md_simulation and self._force_field.predictor.required_properties
+        )
 
         return EpisodeLog(
             positions=atoms_by_three_dimensional,
@@ -525,6 +577,10 @@ class JaxMDSimulationEngine(SimulationEngine):
             kinetic_energy=one_dimensional if is_md_simulation else jnp.empty(0),
             velocities=atoms_by_three_dimensional if is_md_simulation else jnp.empty(0),
             cell=three_by_three_dimensional if self.is_npt_simulation else jnp.empty(0),
+            potential_energy=one_dimensional if is_md_simulation else jnp.empty(0),
+            partial_charges=atoms_by_one_dimensional
+            if should_log_partial_charges
+            else jnp.empty(0),
         )
 
     @staticmethod
@@ -583,17 +639,29 @@ class JaxMDSimulationEngine(SimulationEngine):
             )
 
             new_log = jax.tree.map(
-                lambda _log, t, kin, v: _log.set(
+                lambda _log, t, kin, v, pot: _log.set(
                     temperature=_log.temperature.at[step_idx].set(t),
                     kinetic_energy=_log.kinetic_energy.at[step_idx].set(kin),
                     velocities=_log.velocities.at[step_idx].set(v),
+                    potential_energy=_log.potential_energy.at[step_idx].set(pot),
                 ),
                 new_log,
                 current_temperature_kelvin,
                 current_kinetic_energy_ev,
                 current_velocities,
+                jax_md_state.aux_properties.energy,
                 is_leaf=is_episode_log,
             )
+
+            if jax_md_state.aux_properties.partial_charges is not None:
+                new_log = jax.tree.map(
+                    lambda _log, pc: _log.set(
+                        partial_charges=_log.partial_charges.at[step_idx].set(pc)
+                    ),
+                    new_log,
+                    jax_md_state.aux_properties.partial_charges,
+                    is_leaf=is_episode_log,
+                )
 
         if is_npt_simulation:
             current_cells = jax.tree.map(box_to_cell, jax_md_state.box)
@@ -703,10 +771,21 @@ class JaxMDSimulationEngine(SimulationEngine):
                 self.state.velocities = self._concat(
                     self.state.velocities, self._extract_from_log("velocities")
                 )
-
             if log_outputs.cell and self.is_npt_simulation:
                 self.state.cell = self._concat(
                     self.state.cell, self._extract_from_log("cell")
+                )
+            if log_outputs.potential_energy:
+                self.state.potential_energy = self._concat(
+                    self.state.potential_energy,
+                    self._extract_from_log("potential_energy"),
+                )
+
+            req_prop = self._force_field.predictor.required_properties
+            if log_outputs.partial_charges and req_prop.partial_charges:
+                self.state.partial_charges = self._concat(
+                    self.state.partial_charges,
+                    self._extract_from_log("partial_charges"),
                 )
 
     @staticmethod
@@ -763,10 +842,10 @@ class JaxMDSimulationEngine(SimulationEngine):
     def _init_base_graph(
         self,
         atoms: ase.Atoms | list[ase.Atoms],
-        senders: np.ndarray | list[np.ndarray],
-        receivers: np.ndarray | list[np.ndarray],
-        senders_long_range: np.ndarray | list[np.ndarray] | None = None,
-        receivers_long_range: np.ndarray | list[np.ndarray] | None = None,
+        senders: SingleOrBatchedArray,
+        receivers: SingleOrBatchedArray,
+        senders_long_range: SingleOrBatchedArray | None = None,
+        receivers_long_range: SingleOrBatchedArray | None = None,
     ) -> Graph:
         """Initiates the base graph (batched or unbatched) for the simulation.
 
@@ -905,9 +984,9 @@ class JaxMDSimulationEngine(SimulationEngine):
 
     def _concat(
         self,
-        current: np.ndarray | list[np.ndarray] | None,
-        new: np.ndarray | list[np.ndarray],
-    ) -> np.ndarray | list[np.ndarray]:
+        current: SingleOrBatchedArray | None,
+        new: SingleOrBatchedArray,
+    ) -> SingleOrBatchedArray:
         """Append the new information from the latest episode to the current state.
 
         Information from every `log_interval` snapshots is added to the state array.
@@ -931,7 +1010,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             new,
         )
 
-    def _extract_from_log(self, attr_name: str) -> np.ndarray | list[np.ndarray]:
+    def _extract_from_log(self, attr_name: str) -> SingleOrBatchedArray:
         """Small helper using `tree_map` to extract a property from the episode log."""
         episode_log = self._internal_state.episode_log
 

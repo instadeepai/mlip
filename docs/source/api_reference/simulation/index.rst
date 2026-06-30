@@ -24,3 +24,6 @@ This module contains all code related to simulations (e.g., MD or energy minimiz
     batched_inference
     neb_engine
     neb_config
+    metadynamics_engine
+    metadynamics_config
+    metadynamics_potential_configs

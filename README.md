@@ -33,10 +33,11 @@ modular API for development of new architectures
 - ⚡ Batched inference with trained MLIP models
 - 🧪 MD simulations with MLIP models using multiple simulation backends
   (currently: JAX-MD and ASE)
-- 🌡️ Support for both NVT and NPT ensembles in MD
+- 🌡️ Support for NVT, NPT and NVE ensembles in MD
 - ⛰️ Energy minimizations using the same simulation backends as for MD
 - 🚀 Batched MD simulations and energy minimizations with the JAX-MD backend
 - 🔎 Transition state search with the nudged elastic band (NEB) method
+- 🌋 Enhanced sampling via metadynamics for free energy landscape exploration
 - 🌐 Global charge conditioning, partial charge predictions, and
 support for long-range interactions
 - 📈 Training on Hessian labels
@@ -122,6 +123,7 @@ simple templates to build your own MLIP pipelines:
 - [Advanced simulation tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/advanced_simulation_tutorial.ipynb)
 - [MoE training tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/moe_training_and_inference_tutorial.ipynb)
 - [Hessian model training tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/hessian_model_training_tutorial.ipynb)
+- [Metadynamics tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/metadynamics_tutorial.ipynb)
 
 To run the tutorials, just install Jupyter notebooks via pip and launch it from
 a directory that contains the notebooks:
@@ -189,8 +191,8 @@ Further details can be found in our white paper (see [below](#-citing-our-work))
 **ViSNet (1,172,676 parameters):**
 | Systems   | JAX-MD       | ASE          |
 | --------- |-------------:|-------------:|
-| 1UAO      | 1.9 ms/step  | 7.1 ms/step  |
-| 1ABT      | 13.7 ms/step | 30.2 ms/step |
+| 1UAO      | 1.6 ms/step  | 7.0 ms/step  |
+| 1ABT      | 9.0 ms/step  | 24.0 ms/step |
 
 **NequIP (1,327,792 parameters):**
 | Systems   | JAX-MD       | ASE          |

@@ -344,7 +344,8 @@ class MoEDense(nn.Module):
 
     When `num_experts` is `None`, behaves as a standard dense layer.
     Otherwise stores one kernel per expert and blends them at runtime
-    using the provided MoE coefficients.
+    using the provided MoE coefficients. Expert outputs are computed in one
+    batched operation and then weighted by the router coefficients.
     """
 
     features: int
@@ -383,7 +384,8 @@ class MoEDense(nn.Module):
                 "of graph-level MoE coefficient rows. "
                 f"Received x.shape={x.shape} and moe_coeffs.shape={moe_coeffs.shape}."
             )
-        out = jnp.einsum("ne,eio,n...i->n...o", moe_coeffs, expert_kernel, x)
+        expert_out = jnp.einsum("n...i,eio->ne...o", x, expert_kernel)
+        out = jnp.einsum("ne,ne...o->n...o", moe_coeffs, expert_out)
 
         if self.use_bias:
             bias = self.param("bias", self.bias_init, (self.features,))

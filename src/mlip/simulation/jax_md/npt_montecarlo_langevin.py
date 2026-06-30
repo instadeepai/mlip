@@ -21,7 +21,8 @@ from jax_md import dataclasses, simulate
 from jax_md.dataclasses import dataclass as jax_compatible_dataclass
 from jax_md.simulate import Array, ShiftFn
 
-from mlip.simulation.jax_md.jaxmd_utils import batched_nvt_langevin
+from mlip.simulation.jax_md.auxiliary_properties import AuxiliaryProperties
+from mlip.simulation.jax_md.jaxmd_utils import _NVTLangevinState, batched_nvt_langevin
 from mlip.simulation.montecarlo_barostat import (
     INITIAL_MAX_DELTA_VOLUME_FRACTION,
     MonteCarloBarostatState,
@@ -45,7 +46,7 @@ class NPTLangevinState:
         step_count: The number of steps taken.
     """
 
-    langevin_state: simulate.NVTLangevinState
+    langevin_state: _NVTLangevinState
 
     # NPT specific fields
     box: Array
@@ -75,6 +76,10 @@ class NPTLangevinState:
     @property
     def velocity(self):
         return self.langevin_state.velocity
+
+    @property
+    def aux_properties(self) -> AuxiliaryProperties:
+        return self.langevin_state.aux_properties
 
 
 def apply_montecarlo_barostat(
@@ -159,7 +164,7 @@ def apply_montecarlo_barostat(
     )
 
     # Forces at proposed positions; selected via jnp.where (one batched call)
-    forces_proposed = force_fn(pos_new, box=box_new)
+    forces_proposed, _ = force_fn(pos_new, box=box_new)
     final_forces = jax.tree.map(
         lambda f_new, f_old, acc: jnp.where(acc, f_new, f_old),
         forces_proposed,
@@ -255,7 +260,7 @@ def npt_montecarlo_langevin(
                 num_accepted_since_tune=0,
                 mol_counts=_mol_counts_list[i],
                 mol_indices=_mol_indices_list[i],
-                rng=random.fold_in(key, i),
+                rng=random.fold_in(key[i] if isinstance(key, list) else key, i),
             )
 
         bs_list = [_make_barostat_state(i) for i in range(N)]

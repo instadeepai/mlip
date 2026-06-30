@@ -41,6 +41,8 @@ class EpisodeLog:
     temperature: jnp.ndarray
     kinetic_energy: jnp.ndarray
     cell: jnp.ndarray
+    potential_energy: jnp.ndarray
+    partial_charges: jnp.ndarray
 
 
 @jax_compatible_dataclass

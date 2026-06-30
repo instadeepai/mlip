@@ -75,9 +75,11 @@ def run_inference_on_a_single_batch(
         graph_start = node_idx
         graph_end = node_idx + batch.n_node[i]
         if mask[i]:
-            graph_forces = output.forces[graph_start:graph_end]
-            batch_forces.append(graph_forces)
             batch_energies.append(float(output.energy[i]))
+
+            if output.forces is not None:
+                graph_forces = output.forces[graph_start:graph_end]
+                batch_forces.append(graph_forces)
 
             if output.hessian is not None:
                 graph_hessian = single_graph_hessian_from_subsampled_batch(
@@ -227,6 +229,9 @@ def run_batched_inference(
             batch_idx + 1,
             end_time - start_time,
         )
+
+    if len(forces) == 0:
+        forces = [None] * len(energies)
 
     if len(stress) == 0:
         stress = [None] * len(energies)

@@ -28,7 +28,7 @@ JD_FILE_PATH = Path(mlip.__file__).parent / "models" / "esen" / "Jd.npz"
 
 
 @jax.jit(static_argnums=(1,))
-def quaternion_wigner_d(edge_vectors, l_max):
+def quaternion_wigner_d(edge_vectors, l_max, key):
     jd_data = np.load(JD_FILE_PATH, allow_pickle=True)
     jd_list = list(jd_data["Jd"])
     with jax.ensure_compile_time_eval():
@@ -41,12 +41,12 @@ def quaternion_wigner_d(edge_vectors, l_max):
         edge_vectors,
         l_max,
         jd_buffers,
-        key=jax.random.PRNGKey(42),
+        key=key,
     )
 
 
 @jax.jit(static_argnums=(1,))
-def euler_wigner_d(edge_vectors, l_max):
+def euler_wigner_d(edge_vectors, l_max, key):
     jd_data = np.load(JD_FILE_PATH, allow_pickle=True)
     jd_list = list(jd_data["Jd"])
     with jax.ensure_compile_time_eval():
@@ -55,19 +55,20 @@ def euler_wigner_d(edge_vectors, l_max):
             for l_number in range(l_max + 1)
         ]
 
-    euler_angles = init_edge_rot_euler_angles(edge_vectors, key=jax.random.PRNGKey(42))
+    euler_angles = init_edge_rot_euler_angles(edge_vectors, key=key)
     return eulers_to_wigner(
         eulers=euler_angles, start_l_max=0, end_l_max=l_max, jd=jd_buffers
     )
 
 
 @pytest.mark.parametrize("l_max", [3, 6])  # l_max=6 covers all l cases.
-def test_quaternion_matches_eulers(setup_system, l_max):
+@pytest.mark.parametrize("key", [None, jax.random.PRNGKey(42)])
+def test_quaternion_matches_eulers(setup_system, l_max, key):
     _, graph = setup_system
     edge_vectors = graph.edge_vectors()
 
-    wigner_quaternion = quaternion_wigner_d(edge_vectors, l_max)
-    wigner_eulers = euler_wigner_d(edge_vectors, l_max)
+    wigner_quaternion = quaternion_wigner_d(edge_vectors, l_max, key)
+    wigner_eulers = euler_wigner_d(edge_vectors, l_max, key)
 
     sph = spherical_harmonics(
         range(l_max + 1), IrrepsArray("1o", edge_vectors), normalize=True

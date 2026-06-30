@@ -78,6 +78,7 @@ deep-dive tutorials :ref:`below <tutorials>` to help you with getting onboarded 
 * `Addition of new models <https://github.com/instadeepai/mlip/blob/main/tutorials/model_addition_tutorial.ipynb>`_
 * `Training on Hessian labels <https://github.com/instadeepai/mlip/blob/main/tutorials/hessian_model_training_tutorial.ipynb>`_
 * `Advanced simulation <https://github.com/instadeepai/mlip/blob/main/tutorials/advanced_simulation_tutorial.ipynb>`_
+* `Metadynamics <https://github.com/instadeepai/mlip/blob/main/tutorials/metadynamics_tutorial.ipynb>`_
 
 To run the tutorials, install Jupyter notebooks via pip and launch it from
 a directory that contains the notebooks:

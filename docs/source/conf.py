@@ -18,6 +18,9 @@ extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx_design"]
 exclude_patterns = []
 default_role = "code"
 
+# Suppress cross-reference warnings for attribute names shared across multiple classes.
+suppress_warnings = ["ref.python"]
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 

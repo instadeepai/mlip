@@ -254,14 +254,12 @@ class EsenEmbeddingBlock(nn.Module):
                 edge_distance_vecs,
                 self.l_max,
                 jd_buffers,
-                key=jax.random.PRNGKey(42),
+                key=None,
             )
         else:
             # Euler angles -> Wigner-D
             # (full basis, block-diagonal in l, but stored dense)
-            euler_angles = init_edge_rot_euler_angles(
-                edge_distance_vecs, key=jax.random.PRNGKey(42)
-            )
+            euler_angles = init_edge_rot_euler_angles(edge_distance_vecs, key=None)
             wigner = eulers_to_wigner(
                 eulers=euler_angles, start_l_max=0, end_l_max=self.l_max, jd=jd_buffers
             )

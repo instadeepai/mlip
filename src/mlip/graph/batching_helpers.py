@@ -225,17 +225,15 @@ def pad_with_graphs(
     return batch_graphs([graph, padding_graph])
 
 
-# NaN-fill factories for optional Graph fields that are `Prediction` targets
-# (see `mlip.typing.prediction.Prediction`). Using NaN as a sentinel lets
-# downstream loss and eval-metric code mask out samples whose dataset did not
-# provide the field. Only `Prediction`-targeted fields are listed here; other
-# optional fields are either always present or handled elsewhere.
+# Fill factories for optional Graph fields that need a uniform pytree structure
+# across mixed datasets. NaN is used as a sentinel for missing values.
 _GLOBAL_PAD_FACTORIES: dict[str, Callable[[Graph], np.ndarray]] = {
     "energy": lambda g: np.full_like(g.globals.weight, np.nan),
     "stress": lambda g: np.full((*g.globals.weight.shape, 3, 3), np.nan),
     "pressure": lambda g: np.full_like(g.globals.weight, np.nan),
     "charge": lambda g: np.full_like(g.globals.weight, np.nan),
     "dipole_moment": lambda g: np.full((*g.globals.weight.shape, 3), np.nan),
+    "spin_multiplicity": lambda g: np.full_like(g.globals.weight, np.nan),
 }
 
 _NODE_PAD_FACTORIES: dict[str, Callable[[Graph], np.ndarray]] = {
@@ -245,12 +243,11 @@ _NODE_PAD_FACTORIES: dict[str, Callable[[Graph], np.ndarray]] = {
 
 
 def homogenize_graph_fields(graphs: list[Graph]) -> list[Graph]:
-    """Fill missing `Prediction`-targeted fields with NaN so graphs from
-    heterogeneous datasets share the same pytree structure.
+    """Fill supported missing fields so graphs from heterogeneous datasets
+    share the same pytree structure.
 
     NaN is used as a sentinel so loss functions can detect and mask out samples
-    whose dataset did not provide the field. Only fields that live in
-    `Prediction` are homogenized here.
+    whose dataset did not provide the field.
 
     Args:
         graphs: List of graphs that may have heterogeneous optional fields.
@@ -308,15 +305,33 @@ def _field_signature(graph: Graph) -> frozenset[str]:
     return frozenset(present)
 
 
-def validate_batch_compatible(graphs: list[Graph]) -> None:
+def validate_batch_compatible(graphs: list[Graph], homogenize: bool = False) -> None:
     """Raise if graphs have heterogeneous optional-field presence.
 
-    This is the condition that `homogenize_graph_fields` would fix. Surfacing
+    This is the condition that `homogenize_graph_fields` should fix. Surfacing
     it here with a clear message avoids the cryptic `jax.tree.map` structure
     mismatch that `batch_graphs()` would otherwise produce later.
+
+    Args:
+        graphs: Prepared list of graphs pre-batching.
+        homogenize: Whether `homogenize_graph_fields` has been run. If True,
+            a failure suggests an edge case not currently caught there.
     """
     if len(graphs) < 2:
         return
+
+    if not homogenize:
+        message = (
+            "Pass `homogenize=True` to GraphDataset so missing fields are "
+            "NaN-padded before batching, or fix the upstream data pipeline "
+            "so all graphs share the same optional fields."
+        )
+    else:
+        message = (
+            "As `homogenize=True`, this suggests that there is an edge case not "
+            "currently caught by `homogenize_graph_fields` which requires fixing."
+        )
+
     ref = _field_signature(graphs[0])
     for g in graphs[1:]:
         this = _field_signature(g)
@@ -324,8 +339,5 @@ def validate_batch_compatible(graphs: list[Graph]) -> None:
             diff = sorted(ref.symmetric_difference(this))
             raise ValueError(
                 "Cannot batch graphs with heterogeneous optional fields: "
-                f"{diff} are present on some graphs but not others. Pass "
-                "`homogenize=True` to GraphDataset so missing fields are "
-                "NaN-padded before batching, or fix the upstream data "
-                "pipeline so all graphs share the same optional fields."
+                f"{diff} are present on some graphs but not others. {message}"
             )

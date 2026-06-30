@@ -36,10 +36,13 @@ class MDIntegrator(Enum):
         NVT_LANGEVIN: Integrates using Langevin dynamics in the NVT ensemble.
         NPT_MC_LANGEVIN: Integrates using Langevin dynamics in the NPT
             ensemble using a Monte-Carlo Barostat.
+        NVE_VELOCITY_VERLET: Integrates using velocity-Verlet dynamics in the
+            NVE ensemble.
     """
 
     NVT_LANGEVIN = "nvt_langevin"
     NPT_MC_LANGEVIN = "npt_mc_langevin"
+    NVE_VELOCITY_VERLET = "nve_velocity_verlet"
 
     @property
     def ensemble(self) -> str:

@@ -21,6 +21,7 @@ import pytest
 from jax import random
 from jax_md import dataclasses
 
+from mlip.simulation.jax_md.auxiliary_properties import AuxiliaryProperties
 from mlip.simulation.jax_md.helpers import (
     KCAL_PER_MOL_PER_ELECTRON_VOLT,
     PRESSURE_CONVERSION_FACTOR,
@@ -70,7 +71,10 @@ def init_and_step_fn():
     energy_fn = _create_simple_energy_fn()
 
     def force_fn(positions, box=None, **kwargs):
-        return -jax.grad(lambda p: energy_fn(p, box=box, **kwargs))(positions)
+        return (
+            -jax.grad(lambda p: energy_fn(p, box=box, **kwargs))(positions),
+            AuxiliaryProperties(energy=energy_fn(positions, box=box, **kwargs)),
+        )
 
     init_fn, step_fn = npt_montecarlo_langevin(
         langevin_force_fn=force_fn,
@@ -160,7 +164,10 @@ def test_apply_montecarlo_barostat_integration(
             )
             return new_state
 
-        mock_force_fn = lambda pos, box=None, **kw: jnp.zeros_like(pos)  # noqa: E731
+        mock_force_fn = lambda pos, box=None, **kw: (  # noqa: E731
+            jnp.zeros_like(pos),
+            AuxiliaryProperties(energy=jnp.array([0, 0])),
+        )
 
         with (
             patch(patch_path + ".propose_volume_change", side_effect=mock_propose),

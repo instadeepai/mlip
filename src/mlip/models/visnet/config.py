@@ -65,6 +65,13 @@ class VisnetConfig(MLIPNetworkConfig):
             training, and switched off at inference. Default is `False`.
             Note that config values of a trained force field can be adjusted after
             loading via `force_field = force_field.replace_config(**kwargs)`.
+        use_legacy_visnet: If `True`, reproduce the original ViSNet behaviour used
+            in mlip <= 0.2.1, kept only for backward compatibility. Default is
+            `False`. The corrected behaviour includes a polynomial cutoff envelope
+            (C2 at the cutoff), replacing the original cosine cutoff (C1 at the
+            cutoff). It also applies a single cutoff envelope to both the scalar and
+            vector messages, so both vanish at the cutoff, and scales the attention
+            logits by `1/sqrt(head_dim)`.
     """
 
     num_layers: PositiveInt = 4
@@ -85,6 +92,7 @@ class VisnetConfig(MLIPNetworkConfig):
     embed_activation: Activation = Activation.SILU
     deterministic_scatter_ops: bool = False
     use_remat: bool = False
+    use_legacy_visnet: bool = False
 
     @model_validator(mode="after")
     def _enforce_partial_charges_for_coulomb_term(self) -> Self:

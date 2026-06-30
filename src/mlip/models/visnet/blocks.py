@@ -29,7 +29,7 @@ from mlip.models.blocks import (
     SphericalHarmonicsBlock,
 )
 from mlip.models.options import RadialBasis, RadialEnvelope, parse_activation
-from mlip.models.radial_embedding import cosine_cutoff
+from mlip.models.radial_embedding import cosine_cutoff, polynomial_envelope_updated
 from mlip.models.visnet.visnet_helpers import (
     LAYER_NORM_EPSILON,
     VEC_LAYER_NORM_EPSILON,
@@ -67,6 +67,7 @@ class VisnetEmbeddingBlock(nn.Module):
     radial_basis: str | RadialBasis
     activation_fn: Callable | None
     deterministic_scatter_ops: bool = False
+    use_legacy_visnet: bool = False
 
     def setup(self) -> None:
         """Initializes the embedding layers for node species, radial functions,
@@ -111,6 +112,7 @@ class VisnetEmbeddingBlock(nn.Module):
             num_species=self.num_species,
             num_rbf=self.num_rbf,
             deterministic_scatter_ops=self.deterministic_scatter_ops,
+            use_legacy_visnet=self.use_legacy_visnet,
         )
 
         self.edge_embedding = VisnetEdgeEmbeddingBlock(
@@ -212,6 +214,7 @@ class VisnetNeighborEmbeddingBlock(nn.Module):
     num_species: int
     num_rbf: int  # Required for input shape assertions.
     deterministic_scatter_ops: bool = False
+    use_legacy_visnet: bool = False
 
     def setup(self) -> None:
         """Initializes the neighbor embedding layers."""
@@ -229,8 +232,12 @@ class VisnetNeighborEmbeddingBlock(nn.Module):
             kernel_init=initializers.xavier_uniform(),
             bias_init=initializers.zeros_init(),
         )
+        envelope = (
+            cosine_cutoff if self.use_legacy_visnet else polynomial_envelope_updated
+        )
         self.cutoff_fn = functools.partial(
-            cosine_cutoff, graph_cutoff_angstrom=self.graph_cutoff_angstrom
+            envelope,
+            graph_cutoff_angstrom=self.graph_cutoff_angstrom,
         )
 
     def _input_shape_assertions(self, graph: Graph) -> None:

@@ -103,15 +103,14 @@ class GraphDataset:
             homogenize: If True, pad missing
                 `Prediction`-targeted optional fields (e.g. `stress`, `forces`)
                 with NaN so graphs from heterogeneous datasets share the same
-                pytree structure and can be batched. If False, the dataset
-                instead validates that the provided graphs are already
-                batch-compatible and raises a clear error otherwise.
+                pytree structure and can be batched. After optional
+                homogenization, the dataset validates that the provided graphs
+                are batch-compatible and raises a clear error otherwise.
                 Defaults to False.
         """
         if homogenize:
             graphs = homogenize_graph_fields(graphs)
-        else:
-            validate_batch_compatible(graphs)
+        validate_batch_compatible(graphs, homogenize)
 
         self.graphs = graphs
         self.total_num_graphs = len(graphs)

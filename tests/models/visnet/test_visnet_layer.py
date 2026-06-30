@@ -31,7 +31,7 @@ class TestVisnetLayer:
             last_layer=self.last_layer,
         )
 
-    def module_v2(self) -> VisnetLayer:
+    def module_v2(self, use_legacy_visnet: bool = False) -> VisnetLayer:
         return VisnetLayer(
             num_heads=self.num_heads,
             num_channels=self.num_channels,
@@ -41,6 +41,7 @@ class TestVisnetLayer:
             vecnorm_type=self.vecnorm_type,
             last_layer=self.last_layer,
             l_max=self.l_max,
+            use_legacy_visnet=use_legacy_visnet,
         )
 
     def input_dict(self) -> dict[str, jnp.ndarray]:
@@ -103,10 +104,12 @@ class TestVisnetLayer:
             self.module_v1().init(self.key, *self.input_v1())
         )
         params_v2 = standardize_params(
-            self.module_v2().init(self.key, *self.input_v2())
+            self.module_v2(use_legacy_visnet=True).init(self.key, *self.input_v2())
         )
         result_v1 = jax.jit(self.module_v1().apply)(params_v1, *self.input_v1())
-        result_v2 = jax.jit(self.module_v2().apply)(params_v2, *self.input_v2())
+        result_v2 = jax.jit(self.module_v2(use_legacy_visnet=True).apply)(
+            params_v2, *self.input_v2()
+        )
 
         # extract comparable results from both versions ( we want to compare
         # node_feats, edge_feats, vector_feats)

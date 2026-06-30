@@ -1,5 +1,31 @@
 # Changelog
 
+## Release 0.2.2
+
+- Adding support for running well-tempered metadynamics MD simulations using the
+  JAX-MD backend.
+- Adding support for NVE ensemble MD simulations.
+- Adding support for setting a random seed for simulations via the config, and
+  introducing per-trajectory random seeds in batched JAX-MD simulations via the
+  new `independent_seeds_batched` config flag. This is now `True` by
+  default, meaning batched simulations use independent random keys per trajectory unless
+  explicitly disabled.
+- Adding support for logging of potential energy and predicted partial charges during MD
+  simulations for the JAX-MD backend, and for both MD simulations and energy
+  minimizations for the ASE backend.
+- Reducing memory requirements for the Mixture-of-Experts (MoE) dense layer.
+- Fixing a bug in graph batching where `spin_multiplicity` was missed by
+  homogenization.
+- Updating batched inference to allow for efficient energy-only predictions.
+- Fixing energy, force, and Hessian discontinuities at the cutoff in ViSNet. Set
+  `use_legacy_visnet=True` in `VisnetConfig` to reproduce models trained with
+  versions v0.2.0 and v0.2.1. Note that after loading a ViSNet model trained with
+  these versions, it can still be used for inference after updating its config via
+  `force_field = force_field.replace_config(use_legacy_visnet=True)`. The pre-trained
+  ViSNet model provided on HuggingFace has been updated after retraining with the
+  corrected version of the code. See the API documentation of
+  `VisnetConfig.use_legacy_visnet` for details of the changes to the model equations.
+
 ## Release 0.2.1
 
 - Reducing memory requirements for Hessian predictions in batched inference drastically.

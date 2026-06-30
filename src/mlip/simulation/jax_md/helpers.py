@@ -25,7 +25,10 @@ from mlip.graph import Graph
 from mlip.models.force_field import ForceField
 from mlip.simulation.configs.jax_md_config import JaxMDSimulationConfig
 from mlip.simulation.enums import MDIntegrator, SimulationType
-from mlip.simulation.jax_md.jaxmd_utils import batched_nvt_langevin
+from mlip.simulation.jax_md.jaxmd_utils import (
+    batched_nve_velocity_verlet,
+    batched_nvt_langevin,
+)
 from mlip.simulation.jax_md.npt_montecarlo_langevin import npt_montecarlo_langevin
 from mlip.simulation.jax_md.states import EpisodeLog, SystemState
 from mlip.simulation.montecarlo_barostat import create_high_precision_force_field
@@ -387,7 +390,8 @@ def init_simulation_algorithm(
 ) -> tuple[Callable, Callable]:
     """Initializes the minimizer or MD integrator object of JAX-MD.
 
-    For MD, either the `NVT_LANGEVIN` or `NPT_MC_LANGEVIN` integrator can be used
+    For MD, any of (`NVT_LANGEVIN`, `NPT_MC_LANGEVIN`, `NVE_VELOCITY_VERLET`)
+    integrators can be used
     (see :py:class:`MDIntegrator <mlip.simulation.enums.MDIntegrator>`).
     For energy minimization, the `FIRE` descent algorithm is used as the only option.
 
@@ -402,11 +406,15 @@ def init_simulation_algorithm(
         A simulation init function and a simulation apply function used later to run
         the simulation.
     """
+    is_md_sim = sim_config.simulation_type == SimulationType.MD
+
     model_calculate_fun = make_model_calculate_fun(
-        force_field_model=force_field, is_energy_fun=False
+        force_field_model=force_field,
+        is_energy_fun=False,
+        return_aux_properties=is_md_sim,
     )
 
-    if sim_config.simulation_type == SimulationType.MD:
+    if is_md_sim:
         if sim_config.md_integrator == MDIntegrator.NVT_LANGEVIN:
             return batched_nvt_langevin(
                 model_calculate_fun,
@@ -425,7 +433,9 @@ def init_simulation_algorithm(
 
             barostat_force_field = create_high_precision_force_field(force_field)
             barostat_energy_fun = make_model_calculate_fun(
-                force_field_model=barostat_force_field, is_energy_fun=True
+                force_field_model=barostat_force_field,
+                is_energy_fun=True,
+                return_aux_properties=False,
             )
             return npt_montecarlo_langevin(
                 model_calculate_fun,
@@ -436,6 +446,12 @@ def init_simulation_algorithm(
                 pressure=sim_config.pressure_bar * PRESSURE_CONVERSION_FACTOR,
                 barostat_interval=sim_config.barostat_update_interval,
                 molecule_indices=molecule_indices,
+            )
+        elif sim_config.md_integrator == MDIntegrator.NVE_VELOCITY_VERLET:
+            return batched_nve_velocity_verlet(
+                model_calculate_fun,
+                shift_fun,
+                dt=sim_config.timestep_fs * TIMESTEP_CONVERSION_FACTOR,
             )
         else:
             raise ValueError(f"MD integrator {sim_config.md_integrator} not supported.")

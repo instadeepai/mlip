@@ -31,12 +31,14 @@ logger = logging.getLogger("mlip")
 class MLIPForceFieldASECalculator(Calculator):
     """Atomic Simulation Environment (ASE) Calculator for JAX models.
 
-    Implemented properties are energy and forces.
+    Implemented properties are energy, forces, and partial charges (if the underlying
+    force field predicts it).
     """
 
     implemented_properties = [
         "energy",
         "forces",
+        "charges",
     ]
 
     def __init__(
@@ -192,13 +194,15 @@ class MLIPForceFieldASECalculator(Calculator):
             self.model_params, batched_graph
         ).to_prediction()
 
-        if "energy" in properties:
-            # If explosion, energy output can be a scalar array
-            energy = (
-                predictions.energy[0]
-                if predictions.energy.shape
-                else predictions.energy
-            )
-            self.results["energy"] = np.array(energy)
-        if "forces" in properties:
+        energy = (
+            predictions.energy[0] if predictions.energy.shape else predictions.energy
+        )
+        self.results["energy"] = np.array(energy)
+
+        if predictions.forces is not None:
             self.results["forces"] = np.array(predictions.forces)[: len(atoms), :]
+
+        if predictions.partial_charges is not None:
+            self.results["charges"] = np.array(predictions.partial_charges)[
+                : len(atoms)
+            ]

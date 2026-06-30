@@ -35,23 +35,57 @@ def test_visnet_outputs_correct_forces_and_energies_for_single_graph(
 
     result = jax.jit(visnet_ff)(graph)
 
-    assert list(result.energy) == pytest.approx([-25.650845], abs=1e-3)
+    assert list(result.energy) == pytest.approx([-22.16494], abs=1e-3)
     expected_forces = np.array([
-        [-7.2968267e-03, -2.9765684e-03, -8.4474469e-03],
-        [9.5504019e-03, 2.7035497e-02, -8.0040090e-02],
-        [1.0298559e-02, 2.8945699e-03, -4.3731583e-03],
-        [-2.0968132e-02, 1.9943571e-02, 6.1610069e-02],
-        [2.1050731e-03, -7.8989938e-03, 4.7375535e-05],
-        [-7.6804560e-04, 7.1482547e-03, 8.8765882e-03],
-        [1.6644197e-02, -1.8109651e-02, 9.8979529e-03],
-        [-7.0810374e-03, 5.0333040e-03, 7.4181352e-03],
-        [2.9910570e-03, -7.5949985e-03, 2.5546132e-04],
-        [-5.4752436e-03, -2.5474990e-02, 4.7551133e-03],
+        [3.257973, -4.439838, 3.969158],
+        [0.37949374, 2.85621, -5.7438984],
+        [-1.3700594, -5.9856634, 2.890955],
+        [0.574846, -3.7950482, 2.9814265],
+        [-0.23810202, 2.011692, -0.6061833],
+        [-0.30511624, 0.7987462, -1.2056352],
+        [-0.8425261, 2.8831577, -0.23028827],
+        [0.23945636, 0.98294044, -1.0757343],
+        [-0.7405577, 1.8445723, -0.72196805],
+        [-0.9554075, 2.8432314, -0.25783217],
     ])
     assert np.allclose(np.array(result.forces), expected_forces, atol=5e-5)
 
     assert result.stress is not None and np.any(result.stress != 0.0)
     assert result.pressure is not None and np.any(result.pressure != 0.0)
+
+
+def test_visnet_v1_vs_legacy_v2_consistent(
+    setup_system, legacy_visnet_force_field, visnet_force_field_v1
+):
+    """The legacy ViSNet path (``use_legacy_visnet=True``) reproduces the v1 model.
+
+    The legacy path mirrors the mlip <= 0.2.1 behaviour and is kept only for
+    backward compatibility. This test asserts the legacy path matches the v1
+    implementation so old checkpoints reproduce exactly.
+    """
+    _, graph = setup_system
+
+    result_v1 = jax.jit(visnet_force_field_v1)(graph)
+    result_legacy_v2 = jax.jit(legacy_visnet_force_field)(graph)
+
+    assert jnp.allclose(result_v1.energy, result_legacy_v2.energy, atol=1e-6)
+    assert jnp.allclose(result_v1.forces, result_legacy_v2.forces, atol=1e-6)
+    assert jnp.allclose(result_v1.stress, result_legacy_v2.stress, atol=1e-6)
+
+    assert list(result_v1.energy) == pytest.approx([-25.650845], abs=1e-3)
+    expected_forces = np.array([
+        [-7.2968043e-03, -2.9765312e-03, -8.4473826e-03],
+        [9.5504513e-03, 2.7035501e-02, -8.0039799e-02],
+        [1.0298509e-02, 2.8945347e-03, -4.3731909e-03],
+        [-2.0968061e-02, 1.9943487e-02, 6.1609928e-02],
+        [2.1050749e-03, -7.8989770e-03, 4.7364811e-05],
+        [-7.6801440e-04, 7.1482048e-03, 8.8765305e-03],
+        [1.6644116e-02, -1.8109571e-02, 9.8979194e-03],
+        [-7.0810574e-03, 5.0332304e-03, 7.4180965e-03],
+        [2.9909867e-03, -7.5950362e-03, 2.5542988e-04],
+        [-5.4751989e-03, -2.5474846e-02, 4.7551086e-03],
+    ])
+    assert np.allclose(np.array(result_v1.forces), expected_forces, atol=5e-5)
 
 
 def test_visnet_with_use_remat_matches_without(
@@ -77,19 +111,6 @@ def test_visnet_with_use_remat_matches_without(
 
     assert jnp.allclose(no_remat_result.energy, remat_result.energy, atol=1e-5)
     assert jnp.allclose(no_remat_result.forces, remat_result.forces, atol=1e-3)
-
-
-def test_visnet_model_versions_consistent(
-    setup_system, visnet_force_field, visnet_force_field_v1
-):
-    _, graph = setup_system
-
-    result_v1 = jax.jit(visnet_force_field_v1)(graph)
-    result_v2 = jax.jit(visnet_force_field)(graph)
-
-    assert jnp.allclose(result_v1.energy, result_v2.energy, atol=1e-6)
-    assert jnp.allclose(result_v1.forces, result_v2.forces, atol=1e-6)
-    assert jnp.allclose(result_v1.stress, result_v2.stress, atol=1e-6)
 
 
 def test_visnet_grad_params(setup_system, visnet_force_field, pad_graph):

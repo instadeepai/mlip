@@ -44,7 +44,8 @@ from mlip.models.mlip_network import MLIPNetwork
 from mlip.typing.properties import Properties
 
 GRAPH_CUTOFF_ANGSTROM = 3.0
-XYZ_FILE_PATH = Path(__file__).parent / "sample_data" / "Dimethyl_sulfoxide.xyz"
+SAMPLE_DATA_DIR = Path(__file__).parent / "sample_data"
+XYZ_FILE_PATH = SAMPLE_DATA_DIR / "Dimethyl_sulfoxide.xyz"
 KEY = jax.random.key(123)
 
 # Cache compilations
@@ -353,6 +354,21 @@ def lri_mace_force_field(mace_config, dataset_info):
 @pytest.fixture(scope="session")
 def visnet_force_field(visnet_config, dataset_info):
     visnet_model = Visnet(visnet_config, dataset_info)
+    visnet_ff = ForceField.from_mlip_network(
+        visnet_model,
+        seed=42,
+        required_properties=Properties(stress=True),
+    )
+    return ForceField(
+        visnet_ff.predictor,
+        standardize_parameters(visnet_ff.params),
+    )
+
+
+@pytest.fixture(scope="session")
+def legacy_visnet_force_field(visnet_config, dataset_info):
+    legacy_config = visnet_config.model_copy(update={"use_legacy_visnet": True})
+    visnet_model = Visnet(legacy_config, dataset_info)
     visnet_ff = ForceField.from_mlip_network(
         visnet_model,
         seed=42,

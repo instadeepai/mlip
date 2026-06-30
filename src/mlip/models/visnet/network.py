@@ -108,6 +108,7 @@ class Visnet(MLIPNetwork):
             num_charges=num_charges,
             activation_fn=parse_activation(self.config.embed_activation),
             deterministic_scatter_ops=self.config.deterministic_scatter_ops,
+            use_legacy_visnet=self.config.use_legacy_visnet,
         )
 
         VisnetLayerCls = nn.remat(VisnetLayer) if self.config.use_remat else VisnetLayer
@@ -123,6 +124,7 @@ class Visnet(MLIPNetwork):
                 last_layer=i == self.config.num_layers - 1,
                 l_max=self.config.l_max,
                 deterministic_scatter_ops=self.config.deterministic_scatter_ops,
+                use_legacy_visnet=self.config.use_legacy_visnet,
             )
             for i in range(self.config.num_layers)
         ]

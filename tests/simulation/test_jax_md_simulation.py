@@ -23,6 +23,7 @@ from pydantic import ValidationError
 
 from mlip.data.chemical_system import ChemicalSystem
 from mlip.graph import Graph
+from mlip.inference import run_batched_inference
 from mlip.simulation.configs.simulation_config import TemperatureScheduleConfig
 from mlip.simulation.enums import (
     MDIntegrator,
@@ -31,6 +32,8 @@ from mlip.simulation.enums import (
 )
 from mlip.simulation.jax_md.jax_md_simulation_engine import JaxMDSimulationEngine
 
+ALL_MD_INTEGRATORS = ["nvt_langevin", "npt_mc_langevin", "nve_velocity_verlet"]
+
 
 @pytest.mark.parametrize(
     "force_field_name", ["mace_force_field", "lri_mace_force_field"]
@@ -38,12 +41,6 @@ from mlip.simulation.jax_md.jax_md_simulation_engine import JaxMDSimulationEngin
 def test_jax_md_step_zero_forces_match_direct_force_field_call(
     force_field_name, request, setup_system
 ):
-    """Forces logged at step 0 by the JAX-MD engine must match a direct
-    ForceField inference call on a graph built via the canonical
-    `Graph.from_chemical_system(...)` path. The engine uses `displ_fun`
-    while the reference uses `shifts`, but for a non-PBC system both reduce
-    to `positions[r] - positions[s]`, so results must agree numerically.
-    Covers both the plain (no long-range) and the LRI-enabled paths."""
     force_field = request.getfixturevalue(force_field_name)
     atoms = deepcopy(setup_system[0])
     if force_field.long_range_cutoff_distance is not None:
@@ -76,7 +73,7 @@ def test_jax_md_step_zero_forces_match_direct_force_field_call(
 @pytest.mark.parametrize(
     "force_field_name", ["quadratic_force_field", "lri_mace_force_field"]
 )
-@pytest.mark.parametrize("md_integrator", ["nvt_langevin", "npt_mc_langevin"])
+@pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
 def test_md_can_be_run_with_jax_md_backend(
     force_field_name, request, setup_system, md_integrator
 ):
@@ -123,18 +120,39 @@ def test_md_can_be_run_with_jax_md_backend(
     assert engine.state.positions.shape == (10, 10, 3)
     assert engine.state.forces.shape == (10, 10, 3)
     assert engine.state.velocities.shape == (10, 10, 3)
+    assert engine.state.potential_energy.shape == (10,)
     assert intermediate_steps == [4, 8, 12, 16, 20]
     if md_integrator.ensemble == "npt":
         assert engine.state.cell.shape == (10, 3, 3)
+
+    if force_field_name == "lri_mace_force_field":
+        assert engine.state.partial_charges.shape == (10, 10)
+    else:
+        assert engine.state.partial_charges is None
+
+    # Assert that potential energy and partial charges are correct
+    traj = [deepcopy(atoms) for _ in range(10)]
+    for i in range(10):
+        traj[i].set_positions(engine.state.positions[i])
+        if md_integrator.ensemble == "npt":
+            traj[i].set_cell(engine.state.cell[i])
+        else:
+            traj[i].set_cell(np.diag([md_config.box] * 3))
+        traj[i].set_pbc(True)
+
+    outputs = run_batched_inference(traj, force_field)
+    for i in range(10):
+        assert outputs[i].energy == pytest.approx(engine.state.potential_energy[i])
+        if force_field_name == "lri_mace_force_field":
+            assert np.allclose(
+                outputs[i].partial_charges, engine.state.partial_charges[i]
+            )
 
 
 def test_jax_md_engine_rejects_cutoff_exceeding_half_box(
     lri_mace_force_field, setup_system
 ):
-    """Cutoffs > L/2 cannot be handled by the standard NL, and the multi-image
-    fallback is numerically non-conservative. The engine must raise instead
-    of silently falling back to a broken code path.
-    """
+    """Cutoffs > L/2 cannot be handled by the standard NeighborList."""
     force_field = deepcopy(lri_mace_force_field)
     force_field.predictor.mlip_network.dataset_info = (
         force_field.predictor.mlip_network.dataset_info.model_copy(
@@ -157,7 +175,7 @@ def test_jax_md_engine_rejects_cutoff_exceeding_half_box(
         JaxMDSimulationEngine(atoms, force_field, md_config)
 
 
-@pytest.mark.parametrize("md_integrator", ["nvt_langevin", "npt_mc_langevin"])
+@pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
 def test_batched_md_can_be_run_with_jax_md_backend_for_three_identical_systems(
     quadratic_force_field, setup_system, md_integrator
 ):
@@ -179,6 +197,7 @@ def test_batched_md_can_be_run_with_jax_md_backend_for_three_identical_systems(
         box=10.0,
         edge_capacity_multiplier=1.25,
         molecule_indices=[[0] * len(atoms)] * 3,
+        independent_seeds_batched=False,
     )
 
     intermediate_steps = []
@@ -224,6 +243,38 @@ def test_batched_md_can_be_run_with_jax_md_backend_for_three_identical_systems(
 
 
 @pytest.mark.parametrize("md_integrator", ["nvt_langevin", "npt_mc_langevin"])
+@pytest.mark.parametrize("independent_seeds", [False, True])
+def test_batched_md_per_system_random_seeds(
+    quadratic_force_field, setup_system, md_integrator, independent_seeds
+):
+    atoms, _ = setup_system
+    atoms = deepcopy(atoms)
+    systems = [atoms, deepcopy(atoms), deepcopy(atoms)]
+
+    config = JaxMDSimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        md_integrator=MDIntegrator(md_integrator),
+        num_steps=20,
+        snapshot_interval=2,
+        num_episodes=5,
+        temperature_kelvin=300.0,
+        box=10.0,
+        molecule_indices=[[0] * len(atoms)] * 3,
+        random_seed=42,
+        independent_seeds_batched=independent_seeds,
+    )
+
+    engine = JaxMDSimulationEngine(systems, quadratic_force_field, config)
+    engine.run()
+
+    for i in [1, 2]:
+        match = np.allclose(
+            engine.state.positions[i], engine.state.positions[0], atol=1e-5
+        )
+        assert match == (not independent_seeds)
+
+
+@pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
 def test_batched_md_can_be_run_with_jax_md_backend_for_two_different_systems(
     quadratic_force_field, setup_system, md_integrator
 ):
@@ -253,7 +304,10 @@ def test_batched_md_can_be_run_with_jax_md_backend_for_two_different_systems(
         edge_capacity_multiplier=1.25,
     )
     batched_config = base_config.model_copy(
-        update={"molecule_indices": [[0] * n_atoms, [0] * n_mod_atoms]}
+        update={
+            "molecule_indices": [[0] * n_atoms, [0] * n_mod_atoms],
+            "independent_seeds_batched": False,
+        }
     )
     atoms_config = base_config.model_copy(update={"molecule_indices": [0] * n_atoms})
     mod_atoms_config = base_config.model_copy(
@@ -299,7 +353,7 @@ def test_batched_md_can_be_run_with_jax_md_backend_for_two_different_systems(
 @pytest.mark.parametrize(
     "force_field_name", ["quadratic_force_field", "lri_mace_force_field"]
 )
-@pytest.mark.parametrize("md_integrator", ["nvt_langevin", "npt_mc_langevin"])
+@pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
 def test_batched_and_regular_md_yield_same_results(
     force_field_name, request, setup_system, md_integrator
 ):
@@ -323,7 +377,10 @@ def test_batched_and_regular_md_yield_same_results(
         edge_capacity_multiplier=1.25,
     )
     batched_config = base_config.model_copy(
-        update={"molecule_indices": [[0] * len(atoms)]}
+        update={
+            "molecule_indices": [[0] * len(atoms)],
+            "independent_seeds_batched": False,
+        }
     )
     single_config = base_config.model_copy(
         update={"molecule_indices": [0] * len(atoms)}
@@ -476,7 +533,8 @@ def test_jax_md_engine_stops_exploded_simulation_early(
         batched_graph = batched_graph.replace_nodes(
             forces=batched_graph.nodes.positions * jnp.inf
         )
-        return batched_graph.replace_globals(energy=jnp.inf)
+        inf_energy = batched_graph.globals.energy * jnp.inf
+        return batched_graph.replace_globals(energy=inf_energy)
 
     num_steps, num_episodes = 20, 5
     md_config = JaxMDSimulationEngine.Config(
@@ -500,12 +558,18 @@ def test_jax_md_engine_stops_exploded_simulation_early(
     assert engine.state.velocities.shape == (expected_steps, 10, 3)
 
 
-def test_jax_md_simulation_reproducible(quadratic_force_field, setup_system):
+@pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
+def test_jax_md_simulation_reproducible(
+    quadratic_force_field, setup_system, md_integrator
+):
     atoms, _ = setup_system
 
     md_config = JaxMDSimulationEngine.Config(
         simulation_type=SimulationType.MD,
+        md_integrator=MDIntegrator(md_integrator),
         num_steps=5,
+        molecule_indices=[0] * len(atoms),
+        box=10.0,
     )
 
     final_states = []
@@ -529,56 +593,35 @@ def test_jax_md_simulation_reproducible(quadratic_force_field, setup_system):
         ), f"'{key}' does not match."
 
 
-def test_jax_md_engine_raises_when_charge_missing_and_embedding_enabled(
-    total_charge_embedding_visnet_force_field, setup_system
+@pytest.mark.parametrize(
+    "charge,set_none_charge_to_zero,if_raises",
+    [(None, False, True), (None, True, False), (0.0, False, False)],
+)
+def test_jax_md_engine_init_total_charge_embedding(
+    total_charge_embedding_visnet_force_field,
+    setup_system,
+    charge,
+    set_none_charge_to_zero,
+    if_raises,
 ):
     atoms = deepcopy(setup_system[0])
-    atoms.info.pop("charge", None)
-
-    # Make dummy molecule_indices for system.
-    molecule_indices = [0] * 4 + [1] * 6
+    atoms.info["charge"] = charge
 
     md_config = JaxMDSimulationEngine.Config(
         simulation_type=SimulationType.MD,
         md_integrator=MDIntegrator("nvt_langevin"),
         num_steps=1,
-        snapshot_interval=1,
-        num_episodes=1,
-        timestep_fs=1.0,
-        temperature_kelvin=300.0,
-        box=10.0,
-        molecule_indices=molecule_indices,
-        edge_capacity_multiplier=1.25,
     )
 
-    md_config = md_config.model_copy(update={"set_none_charge_to_zero": False})
-    with pytest.raises(ValueError, match="total charge embedding"):
+    md_config = md_config.model_copy(
+        update={"set_none_charge_to_zero": set_none_charge_to_zero}
+    )
+    if if_raises:
+        with pytest.raises(ValueError, match="total charge embedding"):
+            JaxMDSimulationEngine(
+                atoms, total_charge_embedding_visnet_force_field, md_config
+            )
+    else:
         JaxMDSimulationEngine(
             atoms, total_charge_embedding_visnet_force_field, md_config
         )
-
-
-def test_jax_md_engine_runs_when_charge_present_with_embedding_enabled(
-    total_charge_embedding_visnet_force_field, setup_system
-):
-    atoms = deepcopy(setup_system[0])
-    atoms.info["charge"] = 0.0
-
-    molecule_indices = [0] * 4 + [1] * 6
-
-    md_config = JaxMDSimulationEngine.Config(
-        simulation_type=SimulationType.MD,
-        md_integrator=MDIntegrator("nvt_langevin"),
-        num_steps=1,
-        snapshot_interval=1,
-        num_episodes=1,
-        timestep_fs=1.0,
-        temperature_kelvin=300.0,
-        box=10.0,
-        molecule_indices=molecule_indices,
-        edge_capacity_multiplier=1.25,
-    )
-
-    JaxMDSimulationEngine(
-        atoms, total_charge_embedding_visnet_force_field, md_config
-    )  # No error at init.

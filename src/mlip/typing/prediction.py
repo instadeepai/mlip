@@ -28,8 +28,14 @@ class Prediction:
         energy: The energy or energies (if multiple graphs in a batch).
                 Can be just a single float or array of shape `(n_graphs,)`.
         forces: The forces. Will be of shape `(n_nodes, 3)`.
+        hessian: The energy Hessian. Will be of shape `(n_nodes, 3, n_nodes, 3)`
+                 when performing an iterative Hessian calculation (this is the case
+                 at inference time), and of shape
+                 `(n_nodes, R, 3)` where `R = max(n_atoms_per_graph) * 3` when
+                 predicting the (subsampled) Hessian in a single backward pass (only
+                 used during training and not inference).
         stress: The stress tensor. Will be of shape `(n_graphs, 3, 3)`.
-        pressure: The microsopic 0K pressure term. Will be of shape `(n_graphs,)`.
+        pressure: The microscopic 0K pressure term. Will be of shape `(n_graphs,)`.
         partial_charges: The partial charges. Will be of shape `(n_nodes,)`.
     """
 

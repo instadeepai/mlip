@@ -110,6 +110,19 @@ We can run a prediction with an MLIP force field like this:
 For option 1, the ``prediction`` includes several properties and is a dataclass of type
 :py:class:`Prediction <mlip.typing.prediction.Prediction>`.
 
+.. note::
+
+    To speedup compilation and silence long compilation warnings, we recommend
+    exporting `JAX_USE_SIMPLIFIED_JAXPR_CONSTANTS=True`. This flag opts in to
+    the newer constant folding strategy which prevents JAX from trying to inline very
+    large constants in the HLO. See also `JAX_CAPTURED_CONSTANTS_WARN_BYTES`.
+
+.. caution::
+
+    **NequIP on TPU:** when running inference on a single graph, you must set
+    `JAX_USE_SIMPLIFIED_JAXPR_CONSTANTS=True` to avoid an internal XLA/libtpu
+    compilation error.
+
 Which properties are predicted depends on the ones requested via the
 `required_properties` attribute of the
 :py:class:`ForceFieldPredictor <mlip.models.predictors.predictor.ForceFieldPredictor>`.
@@ -120,14 +133,16 @@ method or when loading an already trained force field
 (see :ref:`below <load_zip_model>`). Required properties are passed and stored as
 a :py:class:`Properties <mlip.typing.properties.Properties>` dataclass.
 
-**Important caveat:** For Hessian matrix predictions, it is *not* sufficient to
-set `Properties(hessian=True)` for the required properties, but additionally, one must
-call :py:meth:`Graph.request_full_hessian <mlip.graph.Graph.request_full_hessian>` to
-obtain an updated graph before running a prediction on it. This only applies when
-predicting on a graph directly, it is not applicable to the training workflow, and is
-handled automatically when running :ref:`batched inference <batched_inference>`. See
-the `Hessian tutorial notebook <https://github.com/instadeepai/mlip/blob/main/tutorials/hessian_model_training_tutorial.ipynb>`_
+For Hessian matrix predictions, Hessians are computed whenever the `hessian` property
+is requested, both when predicting on a graph directly and when running :ref:`batched inference <batched_inference>`.
+See the `Hessian tutorial notebook <https://github.com/instadeepai/mlip/blob/main/tutorials/hessian_model_training_tutorial.ipynb>`_
 for an explicit example.
+
+.. note::
+
+    :py:meth:`Graph.request_full_hessian <mlip.graph.Graph.request_full_hessian>` is
+    deprecated since version 0.2.3 and no longer needs to be called before running a
+    prediction, it will be removed in a future release.
 
 If the input `Graph` object contains multiple subgraphs,
 for example, if it represents a batch, we can get the energy and forces of the `i`-th

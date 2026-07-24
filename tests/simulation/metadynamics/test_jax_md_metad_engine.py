@@ -73,6 +73,10 @@ def get_metadynamics_config(cv_type: str) -> MetadynamicsConfig:
         "distance_distance": ([distance_cv, distance_2_cv], [0.1, 0.5]),
         "distance_coordnum": ([distance_cv, coordnum_cv], [0.1, 0.5]),
         "angle_dihedral": ([angle_cv, dihedral_cv], [0.15, 0.3]),
+        "distance_angle_dihedral_coordnum": (
+            [distance_cv, angle_cv, dihedral_cv, coordnum_cv],
+            [0.1, 0.15, 0.3, 0.5],
+        ),
     }
     bias_cvs, bias_sigmas = cv_map[cv_type]
 
@@ -93,14 +97,20 @@ def get_metadynamics_config(cv_type: str) -> MetadynamicsConfig:
         restraints=restraints,
         bias_factor=15.0,
         deposition_interval=2,
-        max_gaussians=20000,
         initial_height=1.0,
     )
 
 
 @pytest.mark.parametrize("md_integrator", ["nvt_langevin", "npt_mc_langevin"])
 @pytest.mark.parametrize(
-    "cv_type", ["distance", "distance_distance", "distance_coordnum", "angle_dihedral"]
+    "cv_type",
+    [
+        "distance",
+        "distance_distance",
+        "distance_coordnum",
+        "angle_dihedral",
+        "distance_angle_dihedral_coordnum",
+    ],
 )
 def test_run_with_jax_md_metadynamics_engine(
     quadratic_force_field, setup_metadynamics_system, md_integrator, cv_type

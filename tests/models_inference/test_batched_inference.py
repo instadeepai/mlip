@@ -27,6 +27,7 @@ from mlip.data import (
     SingleGraphDatasetBuilder,
 )
 from mlip.data.graph_dataset import GraphDataset
+from mlip.data.helpers.hessian_utils import single_graph_hessian_from_batch
 from mlip.inference import run_batched_inference
 from mlip.models import ForceField
 from mlip.typing.properties import Properties
@@ -262,8 +263,12 @@ def test_batched_inference_with_hessian_predictor(
     jitted_ff = jax.jit(quadratic_hessian_force_field)
     single_graph_dataset = _graph_dataset_from_atoms(structures, batch_size=1)
     for i, single_batch in enumerate(single_graph_dataset):
-        _single_batch = single_batch.replace_globals(sample_hessian_rows=np.array(True))
-        output = jitted_ff(_single_batch)
-        n = len(structures[i])
-        expected_hessian = output.hessian[:n, :, :n, :]
+        output = jitted_ff(single_batch)
+
+        graph_start = 0
+        graph_end = single_batch.n_node[0]
+        expected_hessian = single_graph_hessian_from_batch(
+            output.hessian, graph_start, graph_end
+        )
+
         np.testing.assert_allclose(result[i].hessian, expected_hessian, rtol=1e-5)

@@ -22,12 +22,13 @@ from mlip.models.esen.coefficient_mapping import CoefficientMapping
 from mlip.models.esen.layer import ESENLayer
 
 
-class TestESENLayer:
+class _TestESENLayer:
+    l_max: int
+    m_max: int
+
     sphere_channels = 4
     hidden_channels = 4
-    l_max = 2
-    m_max = 2
-    mapping_reduced = CoefficientMapping(l_max=l_max, m_max=m_max)
+
     graph_cutoff_angstrom = 5.0
     norm_type = "rms_norm_sh"
     act_type = "gate"
@@ -38,7 +39,7 @@ class TestESENLayer:
     num_charges = None
     num_rbf = 4
     edge_channels = 4
-    radial_envelope = "polynomial"
+    radial_envelope = "polynomial_envelope"
     radial_basis = "gauss"
     trainable_rbf = False
     basis_width_scalar = 2.0
@@ -47,6 +48,10 @@ class TestESENLayer:
     key = jax.random.PRNGKey(0)
     n_nodes = 10
     n_edges = 68
+
+    @property
+    def mapping_reduced(self) -> CoefficientMapping:
+        return CoefficientMapping(l_max=self.l_max, m_max=self.m_max)
 
     @property
     def edge_channels_list(self) -> list[int]:
@@ -92,8 +97,12 @@ class TestESENLayer:
     def wigner_and_m_mapping(
         self, edge_vectors: jax.Array
     ) -> tuple[jax.Array, jax.Array]:
-        wigner_and_m_mapping = self.embedding_block()._get_rotmat_and_wigner(
-            edge_vectors
+        block = self.embedding_block()
+        variables = block.init(
+            self.key, edge_vectors, method=EsenEmbeddingBlock._get_rotmat_and_wigner
+        )
+        wigner_and_m_mapping = block.apply(
+            variables, edge_vectors, method=EsenEmbeddingBlock._get_rotmat_and_wigner
         )
         return wigner_and_m_mapping
 
@@ -184,3 +193,13 @@ class TestESENLayer:
             rotated_graph_out.nodes.features["latent"],
             atol=1e-5,
         )
+
+
+class TestESENLayerL2M2(_TestESENLayer):
+    l_max = 2
+    m_max = 2
+
+
+class TestESENLayerL2M1(_TestESENLayer):
+    l_max = 2
+    m_max = 1

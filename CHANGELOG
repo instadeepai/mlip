@@ -1,5 +1,50 @@
 # Changelog
 
+## Release 0.2.3
+
+- Adding support for running free energy perturbation MD simulations using the JAX-MD
+  backend.
+- Adding support for running JAX-MD simulations with non-orthorhombic PBCs.
+- Fixing rotation equivariance in eSEN model for `m_max < l_max`. Important: If an
+  eSEN model was trained with `m_max < l_max`, its runtime behavior will change with
+  this version, and hence, it likely needs to be retrained to be compatible with
+  mlip 0.2.3 or later.
+- Fixing an error in the backward pass of the eSEN model for `l_max >= 5`.
+- Fixing double-counting of each electrostatic interaction in the Coulomb energy head.
+- Deprecating `Graph.request_full_hessian`, which was previously required to enable
+  full Hessian computation during inference on a single graph but is no longer needed:
+  the full Hessian is now computed by default whenever the `hessian` property is
+  requested. It will be removed in a future release.
+- Deprecating `num_species` in the configs of all available model architectures.
+  The number of species is now always inferred from `dataset_info`; setting
+  `num_species` to anything but `None` raises a `DeprecationWarning` and no
+  longer has any effect. It will be removed in a future release.
+- Fixing a bug where `ConservativePredictor` computed incorrectly signed stress for
+  cells with a negative determinant.
+- Fixing a bug in batched NPT simulations where all volume changes were rejected,
+  caused by the high-precision energy force field allowing NaNs in its output.
+- Fixing a bug where the `temperature_kelvin` simulation parameter was always set
+  to 300.
+- Fixing a bug in the NEB simulation engine where the input atoms `cell` was silently
+  overwritten by the `box` config.
+- Fixing bug in the metadynamics class `CoordinationNumberCV` where the central
+  atom can be counted as a neighbor to itself.
+- Fixing bugs in the metadynamics classes `PositionalRestraintPotential` and
+  `DihedralCV` where PBCs were not applied when computing distances.
+- Updating the `ForceFieldPredictor` to always apply deterministic scatter operations
+  in the energy head if they're used by the model.
+- Fixing a bug where the energy force field created for the NPT barostat did not
+  use the same `inference_context` as the input force field.
+- Fixing velocity restoration in the JAX-MD simulation engine for NPT simulations.
+- Adding support for running metadynamics simulations using more than two collective
+  variables in the bias potential.
+- Updating `max_gaussians` in the metadynamics config to be set automatically
+  by default.
+- Updating the way Hessians are calculated during inference. They are now calculated
+  iteratively (one row at a time), resulting in a significant reduction in memory
+  requirements at very similar computing time. This enables Hessian predictions for
+  much larger systems than was possible before.
+
 ## Release 0.2.2
 
 - Adding support for running well-tempered metadynamics MD simulations using the

@@ -281,6 +281,12 @@ class VisnetNeighborEmbeddingBlock(nn.Module):
         embedded_senders = embbedded_nodes[graph.senders]
 
         node_msgs = self._message_fn(embedded_senders, weights)
+
+        # Optionally rescale messages per-edge
+        edge_scale = graph.edges.features.get("edge_scale")
+        if edge_scale is not None:
+            node_msgs = node_msgs * edge_scale[:, None]
+
         aggregated_msgs = segment_sum(
             node_msgs,
             graph.receivers,

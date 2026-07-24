@@ -111,7 +111,9 @@ class ForceField:
         predictor_cls = cls.get_predictor_class(
             required_properties, mlip_network.config
         )
-        energy_head = cls.get_energy_head(mlip_network.config, required_properties)
+        energy_head = cls.get_energy_head(
+            mlip_network.config, required_properties, mlip_network
+        )
 
         predictor = predictor_cls(
             mlip_network=mlip_network,
@@ -124,7 +126,10 @@ class ForceField:
 
     @classmethod
     def get_energy_head(
-        cls, config: MLIPNetworkConfig, required_properties: Properties
+        cls,
+        config: MLIPNetworkConfig,
+        required_properties: Properties,
+        mlip_network: MLIPNetwork | None = None,
     ) -> Callable[[Graph], Array]:
         """Returns the appropriate energy computation head function.
 
@@ -134,6 +139,7 @@ class ForceField:
         Args:
             config: The configuration of the model.
             required_properties: The properties required by the predictor.
+            mlip_network: The MLIP network the head will be used with.
 
         Returns:
             The selected function for computing the energy from a graph object.
@@ -339,7 +345,9 @@ class ForceField:
             An updated force field instance.
         """
         predictor_cls = self.get_predictor_class(required_properties, self.config)
-        energy_head = self.get_energy_head(self.config, required_properties)
+        energy_head = self.get_energy_head(
+            self.config, required_properties, self.predictor.mlip_network
+        )
 
         updated_predictor = predictor_cls(
             mlip_network=self.predictor.mlip_network,

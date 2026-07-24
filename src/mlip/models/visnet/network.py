@@ -77,9 +77,7 @@ class Visnet(MLIPNetwork):
             f"attention heads ({self.config.num_heads})"
         )
 
-        num_species = self.config.num_species
-        if num_species is None:
-            num_species = len(self.dataset_info.allowed_atomic_numbers)
+        num_species = len(self.dataset_info.allowed_atomic_numbers)
 
         if self.config.use_total_charge_embedding:
             # We add +1 to the num_charge in order to account for the placeholder charge

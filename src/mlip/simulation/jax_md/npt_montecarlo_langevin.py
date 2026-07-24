@@ -27,11 +27,16 @@ from mlip.simulation.montecarlo_barostat import (
     INITIAL_MAX_DELTA_VOLUME_FRACTION,
     MonteCarloBarostatState,
     accept_volume_change,
+    box_to_volume,
     propose_volume_change,
     sanitize_molecule_indices,
     tune_barostat,
 )
-from mlip.utils.jax_utils import TupleLeaf, segment_sum
+from mlip.utils.jax_utils import (
+    TupleLeaf,
+    high_precision_matmul_context,
+    segment_sum,
+)
 
 
 @jax_compatible_dataclass
@@ -87,6 +92,7 @@ def apply_montecarlo_barostat(
     energy_fn: Callable,
     force_fn: Callable,
     kT: float,  # noqa: N803
+    fractional_coordinates: bool = False,
 ) -> NPTLangevinState:
     """Apply the Monte Carlo Barostat step to the NPT Langevin simulation.
 
@@ -103,6 +109,8 @@ def apply_montecarlo_barostat(
         energy_fn: The energy function.
         force_fn: The force function used to recompute forces after an accepted move.
         kT: The temperature in energy units (kB * T).
+        fractional_coordinates: Whether positions are stored as fractional coordinates
+            (only the case for non-orthorhombic boxes).
 
     Returns:
         The updated state of the simulation with the new box and positions.
@@ -112,7 +120,11 @@ def apply_montecarlo_barostat(
 
     # Propose volume changes — one call per system via tree.map
     proposals = jax.tree.map(
-        lambda bs, box, pos: TupleLeaf(propose_volume_change(bs, box, pos)),
+        lambda bs, box, pos: TupleLeaf(
+            propose_volume_change(
+                bs, box, pos, fractional_coordinates=fractional_coordinates
+            )
+        ),
         state.barostat_state,
         state.box,
         state.position,
@@ -125,8 +137,9 @@ def apply_montecarlo_barostat(
     pos_new = jax.tree.map(lambda p: p[4], proposals, is_leaf=is_tl)
 
     # Energy at current and proposed positions (one call each)
-    energy_old = energy_fn(state.position, box=state.box)
-    energy_new = energy_fn(pos_new, box=box_new)
+    with high_precision_matmul_context():
+        energy_old = energy_fn(state.position, box=state.box)
+        energy_new = energy_fn(pos_new, box=box_new)
 
     # Accept / reject and tune per system.
     accept_results = jax.tree.map(
@@ -193,6 +206,7 @@ def npt_montecarlo_langevin(
     molecule_indices: Array | list[Array],
     gamma: float = 0.1,
     barostat_interval: int = 25,
+    fractional_coordinates: bool = False,
 ) -> simulate.Simulator:
     """Simulation in the NPT ensemble using Langevin dynamics + Monte Carlo Barostat.
 
@@ -210,6 +224,8 @@ def npt_montecarlo_langevin(
         molecule_indices: Array specifying which molecule each atom belongs to.
         gamma: The friction coefficient for the Langevin dynamics.
         barostat_interval: The interval for the Monte-Carlo Barostat in timesteps.
+        fractional_coordinates: Whether positions are stored as fractional coordinates
+            (only the case for non-orthorhombic boxes).
     """
     # Infer static molecular topology information for each system.
     _mol_indices_list = (
@@ -228,8 +244,9 @@ def npt_montecarlo_langevin(
     ]
 
     # batched_nvt_langevin handles both single-system (array) and batched (list) inputs
+    # Pass `initial_box=None` as we will pass the box explicitly each step.
     nvt_init_fn, nvt_step_fn = batched_nvt_langevin(
-        langevin_force_fn, shift_fn, dt, kT, gamma
+        langevin_force_fn, shift_fn, dt, kT, gamma, initial_box=None
     )
 
     @jit
@@ -248,9 +265,7 @@ def npt_montecarlo_langevin(
 
         def _make_barostat_state(i):
             box_i = jnp.asarray(_box[i])
-            vol = (
-                box_i ** _positions[i].shape[1] if box_i.ndim == 0 else jnp.prod(box_i)
-            )
+            vol = box_to_volume(box_i, _positions[i].shape[1])
             return MonteCarloBarostatState(
                 target_pressure=pressure,
                 max_delta_volume=vol * INITIAL_MAX_DELTA_VOLUME_FRACTION,
@@ -298,7 +313,9 @@ def npt_montecarlo_langevin(
             def _force_fn(pos, box):
                 return langevin_force_fn(pos, box=box, **kwargs)
 
-            return apply_montecarlo_barostat(s, _energy_fn, _force_fn, _kT)
+            return apply_montecarlo_barostat(
+                s, _energy_fn, _force_fn, _kT, fractional_coordinates
+            )
 
         return lax.cond(is_mc_step, barostat_wrapper, lambda s: s, state)
 

@@ -117,7 +117,7 @@ class PositionalRestraintConfig(RestraintPotentialConfig):
         positions = atoms.get_positions()
 
         if indices is None and self.start_atom_index is not None:
-            dist_mat = np.linalg.norm(positions[:, None] - positions[None, :], axis=-1)
+            dist_mat = atoms.get_all_distances(mic=True)
             neighbors = {
                 i: np.where((dist_mat[i] > 0.1) & (dist_mat[i] < 1.8))[0]
                 for i in range(len(positions))

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 from unittest.mock import patch
 
 import jax
@@ -26,9 +25,9 @@ from mlip.simulation.montecarlo_barostat import (
     INITIAL_MAX_DELTA_VOLUME_FRACTION,
     TUNE_FREQUENCY,
     MonteCarloBarostatState,
-    _box_to_volume,  # noqa: PLC2701
     _scale_molecule_centroids,  # noqa: PLC2701
     accept_volume_change,
+    box_to_volume,
     create_high_precision_force_field,
     propose_volume_change,
     tune_barostat,
@@ -40,7 +39,7 @@ MOLECULE_INDICES = jnp.array([0] * 4 + [1] * 6)
 MOL_COUNTS = jnp.array([4, 6])
 POSITIONS = jax.random.uniform(random.PRNGKey(42), (10, 3), minval=-10.0, maxval=10.0)
 BOX = jnp.array([10.0, 10.0, 10.0])
-VOLUME = _box_to_volume(BOX, 3)
+VOLUME = box_to_volume(BOX, 3)
 
 
 def test_create_high_precision_force_field(mace_force_field, salt_graph):
@@ -57,12 +56,6 @@ def test_create_high_precision_force_field(mace_force_field, salt_graph):
             assert value != original_config[key]
         else:
             assert value == original_config[key]
-
-    # Check that the energy head has been replaced with a deterministic version
-    energy_head = high_precision_force_field.predictor.energy_head
-    assert isinstance(energy_head, functools.partial)
-    assert energy_head.func is mace_force_field.predictor.energy_head
-    assert energy_head.keywords == {"deterministic": True}
 
     # Testing on CPU, so both models are deterministic either way.
     # Check that the energy is higher with atomic_energies=`zero`,
@@ -154,7 +147,7 @@ def test_propose_volume_change(barostat_state, max_delta_volume):
             POSITIONS, MOLECULE_INDICES, MOL_COUNTS, expected_length_scale
         )
         expected_box_new = BOX * expected_length_scale
-        assert jnp.isclose(volume_old, _box_to_volume(BOX, 3))
+        assert jnp.isclose(volume_old, box_to_volume(BOX, 3))
         assert jnp.isclose(volume_new, expected_volume_new)
         assert jnp.array_equal(positions_new, expected_positions_new)
         assert jnp.array_equal(box_new, expected_box_new)
@@ -190,8 +183,8 @@ def test_accept_volume_change(barostat_state, accept_volume_change_test_case):
     energy_delta, volume_delta, expected_prob = accept_volume_change_test_case
     energy_old, energy_new = 0.0, energy_delta
     volume_old, volume_new = (
-        _box_to_volume(BOX, 3),
-        _box_to_volume(BOX, 3) + volume_delta,
+        box_to_volume(BOX, 3),
+        box_to_volume(BOX, 3) + volume_delta,
     )
     kT = units.kB * TEMPERATURE
     num_molecules = jnp.max(MOLECULE_INDICES) + 1
@@ -271,7 +264,7 @@ def test_montecarlo_barostat_tuning(barostat_state, tune_barostat_test_case):
             num_accepted_since_tune=num_accepted,
         )
 
-        barostat_state_new = tune_barostat(barostat_state, _box_to_volume(BOX, 3))
+        barostat_state_new = tune_barostat(barostat_state, box_to_volume(BOX, 3))
 
         if num_attempted >= TUNE_FREQUENCY:  # Should have tuned
             assert barostat_state_new.num_attempted == num_attempted

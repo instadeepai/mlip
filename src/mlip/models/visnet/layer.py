@@ -338,6 +338,13 @@ class VisnetLayer(nn.Module):
             graph.edges.features["distances"],
             graph.edges.features["spherical_embedding"],
         )
+
+        # Optionally rescale messages per-edge
+        edge_scale = graph.edges.features.get("edge_scale")
+        if edge_scale is not None:
+            node_msgs = node_msgs * edge_scale[:, None]
+            vec_msgs = vec_msgs * edge_scale[:, None, None]
+
         # Aggregate the messages
         node_feats = segment_sum(
             node_msgs,

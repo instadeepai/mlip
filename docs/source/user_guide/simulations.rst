@@ -11,8 +11,10 @@ This library supports :ref:`three types of simulations <simulation_enums_type>`,
 
 with :ref:`two types of backends <simulation_enums_backend>`, JAX-MD and ASE.
 
-Furthermore, the JAX-MD backend also supports :ref:`metadynamics <metadynamics>` as an
-enhanced-sampling wrapper around standard MD.
+Furthermore, the JAX-MD backend also supports :ref:`metadynamics <metadynamics>` and
+:ref:`free energy perturbation (FEP) <fep_simulations>` as two enhanced sampling
+wrappers around standard MD. Their documentation can be found in
+:ref:`this <enhanced_sampling>` separate user guide.
 
 **MD and energy minimization:**
 Simulations are handled with simulation engine classes, which are implementations
@@ -299,17 +301,13 @@ The example above works for both energy minimizations and MD simulations in the 
 Periodic Boundary Conditions
 ----------------------------
 
-If the `ase.Atoms` object has periodic boundary conditions (PBCs), the simulation engine will
-use them by default. Note that non-orthorhombic (non-diagonal) cells are currently supported by the
-:py:class:`ASESimulationEngine <mlip.simulation.ase.ase_simulation_engine.ASESimulationEngine>`,
-but not by the
-:py:class:`JaxMDSimulationEngine <mlip.simulation.jax_md.jax_md_simulation_engine.JaxMDSimulationEngine>`.
-We intend to support non-orthorhombic PBCs with Jax-MD in future versions.
-
-If the `ase.Atoms` object does not have PBCs set, the `box` attribute of the
+If the `ase.Atoms` object has periodic boundary conditions (PBCs), the simulation engine
+will use them by default. If the `ase.Atoms` object does not have PBCs set, the `box`
+attribute of the
 :py:class:`SimulationConfig <mlip.simulation.configs.simulation_config.SimulationConfig>`
 is used to set them. This attribute can either be `None` (no PBCs), a float (cubic PBCs),
-or a list of three floats (orthorhombic PBCs).
+or a list of three floats (orthorhombic PBCs). Note that to use non-orthorhombic PBCs,
+these must be applied to the `ase.Atoms` object before initializing the simulation engine.
 
 .. _neb_ts_search:
 
@@ -360,194 +358,3 @@ usage below.
 Note that the NEB method assumes the endpoints are already relaxed local
 minima. If they are not, run an energy minimization on each first as described
 in the :ref:`ASE section <simulations_ase_user_guide>` above.
-
-.. _metadynamics:
-
-Metadynamics
-------------
-
-Metadynamics is an enhanced-sampling technique that adds a history-dependent
-bias potential along one or two *collective variables* (CVs) to help the system
-escape free-energy basins and explore configuration space more efficiently.
-The implemented variant is **well-tempered metadynamics**
-(`Barducci et al., PRL 2008 <https://doi.org/10.1103/PhysRevLett.100.020603>`_):
-Gaussian hills are deposited periodically and their heights are rescaled by a
-factor that depends on the accumulated bias, preventing the bias from growing
-without bound. Setting `bias_factor=None` disables the rescaling and recovers
-plain (untempered) metadynamics, equivalent to the γ → ∞ limit.
-
-The
-:py:class:`JaxMDMetadynamicsSimulationEngine <mlip.simulation.metadynamics.jax_md_metad_engine.JaxMDMetadynamicsSimulationEngine>`
-extends the JAX-MD simulation engine and is configured via
-:py:class:`MetadynamicsConfig <mlip.simulation.metadynamics.config.MetadynamicsConfig>`
-embedded inside
-:py:class:`JaxMDMetadynamicsSimulationConfig <mlip.simulation.metadynamics.config.JaxMDMetadynamicsSimulationConfig>`.
-
-Note that batched simulations with metadynamics are not currently supported.
-
-For a worked end-to-end example, we refer to our
-`metadynamics tutorial notebook <https://github.com/instadeepai/mlip/blob/main/tutorials/metadynamics_tutorial.ipynb>`_.
-
-**Minimal example** (distance CV, upper wall):
-
-.. code-block:: python
-
-    from ase.io import read as ase_read
-    from mlip.simulation.metadynamics.jax_md_metad_engine import (
-        JaxMDMetadynamicsSimulationEngine,
-    )
-    from mlip.simulation.metadynamics.config import MetadynamicsConfig
-    from mlip.simulation.metadynamics.potential_terms import (
-        DistanceCVConfig,
-        DistanceWallConfig,
-    )
-    from mlip.simulation.enums import SimulationType, MDIntegrator
-
-    atoms = ase_read("/path/to/structure.xyz")
-    force_field = _get_a_trained_force_field_from_somewhere()  # placeholder
-
-    metad_config = MetadynamicsConfig(
-        bias_cvs=[DistanceCVConfig(atom_indices_1=[10], atom_indices_2=[30])],
-        bias_sigmas=[0.2],                  # Å
-        bias_factor=15.0,                   # well-tempered γ
-        deposition_interval=500,            # steps between hill depositions
-        max_gaussians=10000,
-        initial_height=0.02,                # eV
-        walls=[
-            DistanceWallConfig(
-                atom_indices_1=[10], atom_indices_2=[30], upper=3.5, kappa=50.0, exp=2
-            )
-        ],
-    )
-
-    engine_config = JaxMDMetadynamicsSimulationEngine.Config(
-        metadynamics_config=metad_config,
-        simulation_type=SimulationType.MD,
-        md_integrator=MDIntegrator.NVT_LANGEVIN,
-        num_steps=500_000,
-        snapshot_interval=10,
-        num_episodes=500,
-        timestep_fs=1.0,
-        temperature_kelvin=300.0,
-    )
-
-    engine = JaxMDMetadynamicsSimulationEngine(atoms, force_field, engine_config)
-    engine.run()
-
-    state = engine.state
-    print(state.bias_cv_values.shape)   # (n_snapshots, num_cvs) — bias CV trajectory
-    print(state.bias_potential.shape)   # (n_snapshots,) — bias energy at each snapshot
-
-Collective variables
-~~~~~~~~~~~~~~~~~~~~
-
-Up to two CVs can be included in the bias potential via the `bias_cvs` list;
-the corresponding `bias_sigmas` list must have the same length.
-The available CV config classes are:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
-
-   * - Config class
-     - Description
-   * - :py:class:`DistanceCVConfig <mlip.simulation.metadynamics.potential_terms.DistanceCVConfig>`
-     - Pairwise distance between the centroids of two atom groups `a = [i, j, k, ...]`
-       and `b = [l, m, n, ...]` in Å, where
-       each group contains one or more atoms. Set `atom_indices_1=a` and `atom_indices_2=b`.
-   * - :py:class:`AngleCVConfig <mlip.simulation.metadynamics.potential_terms.AngleCVConfig>`
-     - Bond angle for a triplet *p–q–r* where *q* is the vertex (radians). Set `atom_indices=(p, q, r)`.
-   * - :py:class:`DihedralCVConfig <mlip.simulation.metadynamics.potential_terms.DihedralCVConfig>`
-     - Dihedral angle for a quadruplet *i–j–k–l*. Set `atom_indices=(i, j, k, l)`.
-   * - :py:class:`CoordinationNumberCVConfig <mlip.simulation.metadynamics.potential_terms.CoordinationNumberCVConfig>`
-     - Differentiable coordination number of a central atom with respect to a
-       neighbor element, computed via a rational switching function. Set
-       `central_idx` and `element` (element symbol, e.g. `"N"`).
-
-Walls
-~~~~~
-
-Wall potentials confine a CV to a desired range without affecting the bias.
-They are one-sided potentials: `V = kappa * max(s - upper, 0)^exp` or
-`V = kappa * max(lower - s, 0)^exp`. Pass a list of wall configs via `walls`:
-
-.. code-block:: python
-
-    import math
-    from mlip.simulation.metadynamics.potential_terms import (
-        DistanceWallConfig,
-        AngleWallConfig,
-    )
-
-    walls = [
-        # Keep distance (atoms 10, 30) below 3.5 Å
-        DistanceWallConfig(
-            atom_indices_1=[10], atom_indices_2=[30], upper=3.5, kappa=50.0
-        ),
-        # Keep angle (atoms 5, 10, 30) above 80° and below 150°
-        AngleWallConfig(
-            atom_indices=(5, 10, 30),
-            lower_rad=math.radians(80.0),
-            upper_rad=math.radians(150.0),
-            kappa=100.0,
-        ),
-    ]
-
-Available wall config classes:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
-
-   * - Config class
-     - Description
-   * - :py:class:`DistanceWallConfig <mlip.simulation.metadynamics.potential_terms.DistanceWallConfig>`
-     - Wall potential on a distance CV (Å). Accepts `lower` and/or `upper` thresholds.
-   * - :py:class:`AngleWallConfig <mlip.simulation.metadynamics.potential_terms.AngleWallConfig>`
-     - Wall potential on a bond-angle CV. Thresholds set in radians via `lower_rad` / `upper_rad`.
-
-Positional restraints
-~~~~~~~~~~~~~~~~~~~~~
-
-Positional restraints apply a harmonic penalty `V = 0.5 * kappa * Σ |r_i - r0_i|²`
-to keep a set of atoms near their initial positions. This is useful for example to keep a
-solvent shell or spectator atoms from drifting while a reactive fragment is
-biased. Pass a list of
-:py:class:`PositionalRestraintConfig <mlip.simulation.metadynamics.potential_terms.PositionalRestraintConfig>`
-objects via `restraints`:
-
-.. code-block:: python
-
-    from mlip.simulation.metadynamics.potential_terms import PositionalRestraintConfig
-
-    restraints = [
-        # Restrain atoms 0–19 with kappa = 100 eV/Å²
-        PositionalRestraintConfig(atom_indices=list(range(20)), kappa=100.0)
-    ]
-
-Alternatively, set `start_atom_index` instead of `atom_indices` and the engine
-will automatically identify the restrained fragment via BFS over an implicit
-bond graph (added for all pairs with distance 0.1–1.8 Å) starting from `start_atom_index`.
-
-Simulation state
-~~~~~~~~~~~~~~~~
-
-After running, `engine.state` is a
-:py:class:`MetadynamicsSimulationState <mlip.simulation.metadynamics.states.MetadynamicsSimulationState>`
-that extends the standard
-:py:class:`SimulationState <mlip.simulation.state.SimulationState>` with:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 75
-
-   * - Field
-     - Description
-   * - `bias_cv_values`
-     - Values of the CVs used by the bias potential at each logged snapshot.
-   * - `bias_potential`
-     - Total bias energy (eV) at each logged snapshot.
-   * - `gaussian_centers`
-     - Positions of all deposited Gaussian hills along the bias potential CVs.
-   * - `gaussian_heights`
-     - Heights (eV) of all deposited Gaussian hills.

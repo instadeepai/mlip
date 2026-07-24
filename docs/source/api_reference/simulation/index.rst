@@ -27,3 +27,5 @@ This module contains all code related to simulations (e.g., MD or energy minimiz
     metadynamics_engine
     metadynamics_config
     metadynamics_potential_configs
+    fep_sampler
+    fep_sampler_config

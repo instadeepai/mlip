@@ -80,3 +80,21 @@ def test_quaternion_matches_eulers(setup_system, l_max, key):
     assert np.allclose(
         np.array(rotated_quaternion), np.array(rotated_eulers), atol=1e-5
     )
+
+
+@pytest.mark.parametrize("l_max", [3, 6])  # l_max=6 covers all l cases.
+def test_quaternion_has_finite_gradient(setup_system, l_max):
+    _, graph = setup_system
+    edge_vectors = graph.edge_vectors()
+
+    def _summed_rotated_sph(edge_vectors, l_max):
+        """Scalar reduction of rotated spherical harmonics."""
+        wigner = quaternion_wigner_d(edge_vectors, l_max, None)
+        sph = spherical_harmonics(
+            range(l_max + 1), IrrepsArray("1o", edge_vectors), normalize=True
+        ).array
+        rotated = jnp.einsum("bji,bi->bj", wigner, sph)
+        return jnp.sum(rotated**2)
+
+    grad_quaternion = jax.grad(_summed_rotated_sph)(edge_vectors, l_max)
+    assert np.all(np.isfinite(np.array(grad_quaternion)))

@@ -57,6 +57,11 @@ class Nequip(MLIPNetwork):
                 :class:`~mlip.models.nequip.config.NequipConfig`.
         dataset_info: Hyperparameters dictated by the dataset
                       (e.g., cutoff radius or average number of neighbors).
+
+    Caution:
+        On TPU, when running inference on a single graph, set
+        `JAX_USE_SIMPLIFIED_JAXPR_CONSTANTS=True` to avoid an internal
+        XLA/libtpu compilation error.
     """
 
     Config = NequipConfig
@@ -91,9 +96,7 @@ class Nequip(MLIPNetwork):
         if avg_num_neighbors is None:
             avg_num_neighbors = self.dataset_info.avg_num_neighbors
 
-        num_species = self.config.num_species
-        if num_species is None:
-            num_species = len(self.dataset_info.allowed_atomic_numbers)
+        num_species = len(self.dataset_info.allowed_atomic_numbers)
         if self.config.use_total_charge_embedding:
             # We add +1 to the num_charge in order to account for the placeholder charge
             # index (0) that shifts the max index value to

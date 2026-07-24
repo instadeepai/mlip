@@ -26,4 +26,10 @@ from mlip.data.graph_dataset_builder import (
     GraphDatasetBuilder,
 )
 from mlip.data.helpers.combined_graph_dataset import CombinedGraphDataset
+from mlip.data.helpers.hessian_utils import (
+    pad_systems_hessians,
+    process_graph_hessian,
+    request_full_direct_hessian,
+    skip_graph_hessian,
+)
 from mlip.data.single_graph_dataset_builder import SingleGraphDatasetBuilder

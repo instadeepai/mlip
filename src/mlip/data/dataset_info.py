@@ -254,3 +254,13 @@ def check_compatibility_of_ds_info(
             "cutoff values. Either create a fresh dataset_info or fix "
             "the config to match the trained model."
         )
+    if (
+        builder_config.long_range_cutoff_angstrom
+        != dataset_info.long_range_cutoff_angstrom
+    ):
+        raise ValueError(
+            "Got inconsistent long range cutoff distances: "
+            "the builder config and the preset dataset_info have different "
+            "long_range_cutoff_angstrom values. Either create a fresh "
+            "dataset_info or fix the config to match the trained model."
+        )

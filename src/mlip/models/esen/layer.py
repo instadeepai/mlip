@@ -293,6 +293,11 @@ class Edgewise(nn.Module):
         # Envelope per-edge
         edge_messages = edge_messages * edge_envelope
 
+        # Optionally rescale messages per-edge
+        edge_scale = graph.edges.features.get("edge_scale")
+        if edge_scale is not None:
+            edge_messages = edge_messages * edge_scale[:, None, None]
+
         # Rotate back
         wigner_and_m_mapping_inv = jnp.swapaxes(wigner_and_m_mapping, 1, 2)
         edge_messages = jnp.einsum(

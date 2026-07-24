@@ -148,6 +148,19 @@ def test_stress_is_symmetric(quadratic_force_field, salt_graph):
     assert jnp.allclose(stress[0], stress[0].transpose(), atol=1e-5, rtol=1e-5)
 
 
+def test_stress_from_pseudo_stress_negative_determinant():
+    """A negative-determinant cell must scale by its true determinant, not fall
+    back to the dummy-graph divisor of 1.0."""
+    positions = np.array([[0.0, 0.0, 0.0], [0.6, 0.5, 0.5]])
+    graph = _salt_graph_from_positions(positions, cell_length=-1.0)
+    det = jnp.linalg.det(graph.globals.cell)[0]
+    assert det < 0.0
+
+    pseudo_stress = jnp.ones((1, 3, 3))
+    stress = ConservativePredictor._stress_from_pseudo_stress(graph, pseudo_stress)
+    assert jnp.allclose(stress, pseudo_stress / det)
+
+
 @pytest.mark.parametrize(
     "distance,is_positive,is_zero",
     [(0.8, True, False), (0.9, False, False), (0.87, False, True)],

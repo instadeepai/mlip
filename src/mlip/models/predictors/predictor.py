@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import abc
+import functools
+import inspect
 from typing import Callable, TypeAlias
 
 import flax.linen as nn
@@ -49,6 +51,10 @@ class ForceFieldPredictor(nn.Module, abc.ABC):
         pass
 
     @property
+    def deterministic_scatter_ops(self):
+        return getattr(self.mlip_network.config, "deterministic_scatter_ops", False)
+
+    @property
     def _default_energy_head(self):
         """Return the default energy head to use if none is provided."""
         return standard_energy_computation_head
@@ -60,9 +66,14 @@ class ForceFieldPredictor(nn.Module, abc.ABC):
         This property should be used for all usages of the energy head.
         Uses `_default_energy_head` if no energy head was provided at initialization.
         """
-        if self.energy_head is not None:
-            return self.energy_head
-        return self._default_energy_head
+        head = (
+            self.energy_head
+            if self.energy_head is not None
+            else self._default_energy_head
+        )
+        if "deterministic" not in inspect.signature(head).parameters:
+            return head
+        return functools.partial(head, deterministic=self.deterministic_scatter_ops)
 
     def compute_energy(
         self, positions: Array, strains: Array, graph: Graph

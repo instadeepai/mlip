@@ -497,6 +497,64 @@ def test_dipole_moment_loss_masks_nan_targets(setup_system):
         assert np.all(np.asarray(grad) == 0.0)
 
 
+def test_hessian_loss_masks_nan_targets(setup_system):
+    """NaN in the reference Hessian must zero the loss and keep gradients
+    finite, matching the masking pattern of every other loss term."""
+    _, graph = setup_system
+
+    rng = np.random.default_rng(seed=0)
+    pred_hessian = rng.random((len(graph.nodes.positions), 8, 3))  # (n, R, 3)
+    ref_hessian = np.full_like(pred_hessian, np.nan)
+
+    pred_graph = graph.replace_nodes(hessian=pred_hessian)
+    ref_graph = graph.replace_nodes(hessian=ref_hessian)
+
+    for _loss in [MSEHessianLoss(), HuberHessianLoss()]:
+        value = _loss(pred_graph, ref_graph)
+        assert np.all(np.asarray(value) == 0.0)
+
+        def loss_of_pred(pred, _loss=_loss):
+            return jnp.sum(_loss(pred_graph.replace_nodes(hessian=pred), ref_graph))
+
+        grad = jax.grad(loss_of_pred)(jnp.asarray(pred_hessian))
+        assert np.all(np.isfinite(np.asarray(grad)))
+        assert np.all(np.asarray(grad) == 0.0)
+
+
+@pytest.mark.parametrize(
+    "loss_cls", [MSEHessianLoss, HuberHessianLoss], ids=["mse", "huber"]
+)
+def test_hessian_loss_partial_nan_does_not_poison_batch(
+    make_customizable_graph, loss_cls
+):
+    """A single graph's NaN Hessian labels must not turn the whole batch's
+    loss (and gradients) into NaN — only that graph's contribution is zeroed."""
+    rng = np.random.default_rng(seed=0)
+    pred_hessian_valid = rng.random((3, 2, 3))
+    ref_hessian_valid = rng.random((3, 2, 3))
+    pred_hessian_nan = rng.random((2, 2, 3))
+    ref_hessian_nan = np.full((2, 2, 3), np.nan)
+
+    g_with_hessian_pred = make_customizable_graph(3, 3).replace_nodes(
+        hessian=pred_hessian_valid
+    )
+    g_with_hessian_ref = make_customizable_graph(3, 3).replace_nodes(
+        hessian=ref_hessian_valid
+    )
+    g_nan_pred = make_customizable_graph(2, 2).replace_nodes(hessian=pred_hessian_nan)
+    g_nan_ref = make_customizable_graph(2, 2).replace_nodes(hessian=ref_hessian_nan)
+
+    pred_batch = batch_graphs([g_with_hessian_pred, g_nan_pred])
+    ref_batch = batch_graphs([g_with_hessian_ref, g_nan_ref])
+
+    batch_loss = np.asarray(loss_cls()(pred_batch, ref_batch))
+    single_loss = np.asarray(loss_cls()(g_with_hessian_pred, g_with_hessian_ref))
+
+    assert np.all(np.isfinite(batch_loss))
+    assert np.isclose(batch_loss[0], single_loss[0])
+    assert batch_loss[1] == 0.0
+
+
 @pytest.mark.parametrize(
     "loss_cls", [MSEStressLoss, HuberStressLoss], ids=["mse", "huber"]
 )

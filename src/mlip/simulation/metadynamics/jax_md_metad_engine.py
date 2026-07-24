@@ -15,6 +15,7 @@
 import dataclasses
 import logging
 from dataclasses import replace
+from math import ceil
 from typing import Callable
 
 import ase
@@ -54,7 +55,7 @@ class JaxMDMetadynamicsSimulationEngine(JaxMDSimulationEngine):
     """Simulation engine for well-tempered metadynamics using the JAX-MD backend.
 
     Extends `JaxMDSimulationEngine` to periodically deposit Gaussian hills along
-    one or two collective variables (CVs), optionally applying well-tempered
+    one or more collective variables (CVs), optionally applying well-tempered
     rescaling, wall potentials, and positional restraints.
 
     Only non-batched simulations are supported. The metadynamics state (hill centers
@@ -93,6 +94,7 @@ class JaxMDMetadynamicsSimulationEngine(JaxMDSimulationEngine):
         if isinstance(atoms, list):
             raise NotImplementedError("Cannot run batched metadynamics simulations.")
 
+        self._config = config
         self.metadynamics_config: MetadynamicsConfig = (
             config.metadynamics_config.resolve(atoms, config.temperature_kelvin)
         )
@@ -119,6 +121,10 @@ class JaxMDMetadynamicsSimulationEngine(JaxMDSimulationEngine):
             A `MetadynamicsState` with all hill slots zeroed and `num_gaussians=0`.
         """
         max_gaussians = self.metadynamics_config.max_gaussians
+        if max_gaussians is None:
+            max_gaussians = ceil(
+                self._config.num_steps / self.metadynamics_config.deposition_interval
+            )
         num_cvs = len(self.metadynamics_config.bias_cvs)
         metadynamics_state = MetadynamicsState(
             gaussian_centers=jnp.zeros((max_gaussians, num_cvs)),
@@ -267,6 +273,7 @@ class JaxMDMetadynamicsSimulationEngine(JaxMDSimulationEngine):
         is_md_simulation: bool,
         is_npt_simulation: bool,
         initial_box: np.ndarray | None,
+        use_fractional_coords: bool,
         base_graph: Graph,
         metadynamics_config: MetadynamicsConfig,
     ) -> JaxMDSimulationState:
@@ -303,6 +310,7 @@ class JaxMDMetadynamicsSimulationEngine(JaxMDSimulationEngine):
             is_md_simulation,
             is_npt_simulation,
             initial_box,
+            use_fractional_coords,
         )
 
         # === Metadynamics: log CVs, bias, and deposit Gaussian hill ===

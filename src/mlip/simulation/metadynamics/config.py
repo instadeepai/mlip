@@ -19,8 +19,6 @@ from ase.units import kB
 from mlip.simulation.configs.jax_md_config import JaxMDSimulationConfig
 from mlip.simulation.metadynamics.potential_terms import (
     BiasPotential,
-    BiasPotential1D,
-    BiasPotential2D,
     CollectiveVariableConfig,
     RestraintPotential,
     RestraintPotentialConfig,
@@ -33,10 +31,13 @@ class MetadynamicsConfig(pydantic.BaseModel):
     """User-facing configuration for a metadynamics simulation.
 
     Attributes:
-        bias_cvs: One or two collective variable (CV) configurations defining the bias
-            coordinates. Gaussian hills are deposited along these CVs.
-        bias_sigmas: One or two sigma values to use for depositing Gaussian hills
-            on each of the specified bias CVs. Units match those of the CVs.
+        bias_cvs: One or more collective variable (CV) configurations defining the
+            bias coordinates. It is recommended to use 1-2 CVs as the volume of CV
+            space grows exponentially with dimensionality, making it harder to
+            convergence. Gaussian hills are deposited along these CVs.
+        bias_sigmas: Sigma values to use for depositing Gaussian hills on each of
+            the specified bias CVs, in the same order as `bias_cvs`. Units match
+            those of the CVs.
         walls: Wall potential configurations, used to constrain coordinates.
         restraints: Positional restraint configurations, used to fix atoms near their
             initial positions.
@@ -45,7 +46,8 @@ class MetadynamicsConfig(pydantic.BaseModel):
             each deposition. Set to `None` for plain (untempered) metadynamics.
         deposition_interval: Number of simulation steps between Gaussian hill
             depositions.
-        max_gaussians: Maximum number of Gaussian hills to store.
+        max_gaussians: Maximum number of Gaussian hills to store. If None
+            (recommended), gets set automatically to fit all deposited Gaussians.
         thermal_energy_ev: Thermal energy (k_B * T) in eV, populated by calling
             `resolve`. Do not set manually.
     """
@@ -58,8 +60,8 @@ class MetadynamicsConfig(pydantic.BaseModel):
     initial_height: float
     bias_factor: float | None
     deposition_interval: int
-    max_gaussians: int
 
+    max_gaussians: int | None = None
     thermal_energy_ev: float | None = None
 
     @pydantic.model_validator(mode="after")
@@ -72,8 +74,8 @@ class MetadynamicsConfig(pydantic.BaseModel):
 
     @pydantic.model_validator(mode="after")
     def _validate_bias_cvs_count(self) -> "MetadynamicsConfig":
-        if len(self.bias_cvs) > 2:
-            raise ValueError(f"Only 1-2 bias CVs supported. Got {len(self.bias_cvs)}.")
+        if len(self.bias_cvs) == 0:
+            raise ValueError("At least one bias CV must be provided.")
         if len(self.bias_cvs) != len(self.bias_sigmas):
             raise ValueError("Must provide the same number of bias CVs and sigmas.")
         return self
@@ -100,10 +102,7 @@ class MetadynamicsConfig(pydantic.BaseModel):
     def build_bias_potential(self) -> BiasPotential:
         """Construct the Gaussian-hill bias potential from the configured CVs."""
         cvs = [cv_cfg.build_cv() for cv_cfg in self.bias_cvs]
-        sigmas = self.bias_sigmas
-        if len(cvs) == 1:
-            return BiasPotential1D(cvs[0], sigmas[0])
-        return BiasPotential2D(cvs[0], cvs[1], sigmas[0], sigmas[1])
+        return BiasPotential(cvs, self.bias_sigmas)
 
     def build_wall_potentials(self) -> list[WallPotential]:
         """Construct all configured wall potentials."""

@@ -192,6 +192,11 @@ class O3MessagePassingBlock(nn.Module):
         # Compute scalar radial embeddings
         edge_scalars = self.radial_mlp(radial_embedding)
 
+        # Optionally rescale messages per-edge
+        edge_scale = graph.edges.features.get("edge_scale")
+        if edge_scale is not None:
+            edge_scalars = edge_scalars * edge_scale[:, None]
+
         # Convert scalars to internal layout
         gcd = self.num_channels
         if self.layout == Layout.TRAILING_CHANNELS:

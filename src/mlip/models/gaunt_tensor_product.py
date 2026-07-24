@@ -452,6 +452,11 @@ class GauntMessagePassingBlock(nn.Module):
         # Compute scalar radial embeddings
         edge_scalars = self.radial_mlp(radial_embedding)
 
+        # Optionally rescale messages per-edge
+        edge_scale = graph.edges.features.get("edge_scale")
+        if edge_scale is not None:
+            edge_scalars = edge_scalars * edge_scale[:, None]
+
         # Linear in
         node_feats = e3nn.IrrepsArray(
             self.linear_in.target._to_e3nn(), self.linear_in(node_feats.array)

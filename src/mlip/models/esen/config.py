@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import warnings
 from typing import Literal, TypeAlias, cast, get_args
 
 from pydantic import BaseModel, field_validator, model_validator
@@ -75,9 +76,9 @@ class EsenConfig(MLIPNetworkConfig):
     """The configuration / hyperparameters of the eSEN model.
 
     Attributes:
-        num_species: The number of elements (atomic species descriptors) allowed.
-                     If `None` (default), infer the value from the atomic energies
-                     map in the dataset info.
+        num_species: Deprecated, no longer has any effect. The number of species is
+                     always inferred from the dataset info. Setting this to a value
+                     other than `None` (default) will raise a deprecation warning.
         num_layers: Number of eSEN layers. Default is 4.
         sphere_channels: The number of channels for the node embedding. Default is 128.
         hidden_channels: The number of channels outputs for convolution layers and
@@ -85,8 +86,9 @@ class EsenConfig(MLIPNetworkConfig):
         edge_channels: The number of channels for the edge embedding. Default is 128.
         l_max: Highest degree of spherical harmonics used for the directional encoding
                of edge vectors, and during the convolution block. Default is 2.
+               `m_max` must be less than or equal to this value.
         m_max: Cap on m number in the convolution layer, m features above that order
-               are removed. Default is 2.
+               are removed. Default is 2. Must be less than or equal to `l_max`.
         add_atomic_energies: Whether to add atomic energies to the final energies.
                              Default is `True`.
         radial_envelope: The radial envelope function, by default it
@@ -155,6 +157,32 @@ class EsenConfig(MLIPNetworkConfig):
     def _enforce_partial_charges_for_coulomb_term(self) -> Self:
         if self.use_coulomb_term:
             self.predict_partial_charges = True
+        return self
+
+    @model_validator(mode="after")
+    def _validate_m_max(self) -> Self:
+        if self.m_max > self.l_max:
+            raise ValueError("m_max must be lower than or equal to 'l_max'")
+        return self
+
+    @model_validator(mode="after")
+    def _warn_deprecated_num_species(self) -> Self:
+        """Warns if a value for `num_species` is set.
+
+        .. deprecated:: 0.2.3
+            `EsenConfig.num_species` no longer has any effect: the number of
+            species is always inferred from `dataset_info`. It will be removed
+            in a future release.
+        """
+        if self.num_species is not None:
+            warnings.warn(
+                "`EsenConfig.num_species` is deprecated since version 0.2.3 and "
+                "no longer has any effect: the number of species is always "
+                "inferred from `dataset_info`. This field will be removed in a "
+                "future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self
 
     # chg_spin_emb_type: Literal["pos_emb", "lin_emb", "rand_emb"] = "pos_emb"

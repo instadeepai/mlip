@@ -395,24 +395,33 @@ See section :ref:`pre_post_proc` above for an introduction to the concept.
 
 We provide these functions, as they are required for setting up Hessian training.
 For system pre-processing, it is:
-:py:func:`pad_systems_hessians <mlip.data.helper.hessian_utils.pad_systems_hessians>`.
+:py:func:`pad_systems_hessians <mlip.data.helpers.hessian_utils.pad_systems_hessians>`.
 This function pads all Hessian matrices to the maximum system size `N`,
 transforming shapes from `(n, 3, n, 3)` to `(n, 3, N, 3)` (`n` is the number of atoms
 for a given system)
 to enable the batching of Hessians with heterogeneous shapes.
-For batch post-processing, it is:
-:py:func:`process_graph_hessian <mlip.data.helper.hessian_utils.process_graph_hessian>`.
+
+For batch post-processing, the following helper functions are provided:
+:py:func:`process_graph_hessian <mlip.data.helpers.hessian_utils.process_graph_hessian>`.
 It must be partially initialized with `num_hessian_rows`, indicating the number
 of rows to be sampled from the full Hessian (i.e., the number of randomly
 chosen force components to be differentiated with respect to all atomic coordinates).
 This number is user-defined, and we recommend using a value between 4 and 16
 depending on the computational cost that can be afforded.
 
+:py:func:`skip_graph_hessian <mlip.data.helpers.hessian_utils.skip_graph_hessian>`
+marks a batch as having no Hessian labels, so the
+:py:class:`HessianPredictor <mlip.models.predictors.hessian_predictor.HessianPredictor>`
+skips the additional second-order autodiff pass for it, even though the Hessian property
+is requested by the model config. Use it as the batch post-processing function for the
+Hessian-less split(s) when interleaving Hessian-labeled and non-Hessian-labeled batches.
+
 These functions are passed during the building process:
 
 .. code-block:: python
 
     from functools import partial
+    from mlip.data import process_graph_hessian, pad_systems_hessians
 
     post_proc = [partial(process_graph_hessian, num_rows=num_hessian_rows)]
     pre_proc = [pad_systems_hessians]
@@ -447,7 +456,9 @@ Below is an example workflow:
 
     from mlip.data import CombinedGraphDataset
 
-    # Create dataset splits (train, validation, test) for non-Hessian dataset
+    # Create dataset splits (train, validation, test) for non-Hessian dataset.
+    # Its `get_datasets()` call must pass `graph_postprocessing=[skip_graph_hessian]`
+    # so that the HessianPredictor skips second-order AD for these Hessian-less batches.
     non_hessian_splits = _create_non_hessian_splits()
 
     # Create dataset splits (train, validation, test) for Hessian dataset

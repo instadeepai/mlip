@@ -76,6 +76,34 @@ class TestChemicalSystemValidation:
                 stress=np.zeros((6,)),
             )
 
+    def test_mismatched_partial_charges_shape(self):
+        with pytest.raises(
+            ValidationError, match="Partial charges have incompatible shape"
+        ):
+            ChemicalSystem(
+                atomic_numbers=np.array([1, 8, 6]),
+                positions=np.zeros((3, 3)),
+                partial_charges=np.array([0.1]),  # 1 value, need 3
+            )
+
+    def test_mismatched_dipole_moment_shape(self):
+        with pytest.raises(
+            ValidationError, match="Dipole moment has incompatible shape"
+        ):
+            ChemicalSystem(
+                atomic_numbers=np.array([1, 8]),
+                positions=np.zeros((2, 3)),
+                dipole_moment=np.array([0.1, 0.2]),  # 2 values, need 3
+            )
+
+    def test_mismatched_hessian_shape(self):
+        with pytest.raises(ValidationError, match="Hessian has incompatible shape"):
+            ChemicalSystem(
+                atomic_numbers=np.array([1, 8]),
+                positions=np.zeros((2, 3)),
+                hessian=np.zeros((2, 3, 2, 3, 1)),
+            )
+
     def test_extra_kwargs_silently_ignored(self):
         system = ChemicalSystem(
             atomic_numbers=np.array([1]),

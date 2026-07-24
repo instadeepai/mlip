@@ -36,7 +36,7 @@ ALL_MD_INTEGRATORS = ["nvt_langevin", "npt_mc_langevin", "nve_velocity_verlet"]
 
 
 @pytest.mark.parametrize(
-    "force_field_name", ["quadratic_force_field", "lri_mace_force_field"]
+    "force_field_name", ["quadratic_force_field", "lri_quadratic_force_field"]
 )
 @pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
 def test_md_can_be_run_with_ase_backend(
@@ -95,7 +95,7 @@ def test_md_can_be_run_with_ase_backend(
     if md_integrator.ensemble == "npt":
         assert engine.state.cell.shape == (11, 3, 3)
 
-    if force_field_name == "lri_mace_force_field":
+    if force_field_name == "lri_quadratic_force_field":
         assert engine.state.partial_charges.shape == (11, 10)
     else:
         assert engine.state.partial_charges is None
@@ -108,7 +108,7 @@ def test_md_can_be_run_with_ase_backend(
     outputs = run_batched_inference(traj, force_field)
     for i in range(11):
         assert outputs[i].energy == pytest.approx(engine.state.potential_energy[i])
-        if force_field_name == "lri_mace_force_field":
+        if force_field_name == "lri_quadratic_force_field":
             assert np.allclose(
                 outputs[i].partial_charges, engine.state.partial_charges[i]
             )
@@ -218,7 +218,7 @@ def test_ase_engine_stops_exploded_simulation_early(
 
 
 @pytest.mark.parametrize(
-    "force_field_name", ["mace_force_field", "lri_mace_force_field"]
+    "force_field_name", ["mace_force_field", "lri_quadratic_force_field"]
 )
 def test_ase_calculator_forces_match_direct_force_field_call(
     force_field_name, request, setup_system

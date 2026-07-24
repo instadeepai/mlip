@@ -35,7 +35,7 @@ from mlip.simulation.jax_md.npt_montecarlo_langevin import (
 )
 from mlip.simulation.montecarlo_barostat import (
     INITIAL_MAX_DELTA_VOLUME_FRACTION,
-    _box_to_volume,  # noqa: PLC2701
+    box_to_volume,
 )
 
 TEMPERATURE = 300.0 * TEMPERATURE_CONVERSION_FACTOR
@@ -65,7 +65,7 @@ def _create_simple_energy_fn():
 def init_and_step_fn():
     """Create init_fn and step_fn for the `npt_mc_langevin` simulator."""
     _, shift_fn = jax_md.space.periodic_general(
-        BOX, fractional_coordinates=False, wrapped=False
+        BOX, fractional_coordinates=True, wrapped=False
     )
 
     energy_fn = _create_simple_energy_fn()
@@ -133,7 +133,7 @@ def test_apply_montecarlo_barostat_integration(
         accepted_old = npt_state.barostat_state.num_accepted
         positions_old = npt_state.position.copy()
         box_old = npt_state.box.copy()
-        volume_old = _box_to_volume(box_old, 3)
+        volume_old = box_to_volume(box_old, 3)
         volume_new = volume_old + volume_delta
         length_scale = (volume_new / volume_old) ** (1 / 3)
         forces_old = npt_state.force.copy()
@@ -143,7 +143,7 @@ def test_apply_montecarlo_barostat_integration(
 
         energy_fn = _create_mock_energy_fn(0.0, energy_delta)
 
-        def mock_propose(state, box, pos):
+        def mock_propose(state, box, pos, **kwargs):
             return state, volume_old, volume_new, box_new, pos_new
 
         def mock_accept(state, e_old, e_new, v_old, v_new, kT, n_mol):

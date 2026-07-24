@@ -26,7 +26,7 @@ from mlip.data import (
     SingleGraphDatasetBuilder,
 )
 from mlip.data.helpers.hessian_utils import (
-    request_all_hessian_rows_batched,
+    single_graph_hessian_from_batch,
     single_graph_hessian_from_subsampled_batch,
 )
 from mlip.data.helpers.type_aliases import GraphDatasetLike
@@ -53,6 +53,28 @@ def check_for_single_atom_systems(structures: list[ase.Atoms] | GraphDatasetLike
             raise ValueError("Single atom systems are not supported yet.")
 
 
+def get_single_graph_hessian_retriever_fun(graph: Graph) -> Callable:
+    """Returns the right callable to be used to retrieve per-system Hessian
+    matrices from the batch, based on the output batch Hessian shape returned
+    by the `HessianPredictor`:
+
+    * `single_graph_hessian_from_batch` (default): in case of iterative Hessian
+    calculation; predicted Hessian shape=(total_nodes, 3, total_nodes, 3).
+
+    * `single_graph_hessian_from_subsampled_batch`: in case
+    `request_full_direct_hessian` is used as a batch post processing function, computing
+    the full Hessian matrix in a single backward-pass (jacrev) over n_atoms*3 summed
+    forces; predicted Hessian shape=(total_nodes, R, 3), R=max_atoms_per_graph) * 3.
+    """
+    retriever_fun = single_graph_hessian_from_batch
+
+    hessian_rows = graph.globals.sample_hessian_rows
+    if isinstance(hessian_rows, Array) and hessian_rows.ndim > 0:
+        retriever_fun = single_graph_hessian_from_subsampled_batch
+
+    return retriever_fun
+
+
 def run_inference_on_a_single_batch(
     jitted_force_field_fun: Callable[[Graph], Prediction],
     batch: Graph,
@@ -64,10 +86,10 @@ def run_inference_on_a_single_batch(
     batch_hessians = []
     batch_partial_charges = []
 
-    # Use the row-summing trick: jacrev over n_atoms*3 summed outputs instead of
-    # total_padded_nodes*3 independent outputs, saving ~batch_size backward passes.
-    batch = request_all_hessian_rows_batched(batch)
+    retrieve_graph_hessian_fun = get_single_graph_hessian_retriever_fun(batch)
+
     output = jitted_force_field_fun(batch)
+
     mask = batch.graph_mask()
 
     node_idx = 0
@@ -82,10 +104,9 @@ def run_inference_on_a_single_batch(
                 batch_forces.append(graph_forces)
 
             if output.hessian is not None:
-                graph_hessian = single_graph_hessian_from_subsampled_batch(
+                graph_hessian = retrieve_graph_hessian_fun(
                     output.hessian, graph_start, graph_end
                 )
-
                 batch_hessians.append(graph_hessian)
 
             if output.stress is not None:
@@ -217,6 +238,7 @@ def run_batched_inference(
             hessians_batch,
             partial_charges_batch,
         ) = run_inference_on_a_single_batch(jitted_force_field_fun, batch)
+
         energies.extend(energies_batch)
         forces.extend(forces_batch)
         stress.extend(stress_batch)

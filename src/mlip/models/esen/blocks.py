@@ -209,6 +209,7 @@ class EsenEmbeddingBlock(nn.Module):
         )
 
         # Edge degree embedding
+        edge_scale = graph.edges.features.get("edge_scale")
         node_feats = self.edge_degree_embedding(
             node_feats,
             edge_feats,
@@ -216,6 +217,7 @@ class EsenEmbeddingBlock(nn.Module):
             wigner_and_m_mapping,
             edge_envelope,
             NODE_OFFSET,
+            edge_scale,
         )
 
         graph = graph.update_node_features(

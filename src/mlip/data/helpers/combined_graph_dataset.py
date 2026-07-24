@@ -188,7 +188,7 @@ class CombinedGraphDataset:
             try:
                 item = next(iterators[ds_idx])
             except StopIteration:
-                continue
+                pass
             yield item
         self.state = self.state.replace(rng=next_rng, num_graphs_processed=jnp.int32(0))
 

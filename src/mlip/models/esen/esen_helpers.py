@@ -452,6 +452,7 @@ class EdgeDegreeEmbedding(nn.Module):
         wigner_and_m_mapping: jax.Array,
         edge_envelope: jax.Array,
         node_offset: int = 0,
+        edge_scale: jax.Array | None = None,
     ) -> jax.Array:
 
         x_edge_m0 = self.rad_func(x_edge)
@@ -470,6 +471,10 @@ class EdgeDegreeEmbedding(nn.Module):
         )
 
         x_edge_embed = x_edge_embed * edge_envelope
+
+        # Optionally rescale messages per-edge
+        if edge_scale is not None:
+            x_edge_embed = x_edge_embed * edge_scale[:, None, None]
 
         dst = (edge_index[1] - node_offset).astype(jnp.int32)
         x_edge_embed = x_edge_embed / (self.rescale_factor + 1e-12)
@@ -491,6 +496,7 @@ class EdgeDegreeEmbedding(nn.Module):
         wigner_and_m_mapping: jax.Array,
         edge_envelope: jax.Array,
         node_offset: int = 0,
+        edge_scale: jax.Array | None = None,
     ) -> jax.Array:
         """Applies the EdgeDegreeEmbedding to the input tensors.
 
@@ -501,10 +507,17 @@ class EdgeDegreeEmbedding(nn.Module):
             wigner_and_m_mapping: [E, num_coefficients, num_coefficients]
             edge_envelope: [E, 1, 1]
             node_offset: int
+            edge_scale: Optional per-edge rescaling factor, shape [E]
 
         Returns:
             [E, num_coefficients, sphere_channels]
         """
         return self._forward_chunk(
-            x, x_edge, edge_index, wigner_and_m_mapping, edge_envelope, node_offset
+            x,
+            x_edge,
+            edge_index,
+            wigner_and_m_mapping,
+            edge_envelope,
+            node_offset,
+            edge_scale,
         )

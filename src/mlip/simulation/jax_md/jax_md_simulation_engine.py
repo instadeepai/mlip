@@ -20,10 +20,10 @@ from typing import Callable, TypeAlias
 import ase
 import jax
 import jax.numpy as jnp
-import jax_md
 import numpy as np
 from jax_md import quantity
 from jax_md.dataclasses import dataclass as jax_compatible_dataclass
+from jax_md.partition import NeighborList
 
 from mlip.data.helpers.dynamically_batch import dynamically_batch
 from mlip.graph import Graph, GraphEdges
@@ -61,7 +61,10 @@ from mlip.simulation.jax_md.states import (
 from mlip.simulation.simulation_engine import ForceField, SimulationEngine
 from mlip.simulation.temperature_scheduling import get_temperature_schedule
 from mlip.simulation.utils import (
+    fractional_to_positions,
     has_simulation_exploded,
+    positions_to_fractional,
+    resolve_atoms_cell,
     resolve_atoms_charge_for_model,
 )
 
@@ -162,6 +165,9 @@ class JaxMDSimulationEngine(SimulationEngine):
 
         self._init_box_and_displacement_fun()
 
+        if self._fractional_coordinates:
+            positions = positions_to_fractional(positions, self._initial_box)
+
         neighbors, self._neighbor_fun = init_neighbor_lists(
             self._displacement_fun,
             positions,
@@ -170,16 +176,9 @@ class JaxMDSimulationEngine(SimulationEngine):
             box=self._initial_box,
         )
 
-        senders = jax.tree.map(
-            get_neighbor_list_senders, neighbors, is_leaf=is_neighbor_list
-        )
-        receivers = jax.tree.map(
-            get_neighbor_list_receivers, neighbors, is_leaf=is_neighbor_list
-        )
-
         long_range_cutoff_distance = force_field.long_range_cutoff_distance
-        self._has_long_range = long_range_cutoff_distance is not None
-        if self._has_long_range:
+        self.has_long_range_edges = long_range_cutoff_distance is not None
+        if self.has_long_range_edges:
             long_range_neighbors, self._long_range_neighbor_fun = init_neighbor_lists(
                 self._displacement_fun,
                 positions,
@@ -187,25 +186,11 @@ class JaxMDSimulationEngine(SimulationEngine):
                 self._config.edge_capacity_multiplier,
                 box=self._initial_box,
             )
-            senders_long_range = jax.tree.map(
-                get_neighbor_list_senders,
-                long_range_neighbors,
-                is_leaf=is_neighbor_list,
-            )
-            receivers_long_range = jax.tree.map(
-                get_neighbor_list_receivers,
-                long_range_neighbors,
-                is_leaf=is_neighbor_list,
-            )
         else:
             self._long_range_neighbor_fun = None
             long_range_neighbors = None
-            senders_long_range = None
-            receivers_long_range = None
 
-        graph = self._init_base_graph(
-            atoms, senders, receivers, senders_long_range, receivers_long_range
-        )
+        graph = self._init_base_graph(atoms, neighbors, long_range_neighbors)
 
         system_state = self._system_state_from_neighbors(
             neighbors, long_range_neighbors
@@ -214,7 +199,9 @@ class JaxMDSimulationEngine(SimulationEngine):
         sim_init_fun, _pure_simulation_step_fun = self._setup_sim_functions(graph)
         self._pure_simulation_step_fun = _pure_simulation_step_fun
 
-        jax_md_state = self._get_initial_jax_md_state(atoms, system_state, sim_init_fun)
+        jax_md_state = self._get_initial_jax_md_state(
+            atoms, positions, system_state, sim_init_fun
+        )
 
         old_velocities = jax.tree.map(lambda a: a.get_velocities(), atoms)
         old_velocities_exist = jax.tree.map(
@@ -315,6 +302,8 @@ class JaxMDSimulationEngine(SimulationEngine):
             self._force_field,
             self._shift_fun,
             self._config,
+            self._initial_box,
+            self._fractional_coordinates,
         )
         pure_simulation_step_fun = functools.partial(
             self._simulation_step_fun,
@@ -325,6 +314,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             is_md_simulation=self.is_md_simulation,
             is_npt_simulation=self.is_npt_simulation,
             initial_box=self._initial_box,
+            use_fractional_coords=self._fractional_coordinates,
         )
         return sim_init_fun, pure_simulation_step_fun
 
@@ -355,7 +345,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             is_leaf=is_neighbor_fun,
         )
         new_long_range_neighbors = None
-        if self._has_long_range:
+        if self.has_long_range_edges:
             new_long_range_neighbors = jax.tree.map(
                 _allocate,
                 self._long_range_neighbor_fun,
@@ -387,32 +377,18 @@ class JaxMDSimulationEngine(SimulationEngine):
     def _init_box_and_displacement_fun(self) -> None:
         atoms_list = self._atoms if isinstance(self._atoms, list) else [self._atoms]
         boxes = []
-        warned = False
         for atoms_i in atoms_list:
+            resolve_atoms_cell(atoms_i, self._config.box)  # Resolves inplace
             cell = atoms_i.get_cell()
             if np.any(cell):
-                if not np.all(np.diag(np.diag(cell)) == cell):
-                    raise NotImplementedError(
-                        "Currently can only run JAX-MD simulations with orthorhombic "
-                        "(diagonal) cells. Replace `atoms.cell` with a suitable array."
-                    )
-                if not warned:
-                    logger.warning(
-                        "Ignoring `box` parameter as `atoms` already have cell."
-                    )
-                    warned = True
-                boxes.append(np.diag(cell))
+                if np.all(np.diag(np.diag(cell)) == cell):  # Diagonal cell
+                    boxes.append(np.diag(cell))
+                else:
+                    # ASE use lattice row vectors, JAXMD uses columns
+                    boxes.append(np.array(cell).T)
             else:
-                box = self._config.box
-                if box is not None:
-                    if isinstance(box, float):
-                        box = [box] * 3
-                    if isinstance(self._config.box, list):
-                        assert len(self._config.box) == 3
-                    box = np.array(box)
-                boxes.append(box)
+                boxes.append(None)
 
-        # Check we either all systems have cells or all systems have no cell
         none_mask = [b is None for b in boxes]
         if any(none_mask) and not all(none_mask):
             raise ValueError(
@@ -420,9 +396,16 @@ class JaxMDSimulationEngine(SimulationEngine):
                 "or all systems must have no cell."
             )
 
-        ref_box = boxes[0]
+        # Check if any box is stored as 2D (non-orthorhombic).
+        # If True, make all boxes 2D and use fractional coordinates.
+        is_2d_box = not any(none_mask) and any(b.ndim == 2 for b in boxes)
+        if is_2d_box:
+            boxes = [b if b.ndim == 2 else np.diag(b) for b in boxes]
+        self._fractional_coordinates = is_2d_box
+
+        reference_box = boxes[0]
         self._displacement_fun, self._shift_fun, self._cell_to_box_fun = (
-            init_displacement_fun(ref_box)
+            init_displacement_fun(reference_box, self._fractional_coordinates)
         )
         self._initial_box = boxes if isinstance(self._atoms, list) else boxes[0]
 
@@ -522,18 +505,24 @@ class JaxMDSimulationEngine(SimulationEngine):
     def _get_initial_jax_md_state(
         self,
         atoms: ase.Atoms | list[ase.Atoms],
+        positions: SingleOrBatchedArray,
         system_state: SystemState | list[SystemState],
         sim_init_fun: Callable,
     ) -> jax_compatible_dataclass:
-        """Initializing JAX-MD state either batched or non-batched."""
+        """Initializing JAX-MD state either batched or non-batched.
+
+        Args:
+            atoms: The atoms of the system.
+            positions: Initial positions, either raw or fractional.
+            system_state: The initial system state.
+            sim_init_fun: The JAX-MD simulation initialisation function.
+        """
         base_key = jax.random.PRNGKey(self._config.random_seed)
         if self.is_batched_sim and self._config.independent_seeds_batched:
             n = len(atoms) if isinstance(atoms, list) else 1
             random_key = list(jax.random.split(base_key, n))
         else:
             random_key = base_key
-
-        positions = jax.tree.map(lambda a: a.get_positions(), atoms)
         masses = jax.tree.map(get_masses, atoms)
 
         if self._config.simulation_type == SimulationType.MINIMIZATION:
@@ -591,7 +580,8 @@ class JaxMDSimulationEngine(SimulationEngine):
         temperature_schedule: Callable[[int], float],
         is_md_simulation: bool,
         is_npt_simulation: bool,
-        initial_box: np.ndarray | None,
+        initial_box: SingleOrBatchedArray | None,
+        use_fractional_coords: bool,
     ) -> JaxMDSimulationState:
         """This function is the implementation of the core simulation step.
 
@@ -604,13 +594,20 @@ class JaxMDSimulationEngine(SimulationEngine):
         current_force = jax.tree.map(
             lambda f: f / KCAL_PER_MOL_PER_ELECTRON_VOLT, jax_md_state.force
         )
+
+        if use_fractional_coords:
+            _log_box = jax_md_state.box if is_npt_simulation else initial_box
+            log_positions = fractional_to_positions(jax_md_state.position, _log_box)
+        else:
+            log_positions = jax_md_state.position
+
         new_log = jax.tree.map(
             lambda _log, p, f: _log.set(
                 positions=_log.positions.at[step_idx].set(p),
                 forces=_log.forces.at[step_idx].set(f),
             ),
             log,
-            jax_md_state.position,
+            log_positions,
             current_force,
             is_leaf=is_episode_log,
         )
@@ -685,8 +682,7 @@ class JaxMDSimulationEngine(SimulationEngine):
 
         # The following code updates the neighbors, which is duplicate but has to
         # be also run here as jax-md does not currently allow to pass information
-        # back to the outside from the force function. This can be optimized in
-        # the future.
+        # back to the outside from the force function. This can be optimized.
         old_neighbors = jax.tree.map(
             lambda s: s.neighbors, internal_state.system_state, is_leaf=is_system_state
         )
@@ -708,8 +704,8 @@ class JaxMDSimulationEngine(SimulationEngine):
             internal_state.system_state,
             is_leaf=is_system_state,
         )
-        has_long_range = jax.tree_util.tree_leaves(old_lr_neighbors) != []
-        if has_long_range:
+        has_long_range_edges = jax.tree_util.tree_leaves(old_lr_neighbors) != []
+        if has_long_range_edges:
             new_lr_neighbors = jax.tree.map(
                 lambda n, p, b: n.update(p, box=b),
                 old_lr_neighbors,
@@ -790,8 +786,7 @@ class JaxMDSimulationEngine(SimulationEngine):
 
     @staticmethod
     def _system_state_from_neighbors(
-        neighbors: jax_md.partition.NeighborList,
-        long_range_neighbors: jax_md.partition.NeighborList | None = None,
+        neighbors: NeighborList, long_range_neighbors: NeighborList | None = None
     ) -> SystemState:
         if long_range_neighbors is None:
             return jax.tree.map(
@@ -810,9 +805,12 @@ class JaxMDSimulationEngine(SimulationEngine):
     def _set_state_velocities_to_restore_run(
         jax_md_state: jax_compatible_dataclass, old_velocities: np.ndarray
     ) -> jax_compatible_dataclass:
-        return jax_md_state.set(
-            momentum=old_velocities * VELOCITY_CONVERSION_FACTOR * jax_md_state.mass
-        )
+        new_momentum = old_velocities * VELOCITY_CONVERSION_FACTOR * jax_md_state.mass
+        if hasattr(jax_md_state, "langevin_state"):
+            # NPTLangevinState: momentum is a property on the nested langevin_state
+            new_langevin = jax_md_state.langevin_state.set(momentum=new_momentum)
+            return jax_md_state.set(langevin_state=new_langevin)
+        return jax_md_state.set(momentum=new_momentum)
 
     @staticmethod
     def _did_neighbor_buffer_overflow(internal_state: JaxMDSimulationState) -> bool:
@@ -842,10 +840,8 @@ class JaxMDSimulationEngine(SimulationEngine):
     def _init_base_graph(
         self,
         atoms: ase.Atoms | list[ase.Atoms],
-        senders: SingleOrBatchedArray,
-        receivers: SingleOrBatchedArray,
-        senders_long_range: SingleOrBatchedArray | None = None,
-        receivers_long_range: SingleOrBatchedArray | None = None,
+        neighbors: NeighborList,
+        long_range_neighbors: NeighborList | None = None,
     ) -> Graph:
         """Initiates the base graph (batched or unbatched) for the simulation.
 
@@ -854,18 +850,32 @@ class JaxMDSimulationEngine(SimulationEngine):
 
         Args:
             atoms: The atoms or list of atoms.
-            senders: The sender indices of the edges.
-            receivers: The receiver indices of the edges.
-            senders_long_range: Optional sender indices of the long-range edges.
-            receivers_long_range: Optional receiver indices of the long-range edges.
+            neighbors: The neighbor list(s) for short-range edges.
+            long_range_neighbors: Optional neighbor list(s) for long-range edges.
 
         Returns:
             The base graph (either batched or unbatched).
         """
-        if senders_long_range is None:
-            if isinstance(atoms, list):
-                senders_long_range = [None] * len(atoms)
-                receivers_long_range = [None] * len(atoms)
+
+        def _get_senders(nl):
+            return jax.tree.map(get_neighbor_list_senders, nl, is_leaf=is_neighbor_list)
+
+        def _get_receivers(nl):
+            return jax.tree.map(
+                get_neighbor_list_receivers, nl, is_leaf=is_neighbor_list
+            )
+
+        senders = _get_senders(neighbors)
+        receivers = _get_receivers(neighbors)
+        if long_range_neighbors is not None:
+            senders_long_range = _get_senders(long_range_neighbors)
+            receivers_long_range = _get_receivers(long_range_neighbors)
+        elif isinstance(atoms, list):
+            senders_long_range = [None] * len(atoms)
+            receivers_long_range = [None] * len(atoms)
+        else:
+            senders_long_range = None
+            receivers_long_range = None
 
         graph = jax.tree.map(
             lambda a, s, r, slr, rlr: create_graph_from_atoms_and_edges(
@@ -915,12 +925,16 @@ class JaxMDSimulationEngine(SimulationEngine):
                 )
             )
             batched_displ_fun = make_batched_displ_fun(
-                self._displacement_fun, batched_graph.n_edge
+                self._displacement_fun,
+                batched_graph.n_edge,
+                self._fractional_coordinates,
             )
             edges_long_range = None
             if saved_edges_long_range is not None:
                 batched_displ_fun_lr = make_batched_displ_fun(
-                    self._displacement_fun, batched_graph.n_edge_long_range
+                    self._displacement_fun,
+                    batched_graph.n_edge_long_range,
+                    self._fractional_coordinates,
                 )
                 edges_long_range = GraphEdges(
                     shifts=None, displ_fun=batched_displ_fun_lr
@@ -933,9 +947,7 @@ class JaxMDSimulationEngine(SimulationEngine):
         return graph
 
     def _update_base_graph_in_pure_sim_step_fun(
-        self,
-        neighbors: jax_md.partition.NeighborList,
-        long_range_neighbors: jax_md.partition.NeighborList | None = None,
+        self, neighbors: NeighborList, long_range_neighbors: NeighborList | None = None
     ) -> None:
         """Update `self._pure_simulation_step_fun` after reallocation of neighbors.
 
@@ -943,31 +955,8 @@ class JaxMDSimulationEngine(SimulationEngine):
         be updated because the `graph.n_edge` (and possibly `graph.n_edge_long_range`)
         attribute has changed.
         """
-        senders = jax.tree.map(
-            get_neighbor_list_senders, neighbors, is_leaf=is_neighbor_list
-        )
-        receivers = jax.tree.map(
-            get_neighbor_list_receivers, neighbors, is_leaf=is_neighbor_list
-        )
-        senders_long_range = None
-        receivers_long_range = None
-        if long_range_neighbors is not None:
-            senders_long_range = jax.tree.map(
-                get_neighbor_list_senders,
-                long_range_neighbors,
-                is_leaf=is_neighbor_list,
-            )
-            receivers_long_range = jax.tree.map(
-                get_neighbor_list_receivers,
-                long_range_neighbors,
-                is_leaf=is_neighbor_list,
-            )
         new_base_graph = self._init_base_graph(
-            self._atoms,
-            senders,
-            receivers,
-            senders_long_range,
-            receivers_long_range,
+            self._atoms, neighbors, long_range_neighbors
         )
         make_model_calculate_fun = functools.partial(
             self._get_model_calculate_fun,
@@ -978,6 +967,8 @@ class JaxMDSimulationEngine(SimulationEngine):
             self._force_field,
             self._shift_fun,
             self._config,
+            self._initial_box,
+            self._fractional_coordinates,
         )
 
         self._pure_simulation_step_fun.keywords["apply_fun"] = sim_apply_fun

@@ -36,7 +36,7 @@ MODEL_CASES = {
         AlchemicalMace,
         "mace_config",
         "mace_force_field",
-        _DEFAULT_BOUNDARY_TOL,
+        dict(rtol=1e-4, atol=1e-3),
     ),
     "nequip": (
         AlchemicalNequip,

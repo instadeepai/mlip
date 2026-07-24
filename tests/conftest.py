@@ -35,6 +35,7 @@ from mlip.data.helpers.dummy_init_graph import (
 from mlip.graph import Graph, GraphEdges, GraphGlobals, GraphNodes
 from mlip.models import Mace, Nequip, Visnet
 from mlip.models.blocks import SpeciesAssignmentBlock
+from mlip.models.charge_utils import correct_partial_charge_feature
 from mlip.models.config import MLIPNetworkConfig
 from mlip.models.esen.config import EsenConfig
 from mlip.models.esen.network import Esen
@@ -629,30 +630,52 @@ class QuadraticMLIP(MLIPNetwork):
 
     config: Config
     dataset_info: DatasetInfo
-    available_properties: Properties = Properties(
-        energy=True,
-        forces=True,
-        stress=True,
-        hessian=True,
-    )
+
+    @property
+    def available_properties(self) -> Properties:
+        return Properties(
+            energy=True,
+            forces=True,
+            stress=True,
+            hessian=True,
+            partial_charges=self.config.predict_partial_charges,
+        )
 
     def setup(self):
         self.stiffness_scaling = self.param(
             "stiffness_scaling", nn.initializers.ones, (len(self.config.stiffness),)
         )
+        if self.config.predict_partial_charges:
+            self.charge_scaling = self.param(
+                "charge_scaling",
+                nn.initializers.normal(stddev=1.0),
+                (len(self.config.stiffness),),
+            )
 
     @nn.compact
     def __call__(self, graph: Graph) -> Graph:
         graph = SpeciesAssignmentBlock(self.dataset_info)(graph)
+        species = graph.nodes.features["species"]
         node_features = self._compute_node_energies(
             graph.edge_vectors(),
-            graph.nodes.features["species"],
+            species,
             graph.senders,
             graph.receivers,
         )
-        return graph.replace_nodes(
-            features={"energy": node_features * graph.node_mask()},
-        )
+        node_features = {"energy": node_features * graph.node_mask()}
+        if self.config.predict_partial_charges:
+            node_features["partial_charges"] = (
+                self.charge_scaling[species] * graph.node_mask()
+            )
+        graph = graph.replace_nodes(features=node_features)
+        if self.config.predict_partial_charges:
+            graph = graph.update_global_features(
+                non_corrected_charge=graph.aggregate_per_graph(
+                    graph.nodes.features["partial_charges"]
+                )
+            )
+            graph = correct_partial_charge_feature(graph)
+        return graph
 
     def _compute_node_energies(self, vectors, species, senders, receivers):
         stiffness = jnp.array(self.config.stiffness) * self.stiffness_scaling
@@ -669,11 +692,9 @@ class QuadraticMLIP(MLIPNetwork):
 def quadratic_mlip(dataset_info) -> MLIPNetwork:
     num_species = len(dataset_info.allowed_atomic_numbers)
     cfg = QuadraticMLIP.Config(
-        # Note that stiffness values that are significantly larger than 0.003 will
-        # cause rapid implosion of the system during simulation, and hence lead to
-        # issues with neighbor list reallocation when using reasonable values for
-        # "edge_capacity_multiplier". Thus, expect simulation tests to fail when
-        # changing the values below.
+        # Note that stiffness values significantly larger than 0.003 will cause rapid
+        # implosion of the system during simulation, and hence lead to issues with
+        # neighbor list reallocation.
         stiffness=[0.003] * num_species,
         length=[0.87] * num_species,
     )
@@ -684,6 +705,32 @@ def quadratic_mlip(dataset_info) -> MLIPNetwork:
 def quadratic_force_field(quadratic_mlip) -> ForceField:
     required_properties = Properties(stress=True)
     return ForceField.from_mlip_network(quadratic_mlip, required_properties)
+
+
+@pytest.fixture(scope="session")
+def lri_quadratic_mlip(dataset_info) -> MLIPNetwork:
+    num_species = len(dataset_info.allowed_atomic_numbers)
+    cfg = QuadraticMLIP.Config(
+        stiffness=[0.003] * num_species,
+        length=[0.87] * num_species,
+        use_coulomb_term=True,
+        predict_partial_charges=True,
+    )
+    lri_dataset_info = dataset_info.model_copy(
+        update={"long_range_cutoff_angstrom": 5.0}
+    )
+    return QuadraticMLIP(cfg, lri_dataset_info)
+
+
+@pytest.fixture(scope="session")
+def lri_quadratic_force_field(lri_quadratic_mlip) -> ForceField:
+    """A `quadratic_force_field` extended with long-range (Coulomb) interactions.
+
+    Cheaper substitute for `lri_mace_force_field` in tests that only need to
+    exercise the long-range interaction machinery (e.g. simulation tests).
+    """
+    required_properties = Properties(stress=True, partial_charges=True)
+    return ForceField.from_mlip_network(lri_quadratic_mlip, required_properties)
 
 
 @pytest.fixture(scope="session")

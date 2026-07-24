@@ -306,15 +306,22 @@ class MSEHessianLoss(LossTerm):
             # We null out the loss if the reference Hessian is not provided
             return 0
 
-        return ref_graph.globals.weight * safe_divide(
+        node_valid = ~jnp.isnan(hessian_ref).any(axis=(-1, -2))  # [n]
+        safe_ref = jnp.where(node_valid[:, None, None], hessian_ref, 0.0)
+
+        loss_per_graph = ref_graph.globals.weight * safe_divide(
             sum_nodes_of_the_same_graph(
                 ref_graph,
                 jnp.append(  # append 0 to match length (n_node + 1)
-                    jnp.mean(jnp.square(hessian_ref - hessian_pred), axis=(-1, -2)), 0
+                    jnp.mean(jnp.square(safe_ref - hessian_pred), axis=(-1, -2)), 0
                 ),
             ),
             ref_graph.n_node,
         )  # [n_graphs, ]
+
+        node_valid = jnp.append(node_valid.astype(jnp.float32), 0)
+        graph_valid = sum_nodes_of_the_same_graph(ref_graph, node_valid) > 0
+        return jnp.where(graph_valid, loss_per_graph, 0.0)  # [n_graphs, ]
 
 
 class HuberHessianLoss(LossTerm):
@@ -335,19 +342,25 @@ class HuberHessianLoss(LossTerm):
             # We null out the loss if the reference Hessian is not provided
             return 0
 
+        node_valid = ~jnp.isnan(hessian_ref).any(axis=(-1, -2))  # [n]
+        safe_ref = jnp.where(node_valid[:, None, None], hessian_ref, 0.0)
+
         hessian_error = optax.losses.huber_loss(
             hessian_pred,
-            hessian_ref,
+            safe_ref,
             delta=HUBER_LOSS_DEFAULT_DELTA,
         )
-        # mean huber Hessian error
-        # append 0 to match length (n_node + 1)
+        # Mean huber Hessian error. Append 0 to match length (n_node + 1)
         hessian_error = jnp.append(jnp.mean(hessian_error, axis=(-1, -2)), 0)
 
-        return ref_graph.globals.weight * safe_divide(
+        loss_per_graph = ref_graph.globals.weight * safe_divide(
             sum_nodes_of_the_same_graph(ref_graph, hessian_error),
             ref_graph.n_node,
         )
+
+        node_valid = jnp.append(node_valid.astype(jnp.float32), 0)
+        graph_valid = sum_nodes_of_the_same_graph(ref_graph, node_valid) > 0
+        return jnp.where(graph_valid, loss_per_graph, 0.0)
 
 
 class MSEPartialChargesLoss(LossTerm):

@@ -37,7 +37,7 @@ modular API for development of new architectures
 - ⛰️ Energy minimizations using the same simulation backends as for MD
 - 🚀 Batched MD simulations and energy minimizations with the JAX-MD backend
 - 🔎 Transition state search with the nudged elastic band (NEB) method
-- 🌋 Enhanced sampling via metadynamics for free energy landscape exploration
+- 🌋 Enhanced sampling via metadynamics and FEP for free energy landscape exploration
 - 🌐 Global charge conditioning, partial charge predictions, and
 support for long-range interactions
 - 📈 Training on Hessian labels
@@ -124,6 +124,7 @@ simple templates to build your own MLIP pipelines:
 - [MoE training tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/moe_training_and_inference_tutorial.ipynb)
 - [Hessian model training tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/hessian_model_training_tutorial.ipynb)
 - [Metadynamics tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/metadynamics_tutorial.ipynb)
+- [FEP tutorial](https://github.com/instadeepai/mlip/blob/main/tutorials/fep_tutorial.ipynb)
 
 To run the tutorials, just install Jupyter notebooks via pip and launch it from
 a directory that contains the notebooks:

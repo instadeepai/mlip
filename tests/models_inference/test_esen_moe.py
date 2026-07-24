@@ -272,6 +272,34 @@ def test_load_model_from_zip_with_context_contracts_moe_model(
     )
 
 
+def test_save_and_load_already_contracted_moe_model(moe_force_field, tmp_path):
+    contracted_force_field = moe_force_field.replace_inference_context(
+        InferenceContext(charge=1)
+    ).prepare_experts_for_inference()
+
+    filepath = tmp_path / "contracted_moe_model.zip"
+    save_model_to_zip(filepath, contracted_force_field)
+    loaded_force_field = load_model_from_zip(Esen, filepath)
+
+    assert loaded_force_field.predictor.mlip_network.config.moe is None
+    assert not _contains_key(
+        loaded_force_field.params["params"]["mlip_network"], "router"
+    )
+    assert not _contains_key(
+        loaded_force_field.params["params"]["mlip_network"], "globals_embedding"
+    )
+
+    graph = get_dummy_graph_for_model_init()
+    expected = contracted_force_field(graph)
+    actual = loaded_force_field(graph)
+    assert jnp.allclose(
+        jnp.asarray(expected.energy), jnp.asarray(actual.energy), atol=1e-6
+    )
+    assert jnp.allclose(
+        jnp.asarray(expected.forces), jnp.asarray(actual.forces), atol=1e-6
+    )
+
+
 def test_prepare_experts_for_inference_matches_uncontracted_output(
     moe_force_field, moe_graph
 ):

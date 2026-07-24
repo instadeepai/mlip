@@ -49,7 +49,7 @@ from mlip.typing.properties import Properties
 
 class Esen(MLIPNetwork):
     """The Esen model flax module. It is derived from the
-    :class:`~mlip.models_v1.mlip_network.MLIPNetwork` class.
+    :class:`~mlip.models.mlip_network.MLIPNetwork` class.
 
     References:
         * Saro Passaro, Lawrence Zitnick.
@@ -94,9 +94,7 @@ class Esen(MLIPNetwork):
     def setup(self) -> None:
         """Initializes the model layers."""
 
-        self.num_species = self.config.num_species
-        if self.num_species is None:
-            self.num_species = len(self.dataset_info.allowed_atomic_numbers)
+        self.num_species = len(self.dataset_info.allowed_atomic_numbers)
         if self.config.use_total_charge_embedding:
             # We add +1 to the num_charge in order to account for the placeholder charge
             # index (0) that shifts the max index value to
@@ -320,4 +318,11 @@ class Esen(MLIPNetwork):
             dataset_info=self.dataset_info,
         )
         contracted_params = contract_moe_params(params, coeffs)
+
+        # Drop params that can't be reached as `config.moe=None` for contracted_model.
+        contracted_params = {
+            key: value
+            for key, value in contracted_params.items()
+            if key not in ("router", "globals_embedding")
+        }
         return contracted_model, contracted_params

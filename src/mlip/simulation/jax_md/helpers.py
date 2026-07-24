@@ -87,13 +87,15 @@ def box_to_cell(box: jax.Array) -> jax.Array:
 
 
 def init_displacement_fun(
-    box: np.ndarray | None,
+    box: np.ndarray | None, fractional_coordinates: bool
 ) -> tuple[Callable, Callable, Callable]:
     """Initialise the displacement function, shift function, and cell-to-box converter.
 
     Args:
-        box: Box dimensions. None for free (non-periodic) space; a 1-D array of
-             length 3 for an orthorhombic periodic box.
+        box: Initial box, used to infer dimensions. None for free (non-periodic) space;
+            or either a 1D or 2D array specifying the system cell.
+        fractional_coordinates: Whether the input positions to the displacement
+            function will be in fractional (True) or raw (False) coordinates.
 
     Returns:
         (displacement_fun, shift_fun, cell_to_box_fun)
@@ -103,11 +105,13 @@ def init_displacement_fun(
         cell_to_box_fun = lambda cell: cell  # noqa: E731
     else:
         displacement_fun, shift_fun = jax_md.space.periodic_general(
-            box, fractional_coordinates=False, wrapped=False
+            box, fractional_coordinates=fractional_coordinates, wrapped=False
         )
 
         def _cell_to_box(cell: jnp.ndarray) -> jnp.ndarray:
-            return jnp.diag(cell[0])
+            if box.ndim == 1:
+                return jnp.diag(cell[0])
+            return cell[0]
 
         cell_to_box_fun = jax.tree_util.Partial(_cell_to_box)
 
@@ -115,7 +119,9 @@ def init_displacement_fun(
 
 
 def make_batched_displ_fun(
-    base_displacement_fun: Callable, n_edge_per_system: jax.Array
+    base_displacement_fun: Callable,
+    n_edge_per_system: jax.Array,
+    fractional_coordinates: bool,
 ) -> Callable:
     """Create a displacement function for batched simulations.
 
@@ -126,6 +132,8 @@ def make_batched_displ_fun(
     Args:
         base_displacement_fun: The displacement function from `init_displacement_fun`.
         n_edge_per_system: Per-system edge counts, including the dummy graph.
+        fractional_coordinates: Whether positions are stored as fractional
+            coordinates, i.e. whether any box in the batch is 2D (non-orthorhombic).
 
     Returns:
         A `Partial`-wrapped displacement function with the expected call signature:
@@ -143,7 +151,8 @@ def make_batched_displ_fun(
         per_edge_cell = cell[edge_system_idx]  # (num_edges, 3, 3)
 
         def _single_edge(r: jax.Array, s: jax.Array, c: jax.Array) -> jax.Array:
-            return base_displacement_fun(r, s, box=jnp.diag(c))
+            box = c if fractional_coordinates else jnp.diag(c)
+            return base_displacement_fun(r, s, box=box)
 
         return jax.vmap(_single_edge, in_axes=(0, 0, 0))(
             receivers_pos, senders_pos, per_edge_cell
@@ -387,6 +396,8 @@ def init_simulation_algorithm(
     force_field: ForceField,
     shift_fun: Callable,
     sim_config: JaxMDSimulationConfig,
+    initial_box: np.ndarray | list[np.ndarray] | None,
+    fractional_coordinates: bool,
 ) -> tuple[Callable, Callable]:
     """Initializes the minimizer or MD integrator object of JAX-MD.
 
@@ -401,6 +412,9 @@ def init_simulation_algorithm(
         force_field: The force field to use for calculating forces and energies.
         shift_fun: The shift function.
         sim_config: The pydantic config object for the JAX-MD simulation engine.
+        initial_box: The initial box (or list of boxes for batched simulations).
+        fractional_coordinates: Whether positions are stored as fractional coordinates
+            (only the case for non-orthorhombic boxes).
 
     Returns:
         A simulation init function and a simulation apply function used later to run
@@ -421,6 +435,7 @@ def init_simulation_algorithm(
                 shift_fun,
                 kT=sim_config.temperature_kelvin * TEMPERATURE_CONVERSION_FACTOR,
                 dt=sim_config.timestep_fs * TIMESTEP_CONVERSION_FACTOR,
+                initial_box=initial_box,
             )
         elif sim_config.md_integrator == MDIntegrator.NPT_MC_LANGEVIN:
             molecule_indices = sim_config.molecule_indices
@@ -446,12 +461,14 @@ def init_simulation_algorithm(
                 pressure=sim_config.pressure_bar * PRESSURE_CONVERSION_FACTOR,
                 barostat_interval=sim_config.barostat_update_interval,
                 molecule_indices=molecule_indices,
+                fractional_coordinates=fractional_coordinates,
             )
         elif sim_config.md_integrator == MDIntegrator.NVE_VELOCITY_VERLET:
             return batched_nve_velocity_verlet(
                 model_calculate_fun,
                 shift_fun,
                 dt=sim_config.timestep_fs * TIMESTEP_CONVERSION_FACTOR,
+                initial_box=initial_box,
             )
         else:
             raise ValueError(f"MD integrator {sim_config.md_integrator} not supported.")
@@ -471,6 +488,12 @@ def init_simulation_algorithm(
         )
     else:
         raise ValueError(f"Simulation type {sim_config.simulation_type} not supported.")
+
+
+def _min_perpendicular_width(cell: jax.Array) -> jax.Array:
+    """Minimum perpendicular distance between opposite faces of a cell."""
+    reciprocal_norms = jnp.linalg.norm(jnp.linalg.inv(cell), axis=1)
+    return jnp.min(1.0 / reciprocal_norms)
 
 
 def init_neighbor_lists(
@@ -502,17 +525,18 @@ def init_neighbor_lists(
     boxes = box if isinstance(box, list) else [box]
     boxes = [b for b in boxes if b is not None]
     if boxes:
-        _min_edge = float(min(np.min(b) for b in boxes))
-        if cutoff_distance_angstrom > _min_edge / 2.0:
+        _min_width = float(min(_min_perpendicular_width(box_to_cell(b)) for b in boxes))
+        if cutoff_distance_angstrom > _min_width / 2.0:
             raise ValueError(
                 f"Cutoff ({cutoff_distance_angstrom:.3f} Å) exceeds half of the "
-                f"smallest box edge ({_min_edge / 2.0:.3f} Å). This is not supported"
+                f"minimum box width ({_min_width / 2.0:.3f} Å). This is not supported "
                 "by the standard jax_md neighbor list, and alternatives are not "
                 "well-tested. Please use a larger box or a smaller cutoff."
             )
 
     def _init_impl(pos, box_i):
-        # Pass placeholder for box, as we always use the `box` kwarg in updates.
+        # Placeholder (nan) for box. We specify `box` whenever we use the neighbor fns.
+        # `fractional_coordinates` kwarg is ignored because `disable_cell_list=True`.
         _neighbor_fun = jax_md.partition.neighbor_list(
             displacement_or_metric=displacement_fun,
             r_cutoff=cutoff_distance_angstrom,

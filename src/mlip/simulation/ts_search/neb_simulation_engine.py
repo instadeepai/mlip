@@ -25,6 +25,7 @@ from mlip.simulation.configs.neb_config import NEBSimulationConfig
 from mlip.simulation.enums import StructureOptimizationMethod
 from mlip.simulation.simulation_engine import ForceField, SimulationEngine
 from mlip.simulation.state import NEBSimulationState
+from mlip.simulation.utils import resolve_atoms_cell
 
 logger = logging.getLogger("mlip")
 
@@ -77,7 +78,7 @@ class NEBSimulationEngine(SimulationEngine):
         self.model_calculator = self._get_model_calculator()
 
         for image in self.images:
-            self._init_box_neb(image)
+            resolve_atoms_cell(image, self._config.box)  # Resolves inplace
 
         self.images[0].calc = self._get_model_calculator()
         self.images[-1].calc = self._get_model_calculator()
@@ -226,17 +227,6 @@ class NEBSimulationEngine(SimulationEngine):
 
         if len(self.images) == 2 and num_images > 2:
             self.neb.interpolate(method="idpp")
-
-    def _init_box_neb(self, atoms: ase.Atoms) -> None:
-        if isinstance(self._config.box, float):
-            atoms.cell = np.eye(3) * self._config.box
-            atoms.pbc = True
-        elif isinstance(self._config.box, list):
-            atoms.cell = np.diag(np.array(self._config.box))
-            atoms.pbc = True
-        else:
-            atoms.cell = None
-            atoms.pbc = False
 
     def _update_state_neb(
         self,

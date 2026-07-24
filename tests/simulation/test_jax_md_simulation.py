@@ -36,7 +36,7 @@ ALL_MD_INTEGRATORS = ["nvt_langevin", "npt_mc_langevin", "nve_velocity_verlet"]
 
 
 @pytest.mark.parametrize(
-    "force_field_name", ["mace_force_field", "lri_mace_force_field"]
+    "force_field_name", ["mace_force_field", "lri_quadratic_force_field"]
 )
 def test_jax_md_step_zero_forces_match_direct_force_field_call(
     force_field_name, request, setup_system
@@ -71,7 +71,7 @@ def test_jax_md_step_zero_forces_match_direct_force_field_call(
 
 
 @pytest.mark.parametrize(
-    "force_field_name", ["quadratic_force_field", "lri_mace_force_field"]
+    "force_field_name", ["quadratic_force_field", "lri_quadratic_force_field"]
 )
 @pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
 def test_md_can_be_run_with_jax_md_backend(
@@ -82,8 +82,6 @@ def test_md_can_be_run_with_jax_md_backend(
     atoms = deepcopy(atoms)
     if force_field.long_range_cutoff_distance is not None:
         atoms.info["charge"] = 1.0
-
-    md_integrator = MDIntegrator(md_integrator)
 
     # Make dummy molecule_indices for system
     molecule_indices = [0] * 4 + [1] * 6
@@ -101,6 +99,7 @@ def test_md_can_be_run_with_jax_md_backend(
         pressure_bar=1.01325,
         molecule_indices=molecule_indices,
         edge_capacity_multiplier=1.25,
+        barostat_update_interval=5,
     )
 
     intermediate_steps = []
@@ -125,10 +124,14 @@ def test_md_can_be_run_with_jax_md_backend(
     if md_integrator.ensemble == "npt":
         assert engine.state.cell.shape == (10, 3, 3)
 
-    if force_field_name == "lri_mace_force_field":
+    if force_field_name == "lri_quadratic_force_field":
         assert engine.state.partial_charges.shape == (10, 10)
     else:
         assert engine.state.partial_charges is None
+
+    if md_integrator == MDIntegrator.NPT_MC_LANGEVIN:
+        # Auxiliary properties can be stale if volume changes in NPT.
+        return
 
     # Assert that potential energy and partial charges are correct
     traj = [deepcopy(atoms) for _ in range(10)]
@@ -143,17 +146,76 @@ def test_md_can_be_run_with_jax_md_backend(
     outputs = run_batched_inference(traj, force_field)
     for i in range(10):
         assert outputs[i].energy == pytest.approx(engine.state.potential_energy[i])
-        if force_field_name == "lri_mace_force_field":
+        if force_field_name == "lri_quadratic_force_field":
             assert np.allclose(
                 outputs[i].partial_charges, engine.state.partial_charges[i]
             )
 
 
+@pytest.mark.parametrize("md_integrator", ["nvt_langevin", "npt_mc_langevin"])
+def test_jax_md_1d_and_2d_boxes_equivalent(
+    quadratic_force_field, setup_system, md_integrator
+):
+    atoms, _ = setup_system
+
+    # Make dummy molecule_indices for system
+    molecule_indices = [0] * 4 + [1] * 6
+    md_integrator = MDIntegrator(md_integrator)
+
+    md_config = JaxMDSimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        md_integrator=md_integrator,
+        num_steps=20,
+        snapshot_interval=2,
+        num_episodes=5,
+        molecule_indices=molecule_indices,
+        barostat_update_interval=5,
+    )
+
+    cell_1d = np.array([10.0, 10.0, 10.0])
+    cell_2d = np.diag(cell_1d)
+    # Add small value so engine doesn't convert to a 1D array
+    cell_2d[0, 1] = 1e-9
+
+    final_states = []
+    fractional_coordinates_flags = []
+    for i in range(2):
+        _atoms = deepcopy(atoms)
+        _mace_ff = deepcopy(quadratic_force_field)
+        if i == 0:
+            _atoms.set_cell(cell_1d)
+        else:
+            _atoms.set_cell(cell_2d)
+
+        engine = JaxMDSimulationEngine(_atoms, _mace_ff, md_config)
+        fractional_coordinates_flags.append(engine._fractional_coordinates)
+        engine.run()
+        final_states.append(engine.state)
+
+    # Check second system ran as a 2D box
+    assert fractional_coordinates_flags == [False, True]
+
+    for key in [
+        "positions",
+        "forces",
+        "velocities",
+        "kinetic_energy",
+        "temperature",
+        "step",
+    ]:
+        assert np.allclose(
+            getattr(final_states[0], key), getattr(final_states[1], key)
+        ), f"'{key}' does not match."
+
+    if md_integrator.ensemble == "npt":
+        assert np.allclose(final_states[0].cell, final_states[1].cell, atol=1e-5)
+
+
 def test_jax_md_engine_rejects_cutoff_exceeding_half_box(
-    lri_mace_force_field, setup_system
+    lri_quadratic_force_field, setup_system
 ):
     """Cutoffs > L/2 cannot be handled by the standard NeighborList."""
-    force_field = deepcopy(lri_mace_force_field)
+    force_field = deepcopy(lri_quadratic_force_field)
     force_field.predictor.mlip_network.dataset_info = (
         force_field.predictor.mlip_network.dataset_info.model_copy(
             update={"long_range_cutoff_angstrom": 20.0}
@@ -350,8 +412,60 @@ def test_batched_md_can_be_run_with_jax_md_backend_for_two_different_systems(
         _assert_engines_match("cell", atol=tol, rtol=None)
 
 
+def test_batched_md_with_non_orthorhombic_boxes(quadratic_force_field, setup_system):
+    atoms, _ = setup_system
+
+    cells = [
+        np.array([[10.0, 2.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]]),
+        np.array([[9.0, 0.0, 1.5], [0.0, 9.0, 0.0], [0.0, 0.0, 9.0]]),
+    ]
+    systems = []
+    for cell in cells:
+        _atoms = deepcopy(atoms)
+        _atoms.set_cell(cell)
+        systems.append(_atoms)
+
+    md_config = JaxMDSimulationEngine.Config(
+        simulation_type=SimulationType.MD,
+        md_integrator=MDIntegrator.NPT_MC_LANGEVIN,
+        num_steps=5,
+        snapshot_interval=1,
+        num_episodes=1,
+        timestep_fs=1.0,
+        temperature_kelvin=300.0,
+        molecule_indices=[[0] * len(atoms)] * 2,
+        independent_seeds_batched=False,
+    )
+
+    batched_engine = JaxMDSimulationEngine(systems, quadratic_force_field, md_config)
+    batched_engine.run()
+
+    single_config = md_config.model_copy(update={"molecule_indices": [0] * len(atoms)})
+    tol = 1e-3
+    for i, _atoms in enumerate(systems):
+        single_engine = JaxMDSimulationEngine(
+            deepcopy(_atoms), quadratic_force_field, single_config
+        )
+        single_engine.run()
+
+        assert np.all(np.isfinite(batched_engine.state.positions[i]))
+        assert np.all(np.isfinite(batched_engine.state.forces[i]))
+        assert np.all(np.isfinite(batched_engine.state.cell[i]))
+        np.testing.assert_allclose(
+            batched_engine.state.positions[i],
+            single_engine.state.positions,
+            atol=tol,
+        )
+        np.testing.assert_allclose(
+            batched_engine.state.forces[i], single_engine.state.forces, atol=tol
+        )
+        np.testing.assert_allclose(
+            batched_engine.state.cell[i], single_engine.state.cell, atol=tol
+        )
+
+
 @pytest.mark.parametrize(
-    "force_field_name", ["quadratic_force_field", "lri_mace_force_field"]
+    "force_field_name", ["quadratic_force_field", "lri_quadratic_force_field"]
 )
 @pytest.mark.parametrize("md_integrator", ALL_MD_INTEGRATORS)
 def test_batched_and_regular_md_yield_same_results(

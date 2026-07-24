@@ -41,8 +41,7 @@ def standard_energy_computation_head(
 
 
 def coulomb_energy_computation_head(graph: Graph, deterministic: bool = False) -> Array:
-    """Computes the energy prediction of the model by adding the long range interactions
-    to the standard energy.
+    """Sums per-node 'energy' features and adds a long-range Coulomb term.
 
     Args:
         graph: The graph output by the MLIP network, containing node 'energy' features.
@@ -55,8 +54,12 @@ def coulomb_energy_computation_head(graph: Graph, deterministic: bool = False) -
     standard_energies = standard_energy_computation_head(graph, deterministic)
     long_range_interactions = compute_long_range_interactions(graph)
 
-    # Accumulate electrostatic interactions by graph
-    long_range_energies = scatter_sum(
+    edge_scale = graph.edges_long_range.features.get("edge_scale")
+    if edge_scale is not None:
+        long_range_interactions = long_range_interactions * edge_scale
+
+    # Edges are double-counted ((i,j) and (j,i)) so take 0.5 * sum
+    long_range_energies = 0.5 * scatter_sum(
         long_range_interactions,
         num_elements_per_segment=graph.n_edge_long_range,
         deterministic=deterministic,

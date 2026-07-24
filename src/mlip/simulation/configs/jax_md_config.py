@@ -21,6 +21,7 @@ from mlip.simulation.configs.simulation_config import (
     SimulationLogOutputs,
     TemperatureScheduleConfig,
 )
+from mlip.simulation.enums import TemperatureScheduleMethod
 from mlip.typing import PositiveFloat, PositiveInt
 
 NUM_STEPS_PER_EP_THRESHOLD = 1_000
@@ -78,13 +79,23 @@ class JaxMDSimulationConfig(SimulationConfig):
     # MD only
     temperature_kelvin: PositiveFloat | None = 300.0
     temperature_schedule_config: TemperatureScheduleConfig = Field(
-        default=TemperatureScheduleConfig(temperature=temperature_kelvin)
+        default=TemperatureScheduleConfig(temperature=None)
     )
 
     # NPT_MC_LANGEVIN only
     pressure_bar: PositiveFloat | None = 1.01325
     barostat_update_interval: PositiveInt | None = 25
     molecule_indices: list[int] | list[list[int]] | None = None
+
+    @model_validator(mode="after")
+    def apply_temperature_kelvin_to_schedule(self) -> Self:
+        if (
+            self.temperature_schedule_config.method
+            == TemperatureScheduleMethod.CONSTANT
+            and self.temperature_schedule_config.temperature is None
+        ):
+            self.temperature_schedule_config.temperature = self.temperature_kelvin
+        return self
 
     @model_validator(mode="after")
     def validate_num_episodes(self) -> Self:

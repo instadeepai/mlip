@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+import logging
+import warnings
 from typing import TYPE_CHECKING, Callable, Self, TypeAlias
 
 import jax
@@ -34,6 +36,8 @@ from mlip.utils.safe_norm import safe_divide
 if TYPE_CHECKING:
     from mlip.data.chemical_system import ChemicalSystem
 
+logger = logging.getLogger("mlip")
+
 Positions: TypeAlias = ArrayLike  # [num_nodes, 3]
 DisplacementVectors: TypeAlias = ArrayLike  # [num_edges, 3]
 ShiftVectors: TypeAlias = ArrayLike  # [num_edges, 3]
@@ -50,7 +54,7 @@ Charge: TypeAlias = ArrayLike  # [num_graphs]
 DipoleMoment: TypeAlias = ArrayLike  # [num_graphs, 3]
 DatasetIdx: TypeAlias = ArrayLike  # [num_graphs]
 SpinMultiplicity: TypeAlias = ArrayLike  # [num_graphs]
-HessianRows: TypeAlias = ArrayLike  # [num_graphs, num_rows] | Array(True)
+HessianRows: TypeAlias = ArrayLike  # [num_graphs, num_rows] | Array(False)
 
 
 @struct.dataclass
@@ -353,6 +357,18 @@ class Graph:
         """
         return self.replace_edges(features=self.edges.features | kwargs)
 
+    def update_long_range_edge_features(self, **kwargs) -> Self:
+        """Returns the `Graph` object where `edges_long_range` features are updated.
+
+        Mirrors `update_edge_features` for the long-range edge set. Requires
+        `edges_long_range` to already be present on the graph.
+        """
+        return self.replace(
+            edges_long_range=self.edges_long_range.replace(
+                features=self.edges_long_range.features | kwargs
+            )
+        )
+
     def update_global_features(self, **kwargs) -> Self:
         """Returns the `Graph` object where `globals` attribute are replaced.
 
@@ -400,11 +416,22 @@ class Graph:
         )
 
     def request_full_hessian(self) -> Self:
-        """Returns a graph that has `sample_hessian_rows=np.array(True)` in the globals.
+        """Returns the graph unchanged.
 
-        Required for inference pipelines.
+        .. deprecated:: 0.2.3
+            This method is no longer necessary and now has no effect: the full
+            Hessian is computed by default whenever the `hessian` property is
+            requested. It will be removed in a future release.
         """
-        return self.replace_globals(sample_hessian_rows=np.array(True))
+        warnings.warn(
+            "`Graph.request_full_hessian` is deprecated since version 0.2.3 and "
+            "now has no effect: the full Hessian is computed by default whenever "
+            "the `hessian` property is requested. This method will be removed in "
+            "a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self
 
     def _compute_vectors(
         self,

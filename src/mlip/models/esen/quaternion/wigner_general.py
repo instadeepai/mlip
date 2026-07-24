@@ -32,7 +32,9 @@ The computation requires float64: the polynomials reach degree 2*lmax,
 and the exp/log of magnitudes can cause overflow and nans in float32.
 """
 
+import functools
 import math
+from typing import Callable
 
 import jax
 import jax.numpy as jnp
@@ -432,6 +434,173 @@ def _compute_case_magnitude(
     return magnitude * horner_sum
 
 
+def _wigner_d_matrix_real_impl(
+    q: jax.Array, lmax: int, lmin: int
+) -> tuple[jax.Array, jax.Array]:
+    """Core computation for `wigner_d_matrix_real`."""
+    dtype = jnp.float64
+    with jax.ensure_compile_time_eval():
+        coeffs = _precompute_wigner_coefficients(lmax, lmin, dtype=dtype)
+
+    input_dtype = q.dtype
+    q = jnp.asarray(q, dtype=dtype)
+
+    ra_re, ra_im, rb_re, rb_im = q[..., 0], q[..., 3], q[..., 2], q[..., 1]
+
+    n_batch = ra_re.shape[0]
+
+    eps = jnp.finfo(dtype).eps
+    eps_sq = eps * eps
+    ra_sq = ra_re * ra_re + ra_im * ra_im
+    rb_sq = rb_re * rb_re + rb_im * rb_im
+    ra_small = ra_sq <= eps_sq
+    rb_small = rb_sq <= eps_sq
+    ra = jnp.sqrt(jnp.clip(ra_sq, min=eps_sq))
+    rb = jnp.sqrt(jnp.clip(rb_sq, min=eps_sq))
+    general_mask = ~ra_small & ~rb_small
+    use_case1 = (ra >= rb) & general_mask
+    use_case2 = (ra < rb) & general_mask
+
+    safe_ra_re_phi = jnp.where(ra_small, jnp.ones_like(ra_re), ra_re)
+    safe_ra_im_phi = jnp.where(ra_small, jnp.zeros_like(ra_im), ra_im)
+    phia = jnp.atan2(safe_ra_im_phi, safe_ra_re_phi)
+
+    safe_rb_re_phi = jnp.where(rb_small, jnp.ones_like(rb_re), rb_re)
+    safe_rb_im_phi = jnp.where(rb_small, jnp.zeros_like(rb_im), rb_im)
+    phib = jnp.atan2(safe_rb_im_phi, safe_rb_re_phi)
+
+    phase = jnp.outer(phia, coeffs.mp_plus_m) + jnp.outer(phib, coeffs.m_minus_mp)
+    exp_phase_re = jnp.cos(phase)
+    exp_phase_im = jnp.sin(phase)
+
+    safe_ra = jnp.clip(ra, min=eps)
+    safe_rb = jnp.clip(rb, min=eps)
+    log_ra = jnp.log(safe_ra)
+    log_rb = jnp.log(safe_rb)
+
+    result_re = jnp.zeros((n_batch, coeffs.n_primary), dtype=dtype)
+    result_im = jnp.zeros((n_batch, coeffs.n_primary), dtype=dtype)
+
+    log_mag_rb_power = jnp.outer(log_rb, coeffs.special_2m)
+    rb_power_mag = jnp.exp(log_mag_rb_power)
+    rb_power_phase = jnp.outer(phib, coeffs.special_2m)
+    rb_power_re = rb_power_mag * jnp.cos(rb_power_phase)
+    rb_power_im = rb_power_mag * jnp.sin(rb_power_phase)
+
+    special_val_antidiag_re = coeffs.anti_diag_sign[None] * rb_power_re
+    special_val_antidiag_im = coeffs.anti_diag_sign[None] * rb_power_im
+
+    mask_antidiag = ra_small[:, None] & coeffs.anti_diagonal_mask[None]
+    result_re = jnp.where(mask_antidiag, special_val_antidiag_re, result_re)
+    result_im = jnp.where(mask_antidiag, special_val_antidiag_im, result_im)
+
+    log_mag_ra_power = jnp.outer(log_ra, coeffs.special_2m)
+    ra_power_mag = jnp.exp(log_mag_ra_power)
+    ra_power_phase = jnp.outer(phia, coeffs.special_2m)
+    ra_power_re = ra_power_mag * jnp.cos(ra_power_phase)
+    ra_power_im = ra_power_mag * jnp.sin(ra_power_phase)
+
+    mask_diag = (rb_small & ~ra_small)[:, None] & coeffs.diagonal_mask[None]
+    result_re = jnp.where(mask_diag, ra_power_re, result_re)
+    result_im = jnp.where(mask_diag, ra_power_im, result_im)
+
+    ratio1 = -(rb * rb) / (safe_ra * safe_ra)
+    real_factor1 = _compute_case_magnitude(log_ra, log_rb, ratio1, coeffs.case1)
+    val1_re = real_factor1 * exp_phase_re
+    val1_im = real_factor1 * exp_phase_im
+
+    valid_case1 = coeffs.case1.poly_len > 0
+    mask1 = use_case1[:, None] & valid_case1[None]
+    result_re = jnp.where(mask1, val1_re, result_re)
+    result_im = jnp.where(mask1, val1_im, result_im)
+
+    ratio2 = -(ra * ra) / (safe_rb * safe_rb)
+    real_factor2 = _compute_case_magnitude(log_ra, log_rb, ratio2, coeffs.case2)
+    val2_re = real_factor2 * exp_phase_re
+    val2_im = real_factor2 * exp_phase_im
+
+    valid_case2 = coeffs.case2.poly_len > 0
+    mask2 = use_case2[:, None] & valid_case2[None]
+    result_re = jnp.where(mask2, val2_re, result_re)
+    result_im = jnp.where(mask2, val2_im, result_im)
+
+    d_re = jnp.zeros((n_batch, coeffs.size, coeffs.size), dtype=dtype)
+    d_im = jnp.zeros((n_batch, coeffs.size, coeffs.size), dtype=dtype)
+
+    batch_indices = jnp.repeat(jnp.arange(n_batch)[:, None], coeffs.n_primary, axis=1)
+    row_expanded = jnp.repeat(coeffs.primary_row[None], n_batch, axis=0)
+    col_expanded = jnp.repeat(coeffs.primary_col[None], n_batch, axis=0)
+    d_re = d_re.at[batch_indices, row_expanded, col_expanded].set(result_re)
+    d_im = d_im.at[batch_indices, row_expanded, col_expanded].set(result_im)
+
+    if coeffs.n_derived > 0:
+        primary_re = result_re[:, coeffs.derived_primary_idx]
+        primary_im = result_im[:, coeffs.derived_primary_idx]
+
+        derived_sign_expanded = coeffs.derived_sign[None]
+        derived_re = derived_sign_expanded * primary_re
+        derived_im = -derived_sign_expanded * primary_im
+
+        batch_indices_d = jnp.repeat(
+            jnp.arange(n_batch)[:, None], coeffs.n_derived, axis=1
+        )
+        row_expanded_d = jnp.repeat(coeffs.derived_row[None], n_batch, axis=0)
+        col_expanded_d = jnp.repeat(coeffs.derived_col[None], n_batch, axis=0)
+        d_re = d_re.at[batch_indices_d, row_expanded_d, col_expanded_d].set(derived_re)
+        d_im = d_im.at[batch_indices_d, row_expanded_d, col_expanded_d].set(derived_im)
+
+    d_re = jnp.asarray(d_re, input_dtype)
+    d_im = jnp.asarray(d_im, input_dtype)
+
+    return d_re, d_im
+
+
+@functools.lru_cache(maxsize=1)
+def _build_wigner_d_matrix_real() -> Callable[..., tuple[jax.Array, jax.Array]]:
+    """Builds the `jax.custom_vjp`-wrapped `wigner_d_matrix_real` callable.
+
+    Prevents running `jax.custom_vjp` until required in the code.
+    """
+
+    @functools.partial(jax.custom_vjp, nondiff_argnums=(1, 2))
+    def _wigner_d_matrix_real(
+        q: jax.Array, lmax: int, lmin: int = 0
+    ) -> tuple[jax.Array, jax.Array]:
+        """Compute Wigner D matrices using real arithmetic only."""
+        _x64_was_enabled = jax.config.jax_enable_x64
+        jax.config.update("jax_enable_x64", True)
+        try:
+            return _wigner_d_matrix_real_impl(q, lmax, lmin)
+        finally:
+            jax.config.update("jax_enable_x64", _x64_was_enabled)
+
+    def _fwd(
+        q: jax.Array, lmax: int, lmin: int
+    ) -> tuple[tuple[jax.Array, jax.Array], tuple[jax.Array]]:
+        return _wigner_d_matrix_real(q, lmax, lmin), (q,)
+
+    def _bwd(
+        lmax: int,
+        lmin: int,
+        residuals: tuple[jax.Array],
+        cotangents: tuple[jax.Array, jax.Array],
+    ) -> tuple[jax.Array]:
+        (q,) = residuals
+        _x64_was_enabled = jax.config.jax_enable_x64
+        jax.config.update("jax_enable_x64", True)
+        try:
+            _, vjp_fn = jax.vjp(
+                lambda qq: _wigner_d_matrix_real_impl(qq, lmax, lmin), q
+            )
+            return vjp_fn(cotangents)
+        finally:
+            jax.config.update("jax_enable_x64", _x64_was_enabled)
+
+    # Explicitly define the backward pass for this method with float64 enabled.
+    _wigner_d_matrix_real.defvjp(_fwd, _bwd)
+    return _wigner_d_matrix_real
+
+
 def wigner_d_matrix_real(
     q: jax.Array, lmax: int, lmin: int = 0
 ) -> tuple[jax.Array, jax.Array]:
@@ -440,6 +609,10 @@ def wigner_d_matrix_real(
     q = (w, x, y, z) is decomposed into real/imaginary parts of Ra and Rb first:
         Ra = w + i*z  ->  (ra_re=w, ra_im=z)
         Rb = y + i*x  ->  (rb_re=y, rb_im=x)
+
+    Enables `jax_enable_x64` for the duration of the call, since the polynomial
+    evaluation requires float64 to avoid overflow (see module docstring). It is also
+    wrapped in `jax.custom_vjp` to enable using a x64 context in the backward pass.
 
     Args:
         q: Quaternion of shape (N, 4).
@@ -450,132 +623,7 @@ def wigner_d_matrix_real(
         Tuple (D_re, D_im) - real and imaginary parts of the complex
         block-diagonal matrices, each of shape (N, size, size)
     """
-    _x64_was_enabled = jax.config.jax_enable_x64
-    jax.config.update("jax_enable_x64", True)
-    try:
-        dtype = jnp.float64
-        with jax.ensure_compile_time_eval():
-            coeffs = _precompute_wigner_coefficients(lmax, lmin, dtype=dtype)
-
-        input_dtype = q.dtype
-        q = jnp.asarray(q, dtype=dtype)
-
-        ra_re, ra_im, rb_re, rb_im = q[..., 0], q[..., 3], q[..., 2], q[..., 1]
-
-        n_batch = ra_re.shape[0]
-
-        eps = jnp.finfo(dtype).eps
-        eps_sq = eps * eps
-        ra_sq = ra_re * ra_re + ra_im * ra_im
-        rb_sq = rb_re * rb_re + rb_im * rb_im
-        ra_small = ra_sq <= eps_sq
-        rb_small = rb_sq <= eps_sq
-        ra = jnp.sqrt(jnp.clip(ra_sq, min=eps_sq))
-        rb = jnp.sqrt(jnp.clip(rb_sq, min=eps_sq))
-        general_mask = ~ra_small & ~rb_small
-        use_case1 = (ra >= rb) & general_mask
-        use_case2 = (ra < rb) & general_mask
-
-        safe_ra_re_phi = jnp.where(ra_small, jnp.ones_like(ra_re), ra_re)
-        safe_ra_im_phi = jnp.where(ra_small, jnp.zeros_like(ra_im), ra_im)
-        phia = jnp.atan2(safe_ra_im_phi, safe_ra_re_phi)
-
-        safe_rb_re_phi = jnp.where(rb_small, jnp.ones_like(rb_re), rb_re)
-        safe_rb_im_phi = jnp.where(rb_small, jnp.zeros_like(rb_im), rb_im)
-        phib = jnp.atan2(safe_rb_im_phi, safe_rb_re_phi)
-
-        phase = jnp.outer(phia, coeffs.mp_plus_m) + jnp.outer(phib, coeffs.m_minus_mp)
-        exp_phase_re = jnp.cos(phase)
-        exp_phase_im = jnp.sin(phase)
-
-        safe_ra = jnp.clip(ra, min=eps)
-        safe_rb = jnp.clip(rb, min=eps)
-        log_ra = jnp.log(safe_ra)
-        log_rb = jnp.log(safe_rb)
-
-        result_re = jnp.zeros((n_batch, coeffs.n_primary), dtype=dtype)
-        result_im = jnp.zeros((n_batch, coeffs.n_primary), dtype=dtype)
-
-        log_mag_rb_power = jnp.outer(log_rb, coeffs.special_2m)
-        rb_power_mag = jnp.exp(log_mag_rb_power)
-        rb_power_phase = jnp.outer(phib, coeffs.special_2m)
-        rb_power_re = rb_power_mag * jnp.cos(rb_power_phase)
-        rb_power_im = rb_power_mag * jnp.sin(rb_power_phase)
-
-        special_val_antidiag_re = coeffs.anti_diag_sign[None] * rb_power_re
-        special_val_antidiag_im = coeffs.anti_diag_sign[None] * rb_power_im
-
-        mask_antidiag = ra_small[:, None] & coeffs.anti_diagonal_mask[None]
-        result_re = jnp.where(mask_antidiag, special_val_antidiag_re, result_re)
-        result_im = jnp.where(mask_antidiag, special_val_antidiag_im, result_im)
-
-        log_mag_ra_power = jnp.outer(log_ra, coeffs.special_2m)
-        ra_power_mag = jnp.exp(log_mag_ra_power)
-        ra_power_phase = jnp.outer(phia, coeffs.special_2m)
-        ra_power_re = ra_power_mag * jnp.cos(ra_power_phase)
-        ra_power_im = ra_power_mag * jnp.sin(ra_power_phase)
-
-        mask_diag = (rb_small & ~ra_small)[:, None] & coeffs.diagonal_mask[None]
-        result_re = jnp.where(mask_diag, ra_power_re, result_re)
-        result_im = jnp.where(mask_diag, ra_power_im, result_im)
-
-        ratio1 = -(rb * rb) / (safe_ra * safe_ra)
-        real_factor1 = _compute_case_magnitude(log_ra, log_rb, ratio1, coeffs.case1)
-        val1_re = real_factor1 * exp_phase_re
-        val1_im = real_factor1 * exp_phase_im
-
-        valid_case1 = coeffs.case1.poly_len > 0
-        mask1 = use_case1[:, None] & valid_case1[None]
-        result_re = jnp.where(mask1, val1_re, result_re)
-        result_im = jnp.where(mask1, val1_im, result_im)
-
-        ratio2 = -(ra * ra) / (safe_rb * safe_rb)
-        real_factor2 = _compute_case_magnitude(log_ra, log_rb, ratio2, coeffs.case2)
-        val2_re = real_factor2 * exp_phase_re
-        val2_im = real_factor2 * exp_phase_im
-
-        valid_case2 = coeffs.case2.poly_len > 0
-        mask2 = use_case2[:, None] & valid_case2[None]
-        result_re = jnp.where(mask2, val2_re, result_re)
-        result_im = jnp.where(mask2, val2_im, result_im)
-
-        d_re = jnp.zeros((n_batch, coeffs.size, coeffs.size), dtype=dtype)
-        d_im = jnp.zeros((n_batch, coeffs.size, coeffs.size), dtype=dtype)
-
-        batch_indices = jnp.repeat(
-            jnp.arange(n_batch)[:, None], coeffs.n_primary, axis=1
-        )
-        row_expanded = jnp.repeat(coeffs.primary_row[None], n_batch, axis=0)
-        col_expanded = jnp.repeat(coeffs.primary_col[None], n_batch, axis=0)
-        d_re = d_re.at[batch_indices, row_expanded, col_expanded].set(result_re)
-        d_im = d_im.at[batch_indices, row_expanded, col_expanded].set(result_im)
-
-        if coeffs.n_derived > 0:
-            primary_re = result_re[:, coeffs.derived_primary_idx]
-            primary_im = result_im[:, coeffs.derived_primary_idx]
-
-            derived_sign_expanded = coeffs.derived_sign[None]
-            derived_re = derived_sign_expanded * primary_re
-            derived_im = -derived_sign_expanded * primary_im
-
-            batch_indices_d = jnp.repeat(
-                jnp.arange(n_batch)[:, None], coeffs.n_derived, axis=1
-            )
-            row_expanded_d = jnp.repeat(coeffs.derived_row[None], n_batch, axis=0)
-            col_expanded_d = jnp.repeat(coeffs.derived_col[None], n_batch, axis=0)
-            d_re = d_re.at[batch_indices_d, row_expanded_d, col_expanded_d].set(
-                derived_re
-            )
-            d_im = d_im.at[batch_indices_d, row_expanded_d, col_expanded_d].set(
-                derived_im
-            )
-
-        d_re = jnp.asarray(d_re, input_dtype)
-        d_im = jnp.asarray(d_im, input_dtype)
-
-        return d_re, d_im
-    finally:
-        jax.config.update("jax_enable_x64", _x64_was_enabled)
+    return _build_wigner_d_matrix_real()(q, lmax, lmin)
 
 
 def _compute_transform_sign(ell: int, m: int) -> int:

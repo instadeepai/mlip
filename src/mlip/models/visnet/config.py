@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+import warnings
+
 from pydantic import model_validator
 from typing_extensions import Self
 
@@ -47,9 +49,9 @@ class VisnetConfig(MLIPNetworkConfig):
                   "expnorm" (default).
         add_atomic_energies: Whether to add atomic energies to the final energies.
                              Default is `True`.
-        num_species: The number of elements (atomic species descriptors) allowed.
-                     If `None` (default), infer the value from the atomic energies
-                     map in the dataset info.
+        num_species: Deprecated, no longer has any effect. The number of species is
+                     always inferred from the dataset info. Setting this to a value
+                     other than `None` (default) will raise a deprecation warning.
         predict_partial_charges: Whether the model will be trained to predict charges.
         use_coulomb_term: Whether to use the Coulomb term in the model for long
                           range interactions. Default is False.
@@ -98,4 +100,24 @@ class VisnetConfig(MLIPNetworkConfig):
     def _enforce_partial_charges_for_coulomb_term(self) -> Self:
         if self.use_coulomb_term:
             self.predict_partial_charges = True
+        return self
+
+    @model_validator(mode="after")
+    def _warn_deprecated_num_species(self) -> Self:
+        """Warns if a value for `num_species` is set.
+
+        .. deprecated:: 0.2.3
+            `VisnetConfig.num_species` no longer has any effect: the number of
+            species is always inferred from `dataset_info`. It will be removed
+            in a future release.
+        """
+        if self.num_species is not None:
+            warnings.warn(
+                "`VisnetConfig.num_species` is deprecated since version 0.2.3 and "
+                "no longer has any effect: the number of species is always "
+                "inferred from `dataset_info`. This field will be removed in a "
+                "future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self

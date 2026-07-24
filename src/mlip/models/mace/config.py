@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Literal
 
 import e3nn_jax as e3nn
@@ -67,9 +68,9 @@ class MaceConfig(MLIPNetworkConfig):
                            It is used to rescale messages by this value.
         avg_r_min: The mean minimum neighbour distance in Angstrom. If `None`
                    (default), use the value from the dataset info.
-        num_species: The number of elements (atomic species descriptors) allowed.
-                     If `None` (default), infer the value from the atomic energies
-                     map in the dataset info.
+        num_species: Deprecated, no longer has any effect. The number of species is
+                     always inferred from the dataset info. Setting this to a value
+                     other than `None` (default) will raise a deprecation warning.
         gate_nodes: Whether to use a gating for the self-interaction.
                     Default is `False`.
                     See our white paper for a description of this option that is
@@ -158,4 +159,24 @@ class MaceConfig(MLIPNetworkConfig):
     def _enforce_partial_charges_for_coulomb_term(self) -> Self:
         if self.use_coulomb_term:
             self.predict_partial_charges = True
+        return self
+
+    @model_validator(mode="after")
+    def _warn_deprecated_num_species(self) -> Self:
+        """Warns if a value for `num_species` is set.
+
+        .. deprecated:: 0.2.3
+            `MaceConfig.num_species` no longer has any effect: the number of
+            species is always inferred from `dataset_info`. It will be removed
+            in a future release.
+        """
+        if self.num_species is not None:
+            warnings.warn(
+                "`MaceConfig.num_species` is deprecated since version 0.2.3 and "
+                "no longer has any effect: the number of species is always "
+                "inferred from `dataset_info`. This field will be removed in a "
+                "future release.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self

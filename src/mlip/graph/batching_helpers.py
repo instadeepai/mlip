@@ -31,12 +31,13 @@ import dataclasses
 from collections.abc import Callable
 
 import jax
+import jax.numpy as jnp
 import numpy as np
 
 from mlip.graph.graph import Graph
 
 
-def batch_graphs(graphs: list[Graph]) -> Graph:
+def batch_graphs(graphs: list[Graph], jittable: bool = False) -> Graph:
     """Returns batched graph given a list of graphs.
 
     Adapted from `jraph.utils.batch_np`.
@@ -47,19 +48,16 @@ def batch_graphs(graphs: list[Graph]) -> Graph:
     Returns:
         The batched graph.
     """
-    # Calculates offsets for sender and receiver arrays, caused by concatenating
-    # the nodes arrays.
-    offsets = np.cumsum(np.array([0] + [np.sum(g.n_node) for g in graphs[:-1]]))
+    np_ = jnp if jittable else np
+
+    offsets = np_.cumsum(np_.array([0] + [np_.sum(g.n_node) for g in graphs[:-1]]))
 
     def _map_concat(nests):
         def _concat(*args):
-            return np.concatenate(args)
+            return np_.concatenate(args)
 
         return jax.tree.map(_concat, *nests)
 
-    # When batching graphs, we need to ensure that either all graphs have long range
-    # interactions or none of them do. If some graphs have long range interactions and
-    # others don't, we need to raise an error.
     def _has_long_range_interactions(graphs: list[Graph]) -> bool:
         """Check if all graphs have long range interactions or none of them do."""
 
@@ -75,17 +73,16 @@ def batch_graphs(graphs: list[Graph]) -> Graph:
             return True
         if all(not graph_has_long_range(g) for g in graphs):
             return False
-        raise ValueError(
-            "When batching graphs, all graphs must have long range interactions or none"
-            " of them."
-        )
+        raise ValueError("All or none of the graphs must have long range interactions.")
 
     if _has_long_range_interactions(graphs):
-        concat_n_edge_long_range = np.concatenate([g.n_edge_long_range for g in graphs])
-        concat_senders_long_range = np.concatenate([
+        concat_n_edge_long_range = np_.concatenate([
+            g.n_edge_long_range for g in graphs
+        ])
+        concat_senders_long_range = np_.concatenate([
             g.senders_long_range + o for g, o in zip(graphs, offsets)
         ])
-        concat_receivers_long_range = np.concatenate([
+        concat_receivers_long_range = np_.concatenate([
             g.receivers_long_range + o for g, o in zip(graphs, offsets)
         ])
         concat_edges_long_range = _map_concat([g.edges_long_range for g in graphs])
@@ -95,14 +92,14 @@ def batch_graphs(graphs: list[Graph]) -> Graph:
         concat_receivers_long_range = None
         concat_edges_long_range = None
 
-    return Graph(
-        n_node=np.concatenate([g.n_node for g in graphs]),
-        n_edge=np.concatenate([g.n_edge for g in graphs]),
+    return graphs[0].replace(
+        n_node=np_.concatenate([g.n_node for g in graphs]),
+        n_edge=np_.concatenate([g.n_edge for g in graphs]),
         nodes=_map_concat([g.nodes for g in graphs]),
         edges=_map_concat([g.edges for g in graphs]),
         globals=_map_concat([g.globals for g in graphs]),
-        senders=np.concatenate([g.senders + o for g, o in zip(graphs, offsets)]),
-        receivers=np.concatenate([g.receivers + o for g, o in zip(graphs, offsets)]),
+        senders=np_.concatenate([g.senders + o for g, o in zip(graphs, offsets)]),
+        receivers=np_.concatenate([g.receivers + o for g, o in zip(graphs, offsets)]),
         senders_long_range=concat_senders_long_range,
         receivers_long_range=concat_receivers_long_range,
         n_edge_long_range=concat_n_edge_long_range,

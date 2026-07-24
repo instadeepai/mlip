@@ -33,6 +33,7 @@ from mlip.simulation.montecarlo_barostat import (
     sanitize_molecule_indices,
     tune_barostat,
 )
+from mlip.utils.jax_utils import high_precision_matmul_context
 
 logger = logging.getLogger("mlip")
 
@@ -130,9 +131,10 @@ class ASEMonteCarloBarostat:
     def step(self):
         """Performs the update step of the Monte Carlo Barostat."""
         # Compute energy of the current state of the system
-        self._calculator.calculate(
-            self.atoms, properties=["energy"], system_changes=all_changes
-        )
+        with high_precision_matmul_context():
+            self._calculator.calculate(
+                self.atoms, properties=["energy"], system_changes=all_changes
+            )
         energy_old = self._calculator.results["energy"]
 
         # Store old state info in case we reject the move
@@ -148,9 +150,10 @@ class ASEMonteCarloBarostat:
         # Calculate energy after the volume change
         self.atoms.set_cell(np.array(box_new))
         self.atoms.set_positions(np.array(pos_new))
-        self._calculator.calculate(
-            self.atoms, properties=["energy"], system_changes=all_changes
-        )
+        with high_precision_matmul_context():
+            self._calculator.calculate(
+                self.atoms, properties=["energy"], system_changes=all_changes
+            )
         energy_new = self._calculator.results["energy"]
 
         # Accept or reject the volume change based on the Metropolis criterion

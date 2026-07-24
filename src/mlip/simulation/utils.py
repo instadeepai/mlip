@@ -15,8 +15,11 @@
 import logging
 
 import ase
+import jax
 import jax.numpy as jnp
+import jax_md
 import numpy as np
+from jax import Array
 
 from mlip.models import ForceField
 
@@ -34,6 +37,38 @@ def has_simulation_exploded(temperatures: np.ndarray | float) -> bool:
     ):
         return True
     return False
+
+
+def resolve_atoms_cell(atoms: ase.Atoms, box: float | list[float] | None) -> ase.Atoms:
+    """Set the cell/PBCs on an `ase.Atoms` object from a config `box` value.
+
+    If `atoms` already has a cell/PBC configured, this is left untouched.
+
+    Args:
+        atoms: The atomic structure to update, mutated in place.
+        box: Specifies the PBCs to use if not already configured for `atoms`. A float
+            (cubic box side-length), list of floats (lattice vector lengths), or `None`.
+
+    Returns:
+        The same atoms object, with `atoms.cell`/`atoms.pbc` resolved.
+    """
+    if np.any(atoms.cell) or np.any(atoms.pbc):
+        logger.warning(
+            "Ignoring `box` parameter as `atoms` already has PBC configured."
+        )
+        return atoms
+
+    if isinstance(box, float):
+        atoms.cell = np.eye(3) * box
+        atoms.pbc = True
+    elif isinstance(box, list):
+        atoms.cell = np.diag(np.array(box))
+        atoms.pbc = True
+    else:
+        atoms.cell = None
+        atoms.pbc = False
+
+    return atoms
 
 
 def resolve_atoms_charge_for_model(
@@ -92,3 +127,52 @@ def _resolve_single_atoms_charge(
 
     atoms.info["charge"] = charge
     return atoms
+
+
+def _apply_box_transform(box: Array, R: Array) -> Array:
+    """High-precision replacement for `jax_md.space.raw_transform`.
+
+    Used to prevent compounding errors when using `raw_transform` with lower precision.
+    """
+    with jax.default_matmul_precision("highest"):
+        return jax_md.space.raw_transform(box, R)
+
+
+def fractional_to_positions(
+    positions: np.ndarray | list[np.ndarray],
+    box: np.ndarray | list[np.ndarray],
+) -> np.ndarray | list[np.ndarray]:
+    """Convert fractional coordinates to real-space positions.
+
+    Args:
+        positions: Fractional positions. Either a single array or a list.
+        box: Box-representation of the system cell. Either a single array or a list.
+
+    Returns:
+        Real-space positions with the same structure as the input.
+    """
+
+    def _to_real(pos: np.ndarray, b: np.ndarray) -> np.ndarray:
+        return _apply_box_transform(b, pos).astype(pos.dtype)
+
+    return jax.tree.map(_to_real, positions, box)
+
+
+def positions_to_fractional(
+    positions: np.ndarray | list[np.ndarray],
+    box: np.ndarray | list[np.ndarray],
+) -> np.ndarray | list[np.ndarray]:
+    """Convert real-space positions to fractional coordinates.
+
+    Args:
+        positions: Real-space positions. Either a single array or a list.
+        box: Box-representation of the system cell. Either a single array or a list.
+
+    Returns:
+        Fractional positions with the same structure as the input.
+    """
+
+    def _to_frac(pos: np.ndarray, b: np.ndarray) -> np.ndarray:
+        return _apply_box_transform(jax_md.space.inverse(b), pos).astype(pos.dtype)
+
+    return jax.tree.map(_to_frac, positions, box)

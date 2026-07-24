@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
+import dataclasses
 import inspect
 
+import jax
 import jax.numpy as jnp
 from jax import lax, random
-from jax_md import dataclasses
+from jax_md import dataclasses as jax_md_dataclasses
 from jax_md.dataclasses import dataclass as jax_compatible_dataclass
 
 from mlip.models.force_field import ForceField
 from mlip.models_v1.mlip_network_v1 import MLIPNetworkV1
+from mlip.simulation.utils import fractional_to_positions, positions_to_fractional
 from mlip.typing.properties import Properties
 from mlip.utils.jax_utils import segment_sum
 
@@ -55,7 +57,7 @@ class MonteCarloBarostatState:
     mol_indices: Array  # Molecule index for each atom
 
 
-def _box_to_volume(box: Array, dim: int) -> VolumeArray:
+def box_to_volume(box: Array, dim: int) -> VolumeArray:
     """Converts a box to a volume."""
     if box.ndim == 0:
         return box**dim
@@ -133,23 +135,20 @@ def create_high_precision_force_field(force_field: ForceField) -> ForceField:
         dataset_info=force_field.dataset_info,
     )
 
-    energy_head = force_field.predictor._energy_head
-    if "deterministic" not in inspect.signature(energy_head).parameters:
-        raise ValueError(
-            f"Energy head '{energy_head}' does not support the 'deterministic' kwarg. "
-            "This is required for setting up a high-precision force field for the "
-            "MonteCarloBarostat. Please add this as a kwarg to the energy head."
-        )
-    deterministic_energy_head = functools.partial(energy_head, deterministic=True)
-
-    predictor_class = type(force_field.predictor)
-    new_predictor = predictor_class(
+    new_predictor = dataclasses.replace(
+        force_field.predictor,
         mlip_network=new_mlip_network,
         required_properties=Properties(energy=True, forces=False),
-        energy_head=deterministic_energy_head,
     )
 
-    return ForceField(predictor=new_predictor, params=force_field.params)
+    energy_head = new_predictor.energy_head or new_predictor._default_energy_head
+    if "deterministic" not in inspect.signature(energy_head).parameters:
+        raise ValueError(
+            "Energy head does not support a 'deterministic' kwarg. This is required "
+            "for setting up a high-precision force field for the MonteCarloBarostat."
+        )
+
+    return dataclasses.replace(force_field, predictor=new_predictor)
 
 
 def sanitize_molecule_indices(molecule_indices: Array) -> Array:
@@ -171,6 +170,7 @@ def propose_volume_change(
     barostat_state: MonteCarloBarostatState,
     box: Array,
     positions: Array,
+    fractional_coordinates: bool = False,
 ) -> tuple[MonteCarloBarostatState, VolumeArray, VolumeArray, Array, Array]:
     """Proposes a volume change and scales system geometry.
 
@@ -178,6 +178,7 @@ def propose_volume_change(
         barostat_state: The current barostat state.
         box: The current box.
         positions: The current positions.
+        fractional_coordinates: Whether the positions are in fractional coordinates.
 
     Returns:
         (updated barostat state, current volume, new volume, new box, new positions)
@@ -185,7 +186,7 @@ def propose_volume_change(
     rng, step_rng = random.split(barostat_state.rng)
 
     dim = positions.shape[1]
-    volume_old = _box_to_volume(box, dim)
+    volume_old = box_to_volume(box, dim)
 
     # Propose delta volume
     delta_volume = (random.uniform(step_rng) * 2 - 1) * barostat_state.max_delta_volume
@@ -195,11 +196,35 @@ def propose_volume_change(
     length_scale = (jnp.maximum(volume_new, 1e-6) / volume_old) ** (1.0 / dim)
 
     box_new = box * length_scale
-    positions_new = _scale_molecule_centroids(
-        positions, barostat_state.mol_indices, barostat_state.mol_counts, length_scale
-    )
 
-    barostat_state_new = dataclasses.replace(barostat_state, rng=rng)
+    if fractional_coordinates:
+        # Unwrap fractional positions
+        ref_frac = (
+            jnp.zeros_like(positions)
+            .at[barostat_state.mol_indices]
+            .set(positions)[barostat_state.mol_indices]
+        )
+        delta_frac = positions - ref_frac
+        delta_frac = delta_frac - jnp.round(delta_frac)
+        frac_unwrapped = ref_frac + delta_frac
+
+        pos_real = fractional_to_positions(frac_unwrapped, box)
+        pos_real_scaled = _scale_molecule_centroids(
+            pos_real,
+            barostat_state.mol_indices,
+            barostat_state.mol_counts,
+            length_scale,
+        )
+        positions_new = positions_to_fractional(pos_real_scaled, box_new)
+    else:
+        positions_new = _scale_molecule_centroids(
+            positions,
+            barostat_state.mol_indices,
+            barostat_state.mol_counts,
+            length_scale,
+        )
+
+    barostat_state_new = jax_md_dataclasses.replace(barostat_state, rng=rng)
 
     return barostat_state_new, volume_old, volume_new, box_new, positions_new
 
@@ -243,10 +268,21 @@ def accept_volume_change(
     delta_w = delta_e + p_term - entropy_term
     acceptance_probability = jnp.exp(-delta_w / kT)
 
-    # Accept if (Delta_W <= 0 OR rand < prob) AND volume_new > 0
+    is_finite_delta_w = jnp.isfinite(delta_w)
+    lax.cond(
+        is_finite_delta_w,
+        lambda: None,
+        lambda: jax.debug.print(
+            "WARNING: non-finite delta_w ({x}) in MonteCarloBarostat.", x=delta_w
+        ),
+    )
+
+    # Accept if (Delta_W <= 0 OR rand < prob) AND volume_new > 0 AND finite Delta_W
     rng_new, accept_rng = random.split(barostat_state.rng)
     sampled_prob = random.uniform(accept_rng)
-    condition = (delta_w <= 0) | (sampled_prob < acceptance_probability)
+    condition = is_finite_delta_w & (
+        (delta_w <= 0) | (sampled_prob < acceptance_probability)
+    )
     accepted = condition & (volume_new > 0)
 
     new_accepted_count = barostat_state.num_accepted + jnp.where(accepted, 1, 0)
@@ -256,7 +292,7 @@ def accept_volume_change(
     )
     new_attempted_tune = barostat_state.num_attempted_since_tune + 1
 
-    barostat_state_new = dataclasses.replace(
+    barostat_state_new = jax_md_dataclasses.replace(
         barostat_state,
         num_accepted=new_accepted_count,
         num_attempted=new_attempted_count,
@@ -304,7 +340,7 @@ def tune_barostat(
         # Cap at fraction of total volume
         new_max_v = jnp.minimum(new_max_v, volume_old * TUNE_MAX_DELTA_VOLUME_FRACTION)
 
-        return dataclasses.replace(
+        return jax_md_dataclasses.replace(
             bs,
             max_delta_volume=new_max_v,
             num_accepted_since_tune=0,

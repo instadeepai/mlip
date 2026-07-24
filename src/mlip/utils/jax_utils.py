@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+import contextlib
+
 import e3nn_jax as e3nn
 import jax
 import jax.numpy as jnp
@@ -20,6 +22,20 @@ import jax.numpy as jnp
 
 class TupleLeaf(tuple):
     """A tuple that is considered a leaf in a JAX pytree."""
+
+
+def high_precision_matmul_context() -> contextlib.AbstractContextManager:
+    """Context manager forcing float32 matmul precision on TPU.
+
+    TPU matmul defaults to a lower-precision algorithm (bfloat16) than GPU/CPU.
+    This context manager forces float32 precision to maintain high-precision energy.
+
+    Returns:
+        A context manager to wrap high-precision energy computations with.
+    """
+    if jax.default_backend() == "tpu":
+        return jax.default_matmul_precision("float32")
+    return contextlib.nullcontext()
 
 
 def _deterministic_segment_sum(
@@ -53,7 +69,10 @@ def _deterministic_segment_sum(
 
     # Create one-hot matrix encoding the segment indices
     mask = jax.nn.one_hot(segment_ids, num_segments, dtype=data.dtype)
-    flat_result = jnp.dot(mask.T, flat_data)
+
+    # Mask nans then matmul
+    safe_flat_data = jnp.where(jnp.isfinite(flat_data), flat_data, 0.0)
+    flat_result = jnp.dot(mask.T, safe_flat_data)
 
     # Reshape back to original structure: (Segments, F1, F2...)
     output_shape = (num_segments,) + input_shape[1:]

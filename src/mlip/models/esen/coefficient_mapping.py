@@ -38,6 +38,17 @@ class CoefficientMapping:
         self.l_max = int(l_max)
         self.m_max = int(m_max)
 
+        # Full, untruncated basis: for each l, m ranges over -l..l.
+        l_full_list = []
+        m_abs_full_list = []
+        for l_number in range(self.l_max + 1):
+            m_full = np.arange(-l_number, l_number + 1, dtype=np.int64)
+            m_abs_full_list.append(np.abs(m_full))
+            l_full_list.append(np.full_like(m_full, l_number, dtype=np.int64))
+
+        self.l_harmonic_full_np = np.concatenate(l_full_list, axis=0)
+        self.m_harmonic_full_np = np.concatenate(m_abs_full_list, axis=0)
+
         l_list = []
         m_abs_list = []
         m_complex_list = []
@@ -106,9 +117,8 @@ class CoefficientMapping:
         return idx_r, idx_i
 
     def _build_coefficient_idx_cache(self):
-
-        l_h = self.l_harmonic_np
-        m_h = self.m_harmonic_np
+        l_h = self.l_harmonic_full_np
+        m_h = self.m_harmonic_full_np
 
         cache_rows: List[Tuple[np.ndarray, ...]] = []
         for l_number in range(self.l_max + 1):
@@ -153,6 +163,14 @@ class CoefficientMapping:
         return jnp.array(self.m_harmonic_np, dtype=jnp.int32)
 
     @property
+    def l_harmonic_full(self) -> jnp.ndarray:
+        return jnp.array(self.l_harmonic_full_np, dtype=jnp.int32)
+
+    @property
+    def m_harmonic_full(self) -> jnp.ndarray:
+        return jnp.array(self.m_harmonic_full_np, dtype=jnp.int32)
+
+    @property
     def m_complex(self) -> jnp.ndarray:
         return jnp.array(self.m_complex_np, dtype=jnp.int32)
 
@@ -165,14 +183,23 @@ class CoefficientMapping:
         return self.m_size_np.tolist()
 
     def coefficient_idx(self, l_max: int, m_max: int) -> jnp.ndarray:
-        if l_max <= self.l_max and m_max <= self.l_max:
+        """Indices selecting (l, m) rows from the full, uncontracted basis.
+
+        The full basis is the one used by the raw Wigner-D matrices (m in [-l, l]).
+        """
+        if l_max > self.l_max:
+            raise ValueError(
+                f"l_max={l_max} exceeds this CoefficientMapping's l_max={self.l_max}."
+            )
+        if m_max <= self.l_max:
             idx_np = self._coefficient_idx_cache[l_max][m_max]
             return jnp.array(idx_np, dtype=jnp.int32)
         else:
-            l_h = self.l_harmonic
-            m_h = self.m_harmonic
+            l_h = self.l_harmonic_full
+            m_h = self.m_harmonic_full
             mask = jnp.logical_and(l_h <= l_max, m_h <= m_max)
-            return jnp.nonzero(mask, size=self.res_size, fill_value=0)[0]
+            full_size = int(self.l_harmonic_full_np.shape[0])
+            return jnp.nonzero(mask, size=full_size, fill_value=0)[0]
 
     def rotate_inv_rescale(self, l_number: int, m: int) -> jnp.ndarray:
         block_np = self._rotate_inv_rescale.get((l_number, m), None)

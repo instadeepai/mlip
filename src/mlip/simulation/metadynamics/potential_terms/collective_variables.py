@@ -238,9 +238,9 @@ class DihedralCV(CollectiveVariable):
         positions_k = positions[self._config.atom_indices[2]]
         positions_l = positions[self._config.atom_indices[3]]
 
-        bond_ij = positions_j - positions_i
-        bond_jk = positions_k - positions_j
-        bond_kl = positions_l - positions_k
+        bond_ij = self._compute_vector(graph, positions_j, positions_i).squeeze(0)
+        bond_jk = self._compute_vector(graph, positions_k, positions_j).squeeze(0)
+        bond_kl = self._compute_vector(graph, positions_l, positions_k).squeeze(0)
         normal_ijk = jnp.cross(bond_ij, bond_jk)
         normal_jkl = jnp.cross(bond_jk, bond_kl)
         bond_jk_unit = bond_jk / safe_sqrt(jnp.sum(bond_jk**2))
@@ -305,7 +305,8 @@ class CoordinationNumberCVConfig(CollectiveVariableConfig):
     def resolve(self, atoms: Atoms) -> "CoordinationNumberCVConfig":
         """Populate `neighbor_indices` using `atoms`."""
         target_z = ase_data.atomic_numbers[self.element]
-        indices = jnp.array(np.where(atoms.numbers == target_z)[0])
+        indices = np.where(atoms.numbers == target_z)[0]
+        indices = jnp.array(indices[indices != self.central_idx])
         return self.model_copy(update={"neighbor_indices": indices})
 
     def build_cv(self) -> "CoordinationNumberCV":

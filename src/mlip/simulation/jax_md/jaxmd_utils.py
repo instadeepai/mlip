@@ -43,6 +43,15 @@ from jax_md.simulate import (
 from mlip.simulation.jax_md.auxiliary_properties import AuxiliaryProperties
 
 
+def _make_per_system_shifts(shift_fn, box_list):
+    """Create per-system shift function closures from a list of boxes."""
+
+    def _make(b):
+        return lambda r, dR, **kw: shift_fn(r, dR, box=b, **kw)
+
+    return [_make(b) for b in box_list]
+
+
 @dataclasses.dataclass
 class _NVTLangevinState:
     """Overriding to use `tree_map` in `velocity` property."""
@@ -120,7 +129,7 @@ def _stochastic_step(state, dt, kT, gamma):
     return state.set(momentum=new_momentum, rng=new_key)
 
 
-def batched_nvt_langevin(force_fn, shift_fn, dt, kT, gamma=0.1):
+def batched_nvt_langevin(force_fn, shift_fn, dt, kT, gamma=0.1, initial_box=None):
     """Copy of `jax_md.simulate.nvt_langevin` using tree-map to enable batched sims.
 
     Exact copy of original method, with these changes:
@@ -135,6 +144,11 @@ def batched_nvt_langevin(force_fn, shift_fn, dt, kT, gamma=0.1):
     https://jax-md.readthedocs.io/en/main/jax_md.simulate.html#jax_md.simulate.nvt_langevin
     for the documentation of the original function.
     """
+
+    if isinstance(initial_box, list):
+        _initial_shift_fns = _make_per_system_shifts(shift_fn, initial_box)
+    else:
+        _initial_shift_fns = shift_fn
 
     @jit
     def init_fn(key, R, mass=f32(1.0), **kwargs):
@@ -156,13 +170,25 @@ def batched_nvt_langevin(force_fn, shift_fn, dt, kT, gamma=0.1):
         _kT = kwargs.pop("kT", kT)
         dt_2 = _dt / 2
 
+        _box = kwargs.pop("box", None)
+        if isinstance(_box, list):
+            _shift_fns = _make_per_system_shifts(shift_fn, _box)
+        else:
+            if _box is not None:
+                kwargs["box"] = _box
+            _shift_fns = _initial_shift_fns
+
         state = momentum_step(state, dt_2)
-        state = position_step(state, shift_fn, dt_2, **kwargs)
+        state = position_step(state, _shift_fns, dt_2, **kwargs)
 
         # This is the only modified line:
         state = _stochastic_step(state, _dt, _kT, gamma)
 
-        state = position_step(state, shift_fn, dt_2, **kwargs)
+        state = position_step(state, _shift_fns, dt_2, **kwargs)
+
+        # Restore box for force_fn
+        if isinstance(_box, list):
+            kwargs["box"] = _box
         force, aux_prop = force_fn(state.position, **kwargs)
         state = state.set(force=force, aux_properties=aux_prop)
         state = momentum_step(state, dt_2)
@@ -196,7 +222,9 @@ def _velocity_verlet(
     return state
 
 
-def batched_nve_velocity_verlet(force_fn, shift_fn, dt=1e-3, **sim_kwargs):
+def batched_nve_velocity_verlet(
+    force_fn, shift_fn, dt=1e-3, initial_box=None, **sim_kwargs
+):
     """Copy of `jax_md.simulate.nve` using tree-map to enable batched sims.
 
     Exact copy of original method, with these changes:
@@ -212,6 +240,11 @@ def batched_nve_velocity_verlet(force_fn, shift_fn, dt=1e-3, **sim_kwargs):
     for the documentation of the original function.
     """
 
+    if isinstance(initial_box, list):
+        _initial_shift_fns = _make_per_system_shifts(shift_fn, initial_box)
+    else:
+        _initial_shift_fns = shift_fn
+
     @jit
     def init_fn(key, R, kT, mass=f32(1.0), **kwargs):
         force, aux_prop = force_fn(R, **kwargs)
@@ -226,6 +259,14 @@ def batched_nve_velocity_verlet(force_fn, shift_fn, dt=1e-3, **sim_kwargs):
         # Remove `kT`: passed by the engine but not used by `velocity_verlet`.
         kwargs.pop("kT", None)
 
-        return _velocity_verlet(force_fn, shift_fn, _dt, state, **kwargs)
+        _box = kwargs.pop("box", None)
+        if isinstance(_box, list):
+            _shift_fns = _make_per_system_shifts(shift_fn, _box)
+        else:
+            if _box is not None:
+                kwargs["box"] = _box
+            _shift_fns = _initial_shift_fns
+
+        return _velocity_verlet(force_fn, _shift_fns, _dt, state, **kwargs)
 
     return init_fn, step_fn

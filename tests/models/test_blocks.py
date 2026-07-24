@@ -17,7 +17,11 @@ import jax.numpy as jnp
 import pytest
 
 from mlip.data.dataset_info import DatasetInfo
-from mlip.graph.batching_helpers import batch_graphs, pad_with_graphs
+from mlip.graph.batching_helpers import (
+    batch_graphs,
+    homogenize_graph_fields,
+    pad_with_graphs,
+)
 from mlip.models.blocks import (
     PERIODIC_TABLE_SIZE,
     SPECIES_PLACEHOLDER,
@@ -164,7 +168,7 @@ def test_atomic_energies_block_multi_dataset_batched(
     graph_b = graph_b.update_node_features(energy=jnp.zeros(n_b))
     graph_b = graph_b.replace_globals(dataset_idx=jnp.array([1]))
 
-    batched = batch_graphs([graph_a, graph_b])
+    batched = batch_graphs(homogenize_graph_fields([graph_a, graph_b]))
     result = AtomicEnergiesBlock(ds_info).apply({}, batched).nodes.features["energy"]
 
     # First n_a nodes should use map 0, next n_b nodes should use map 1

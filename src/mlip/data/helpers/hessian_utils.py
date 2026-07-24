@@ -66,6 +66,12 @@ def pad_systems_hessians(systems: list[ChemicalSystem]) -> list[ChemicalSystem]:
     """Pad the Hessian of each system in the given systems list to `(n,3,N,3)`,
     where `n` is the number of atoms in the system, and `N` is the number of atoms
     in the largest system in the list.
+
+    Args:
+        systems: List of chemical systems with Hessian labels of shape `(n,3,n,3)`.
+
+    Returns:
+        List of chemical systems with Hessian labels padded to shape `(n,3,N,3)`.
     """
     max_system_size = (
         max(system.positions.shape[0] for system in systems) if systems else 0
@@ -221,6 +227,23 @@ def process_graph_hessian(
     return batched_graph
 
 
+def skip_graph_hessian(graph: Graph) -> Graph:
+    """Returns a graph that has `sample_hessian_rows=np.array(False)`
+    in the globals, causing the predictor to skip Hessian prediction
+    for this graph.
+
+    Required for Hessian training when interleaving Hessian-labeled
+    and non-Hessian batches.
+
+    Args:
+        graph: A graph for which Hessian prediction should be skipped.
+
+    Returns:
+        The graph with `sample_hessian_rows=np.array(False)` in the globals.
+    """
+    return graph.replace_globals(sample_hessian_rows=np.array(False))
+
+
 def get_hessian_processing_functions() -> tuple[
     SystemsPreprocessingFunction, GraphPostProcessingFunction
 ]:
@@ -240,22 +263,48 @@ def get_hessian_processing_functions() -> tuple[
     return pad_systems_hessians, process_graph_hessian
 
 
-def request_all_hessian_rows_batched(batched_graph: Graph) -> Graph:
-    """Set `sample_hessian_rows` to request the full Hessian for all graphs in a batch.
+# NOTE: For this function to be compiled, `max_n_atoms` aka `max_system_size`
+#       should be passed as a separate arg. Half-way done since n_node.max()
+#       may change at every batch yielding significant compilation overhead.
+#
+#       In the future, we could include this logic by computing R = 3M basis
+#       vectors, each B-hot, and backpropagating B force cotangents at a time
+#       from the predictor's iterative Hessian computation.
+#
+#       For XLA compilation, we'd have to store `M = max_n_atoms` in the graph itself,
+#       just to enable this advanced feature. Otherwise, we can just recommend using
+#       B=1 which is very likely just as fast (one Hessian saturates the GPU).
+
+
+def request_full_direct_hessian(graph: Graph) -> Graph:
+    """Request direct Hessian computation for a (potentially batched) graph.
+
+    Important: if a Hessian calculation is performed on a normal graph, it will be
+    executed iteratively, however, with this function, one can request a direct
+    Hessian computation.
+
+    Sets the `sample_hessian_rows` field on the graph.
 
     Rather than jacrev operating on `total_padded_nodes*3` independent outputs, this
     mimics the subsampled-rows path used in `HessianPredictor`, such that jacrev
-    differentiates `max_n_atoms*3` summed outputs instead, requiring less memory.
+    differentiates `max_n_atoms * 3` summed outputs instead, requiring less memory.
 
-    R = max(n_atoms_per_graph) * 3. For graphs with fewer atoms, the extra row slots
+    `R = max(n_atoms_per_graph) * 3`. For graphs with fewer atoms, the extra row slots
     are redirected to a padding graph, so they contribute nothing to the Jacobian sum.
 
     Hessians computed with this setting of `sample_hessian_rows` will be of shape
-    (total_nodes, R, 3).
+    `(total_nodes, R, 3)`.
+
+    Args:
+        graph: The graph for which to set that direct Hessian computation of the
+               full graph is requested.
+
+    Returns:
+        The updated graph.
     """
-    padding_mask = batched_graph.graph_mask()
-    batch_size = batched_graph.num_graphs
-    n_node = batched_graph.n_node[padding_mask]
+    padding_mask = graph.graph_mask()
+    batch_size = graph.num_graphs
+    n_node = graph.n_node[padding_mask]
 
     R = int(n_node.max()) * 3
     graph_starts_3 = np.concatenate([[0], np.cumsum(n_node[:-1])]) * 3
@@ -270,25 +319,42 @@ def request_all_hessian_rows_batched(batched_graph: Graph) -> Graph:
     # Pad to (batch_size, R) to include a slot for the padding graph
     sampled_rows = np.pad(sampled_rows, ((0, batch_size - len(n_node)), (0, 0)))
 
-    return batched_graph.replace_globals(sample_hessian_rows=jnp.array(sampled_rows))
+    return graph.replace_globals(sample_hessian_rows=jnp.array(sampled_rows))
 
 
 def single_graph_hessian_from_subsampled_batch(
-    batch_hessian: Array, system_start: int, system_end: int
+    batch_hessian: Array, start_idx: int, end_idx: int
 ) -> Array:
-    """Retrieve a single graph's Hessian from the subsampled-rows batch output.
-
-    After `request_all_hessian_rows_batched`, `nodes.hessian` has shape
+    """Retrieve a single graph's Hessian from the subsampled-rows batch output. Used
+    when the `HessianPredictor` calculates Hessian matrices using the row-summing tirck
+    (with `request_full_direct_hessian`), in which case `nodes.hessian` has shape
     (total_nodes, R, 3). We extract the per-system (n_atoms, 3, n_atoms, 3) Hessian.
     """
-    n_atoms = system_end - system_start
+    n_atoms = end_idx - start_idx
 
     # (n_atoms, n_atoms*3, 3): local[col_i, r, col_j] = H_g[r//3, r%3, col_i, col_j]
     # Rows beyond n_atoms*3 are zero (padding forces) and are excluded with :n_atoms*3
-    local = batch_hessian[system_start:system_end, : n_atoms * 3]
+    local = batch_hessian[start_idx:end_idx, : n_atoms * 3]
 
     # Split R=n_atoms*3 -> (n_atoms, 3): axes become (col_i, row_i, row_j, col_j)
     local = local.reshape(n_atoms, n_atoms, 3, 3)
 
     # Transpose to (row_i, row_j, col_i, col_j)
     return local.transpose(1, 2, 0, 3)
+
+
+def single_graph_hessian_from_batch(
+    batch_hessian: Array, start_idx: int, end_idx: int
+) -> Array:
+    """Retrieve the Hessian of a single graph from the batched graph Hessian.
+    Used when the `HessianPredictor` calculates Hessian matrices iteratively (default),
+    in which case, `nodes.hessian` has shape (total_nodes, 3, total_nodes, 3).
+    We extract the per-system (n_atoms, 3, n_atoms, 3) Hessian.
+    """
+    graph_hessian = batch_hessian[
+        start_idx:end_idx,
+        :,
+        start_idx:end_idx,
+        :,
+    ]
+    return graph_hessian

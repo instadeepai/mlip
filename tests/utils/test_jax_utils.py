@@ -59,9 +59,7 @@ def test_segment_sum_compiles_with_static_deterministic(
 
 @pytest.mark.parametrize("deterministic", [True, False])
 def test_segment_sum_matches_baseline(segment_sum_inputs, deterministic):
-    """
-    Verifies _deterministic_segment_sum gives the same values as jax.ops.segment_sum.
-    """
+    """Test deterministic segment_sum gives the same values as jax.ops.segment_sum."""
     data, segment_ids, num_segments = segment_sum_inputs
 
     expected = jax.ops.segment_sum(data, segment_ids, num_segments=num_segments)
@@ -70,10 +68,21 @@ def test_segment_sum_matches_baseline(segment_sum_inputs, deterministic):
     np.testing.assert_allclose(actual, expected, atol=1e-5, rtol=1e-5)
 
 
+def test_deterministic_segment_sum_does_not_leak_nans():
+    """Test for NaN-leakage in the deterministic path."""
+    data = jnp.array([1.0, 2.0, 3.0, jnp.nan])
+    segment_ids = jnp.array([0, 0, 0, 1])
+
+    standard = segment_sum(data, segment_ids, num_segments=2, deterministic=False)
+    deterministic = segment_sum(data, segment_ids, num_segments=2, deterministic=True)
+
+    assert jnp.isfinite(standard[0])
+    assert jnp.isfinite(deterministic[0])
+    np.testing.assert_allclose(deterministic[0], standard[0])
+
+
 def test_segment_sum_high_dimensional_inputs(key):
-    """
-    Verifies that the segment_sum function handles high-dimensional tensors.
-    """
+    """Test that the segment_sum function handles high-dimensional tensors."""
     data = jax.random.normal(key, (100, 8, 4))
     segment_ids = jnp.sort(jax.random.randint(key, (100,), 0, 10))
     num_segments = 10

@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mlip.simulation.metadynamics.potential_terms.bias import (
-    BiasPotential,
-    BiasPotential1D,
-    BiasPotential2D,
-)
+from mlip.simulation.metadynamics.potential_terms.bias import BiasPotential
 from mlip.simulation.metadynamics.potential_terms.collective_variables import (
     AngleCVConfig,
     CollectiveVariableConfig,

@@ -117,7 +117,7 @@ class ConservativePredictor(ForceFieldPredictor):
             return jnp.zeros_like(pseudo_stress)
 
         det = jnp.linalg.det(graph.globals.cell)[:, None, None]  # [n_graphs, 1, 1]
-        det = jnp.where(det > 0.0, det, 1.0)  # Note: Dummy graphs have det = 0.
+        det = jnp.where(det != 0.0, det, 1.0)  # Note: Dummy graphs have det = 0.
 
         # Stress as defined in the CHGNet paper and MPtrj dataset.
         # See [https://arxiv.org/pdf/2302.14231, eq. (6)]

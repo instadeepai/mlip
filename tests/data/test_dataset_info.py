@@ -162,3 +162,24 @@ class TestCheckCompatibilityOfDsInfo:
         )
         with pytest.raises(ValueError, match="inconsistent cutoff"):
             check_compatibility_of_ds_info(config, info)
+
+    def test_matching_long_range_cutoff_no_error(self):
+        config = GraphDatasetBuilderConfig(
+            graph_cutoff_angstrom=5.0, long_range_cutoff_angstrom=6.0
+        )
+        info = DatasetInfo(
+            atomic_energies_map={1: -1.0},
+            graph_cutoff_angstrom=5.0,
+            long_range_cutoff_angstrom=6.0,
+        )
+        check_compatibility_of_ds_info(config, info)
+
+    def test_mismatching_long_range_cutoff_raises(self):
+        config = GraphDatasetBuilderConfig(graph_cutoff_angstrom=5.0)
+        info = DatasetInfo(
+            atomic_energies_map={1: -1.0},
+            graph_cutoff_angstrom=5.0,
+            long_range_cutoff_angstrom=6.0,
+        )
+        with pytest.raises(ValueError, match="inconsistent long range cutoff"):
+            check_compatibility_of_ds_info(config, info)

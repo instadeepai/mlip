@@ -38,6 +38,7 @@ from mlip.simulation.state import SimulationState
 from mlip.simulation.temperature_scheduling import get_temperature_schedule
 from mlip.simulation.utils import (
     has_simulation_exploded,
+    resolve_atoms_cell,
     resolve_atoms_charge_for_model,
 )
 
@@ -83,7 +84,7 @@ class ASESimulationEngine(SimulationEngine):
         self._config = config
         self.atoms = atoms
         self.atoms.center()
-        self._init_box()
+        self.atoms = resolve_atoms_cell(self.atoms, self._config.box)
         self.atoms = resolve_atoms_charge_for_model(
             self.atoms, force_field, self._config.set_none_charge_to_zero
         )
@@ -108,26 +109,6 @@ class ASESimulationEngine(SimulationEngine):
         )
 
         logger.debug("Initialization of simulation completed.")
-
-    def _init_box(self) -> None:
-        """Update the PBC parameters of the underlying `ase.Atoms`"""
-        # Pass if atoms already have PBC and cell, best source of truth
-        if np.any(self.atoms.cell) or np.any(self.atoms.pbc):
-            logger.warning(
-                "Ignoring `box` parameter as `atoms` already has PBC configured."
-            )
-            return
-        # Support cubic periodic box from config for Jax-MD consistency.
-        # To be discouraged once both engines support arbitrary lattices.
-        if isinstance(self._config.box, float):
-            self.atoms.cell = np.eye(3) * self._config.box
-            self.atoms.pbc = True
-        elif isinstance(self._config.box, list):
-            self.atoms.cell = np.diag(np.array(self._config.box))
-            self.atoms.pbc = True
-        else:
-            self.atoms.cell = None
-            self.atoms.pbc = False
 
     def _setup_montecarlo_barostat(self, dyn: Langevin) -> ASEMonteCarloBarostat:
         """Setup the MonteCarloBarostat for `NPT_MC_LANGEVIN` simulations."""
@@ -229,9 +210,6 @@ class ASESimulationEngine(SimulationEngine):
         dyn.attach(update_state, interval=self._config.log_interval)
         dyn.attach(log_to_console, interval=self._config.log_interval)
         dyn.attach(self._call_loggers, interval=self._config.log_interval)
-        # Every self._config.log_interval steps, we log. At the end of this logging, we
-        # set the beginning of this new interval in order to calculate total compute
-        # time
 
         if (
             self.is_md_simulation

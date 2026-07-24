@@ -97,6 +97,18 @@ class ChemicalSystem(pydantic.BaseModel):
         if self.forces is not None and self.forces.shape != (num_nodes, 3):
             raise ValueError("Forces have incompatible shape.")
 
+        if self.partial_charges is not None and self.partial_charges.shape != (
+            num_nodes,
+        ):
+            raise ValueError("Partial charges have incompatible shape.")
+
+        if self.dipole_moment is not None and self.dipole_moment.shape != (3,):
+            raise ValueError("Dipole moment has incompatible shape.")
+
+        expected_hessian_shape = (num_nodes, 3, num_nodes, 3)
+        if self.hessian is not None and self.hessian.shape != expected_hessian_shape:
+            raise ValueError("Hessian has incompatible shape.")
+
         return self
 
     @pydantic.field_validator("cell")

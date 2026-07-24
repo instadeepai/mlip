@@ -39,7 +39,10 @@ parts of a complete MLIP pipeline:
 * ``simulation``: Code related to running MD simulations, energy minimizations, or
   nudged elastic band transition state searches with
   MLIP models. We support the `JAX-MD <https://jax-md.readthedocs.io/>`_
-  and `ASE <https://wiki.fysik.dtu.dk/ase/>`_ backends.
+  and `ASE <https://wiki.fysik.dtu.dk/ase/>`_ backends. Furthermore, code related to
+  running enhanced sampling MD simulations. We support Metadynamics and
+  Free Energy Perturbation simulations via the
+  `JAX-MD <https://jax-md.readthedocs.io/>`_ backend.
 
 * ``inference``: Code related to running batched inference.
   See :ref:`this <batched_inference>` section for more information.
@@ -78,7 +81,9 @@ deep-dive tutorials :ref:`below <tutorials>` to help you with getting onboarded 
 * `Addition of new models <https://github.com/instadeepai/mlip/blob/main/tutorials/model_addition_tutorial.ipynb>`_
 * `Training on Hessian labels <https://github.com/instadeepai/mlip/blob/main/tutorials/hessian_model_training_tutorial.ipynb>`_
 * `Advanced simulation <https://github.com/instadeepai/mlip/blob/main/tutorials/advanced_simulation_tutorial.ipynb>`_
-* `Metadynamics <https://github.com/instadeepai/mlip/blob/main/tutorials/metadynamics_tutorial.ipynb>`_
+* `Metadynamics simulation <https://github.com/instadeepai/mlip/blob/main/tutorials/metadynamics_tutorial.ipynb>`_
+* `FEP simulation <https://github.com/instadeepai/mlip/blob/main/tutorials/fep_tutorial.ipynb>`_
+
 
 To run the tutorials, install Jupyter notebooks via pip and launch it from
 a directory that contains the notebooks:
@@ -106,4 +111,5 @@ tasks supported by the library.
    training
    inference
    simulations
+   enhanced_sampling
    finetuning

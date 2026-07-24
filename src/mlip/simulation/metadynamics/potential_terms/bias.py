@@ -33,86 +33,42 @@ def _cv_difference(s: Array, centers: Array, periodic: bool) -> Array:
 
 
 class BiasPotential:
-    """Base class for a metadynamics Gaussian-hill bias potential."""
-
-    def __call__(self, graph: Graph) -> Array:
-        """Return the total bias potential energy (eV) for the given graph."""
-        raise NotImplementedError
-
-    def compute_cvs(self, graph: Graph) -> Array:
-        """Return the current CV values as a 1-D array of shape `(num_cvs,)`."""
-        raise NotImplementedError
-
-
-class BiasPotential1D(BiasPotential):
-    """One-dimensional Gaussian-hill bias for a single collective variable.
+    """N-dimensional Gaussian-hill bias potential over one or more collective variables.
 
     Attributes:
-        cv: The collective variable defining the bias coordinate.
-        sigma: Gaussian hill width along the CV axis.
+        cvs: The collective variables defining the bias coordinates.
+        sigmas: Gaussian hill width along each CV axis, same order as `cvs`.
     """
 
-    def __init__(self, collective_variable: CollectiveVariable, sigma: float):
-        self.cv = collective_variable
-        self.sigma = sigma
+    def __init__(
+        self, collective_variables: list[CollectiveVariable], sigmas: list[float]
+    ):
+        if len(collective_variables) != len(sigmas):
+            raise ValueError("Must provide the same number of CVs and sigmas.")
+        if len(collective_variables) == 0:
+            raise ValueError("At least one collective variable must be provided.")
+        self.cvs = collective_variables
+        self.sigmas = jnp.asarray(sigmas)
 
     def __call__(self, graph: Graph) -> Array:
-        """Return V_bias(s) = Σ_k h_k · exp(-d(s1,c1_k)² / 2σ²)"""
-        cv_value = self.cv(graph)
+        """Return V_bias(s) = Σ_k h_k · exp(-Σ_i d(s_i,c_i_k)² / 2σ_i²)."""
+        cv_values = self.compute_cvs(graph)
 
-        gaussian_centers = graph.globals.features["gaussian_centers"][:, 0]
+        gaussian_centers = graph.globals.features["gaussian_centers"]
         gaussian_heights = graph.globals.features["gaussian_heights"]
         num_gaussians = graph.globals.features["num_gaussians"]
 
         mask = jnp.arange(gaussian_centers.shape[0]) < num_gaussians
-        delta = _cv_difference(cv_value, gaussian_centers, self.cv.periodic)
-        gaussians = gaussian_heights * jnp.exp(-(delta**2) / (2 * self.sigma**2))
+        deltas = [
+            _cv_difference(cv_values[i], gaussian_centers[:, i], self.cvs[i].periodic)
+            for i in range(len(self.cvs))
+        ]
+        deltas = jnp.stack(deltas, axis=-1)
+
+        exponent = -0.5 * jnp.sum((deltas / self.sigmas) ** 2, axis=-1)
+        gaussians = gaussian_heights * jnp.exp(exponent)
         return jnp.sum(jnp.where(mask, gaussians, 0.0))
 
     def compute_cvs(self, graph: Graph) -> Array:
-        return jnp.array([self.cv(graph)])
-
-
-class BiasPotential2D(BiasPotential):
-    """Two-dimensional Gaussian-hill bias for a pair of collective variables.
-
-    Attributes:
-        cv_1: The first collective variable.
-        cv_2: The second collective variable.
-        sigma_1: Gaussian hill width along the first CV axis.
-        sigma_2: Gaussian hill width along the second CV axis.
-    """
-
-    def __init__(
-        self,
-        collective_variable_1: CollectiveVariable,
-        collective_variable_2: CollectiveVariable,
-        sigma_1: float,
-        sigma_2: float,
-    ):
-        self.cv_1 = collective_variable_1
-        self.cv_2 = collective_variable_2
-        self.sigma_1 = sigma_1
-        self.sigma_2 = sigma_2
-
-    def __call__(self, graph: Graph) -> Array:
-        """Return V_bias(s1,s2) = Σ_k h_k exp(-d(s1,c1_k)²/2σ1² - d(s2,c2_k)²/2σ2²)."""
-        s1 = self.cv_1(graph)
-        s2 = self.cv_2(graph)
-
-        gaussian_centers = graph.globals.features["gaussian_centers"]
-        centers_1 = gaussian_centers[:, 0]
-        centers_2 = gaussian_centers[:, 1]
-        heights = graph.globals.features["gaussian_heights"]
-        num_gaussians = graph.globals.features["num_gaussians"]
-
-        mask = jnp.arange(centers_1.shape[0]) < num_gaussians
-        delta_1 = _cv_difference(s1, centers_1, self.cv_1.periodic)
-        delta_2 = _cv_difference(s2, centers_2, self.cv_2.periodic)
-        gaussians = heights * jnp.exp(
-            -(delta_1**2) / (2 * self.sigma_1**2) - (delta_2**2) / (2 * self.sigma_2**2)
-        )
-        return jnp.sum(jnp.where(mask, gaussians, 0.0))
-
-    def compute_cvs(self, graph: Graph) -> Array:
-        return jnp.array([self.cv_1(graph), self.cv_2(graph)])
+        """Return the current CV values as a 1-D array of shape `(num_cvs,)`."""
+        return jnp.array([cv(graph) for cv in self.cvs])

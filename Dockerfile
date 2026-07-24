@@ -12,7 +12,8 @@ RUN wget https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tuto
          https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/advanced_simulation_tutorial.ipynb \
          https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/moe_training_and_inference_tutorial.ipynb \
          https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/hessian_model_training_tutorial.ipynb \
-         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/metadynamics_tutorial.ipynb
+         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/metadynamics_tutorial.ipynb \
+         https://raw.githubusercontent.com/instadeepai/mlip/refs/heads/main/tutorials/fep_tutorial.ipynb
 
 EXPOSE 8888
 

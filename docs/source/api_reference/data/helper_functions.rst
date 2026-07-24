@@ -24,11 +24,3 @@ Helper functions
     .. autofunction:: compute_avg_num_neighbors
 
     .. autofunction:: compute_avg_min_neighbor_distance
-
-.. module:: mlip.data.helpers.hessian_utils
-
-    .. autofunction:: get_hessian_processing_functions
-
-    .. autofunction:: pad_systems_hessians
-
-    .. autofunction:: process_graph_hessian

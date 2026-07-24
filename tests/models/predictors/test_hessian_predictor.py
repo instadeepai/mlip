@@ -20,6 +20,9 @@ from mlip.data.helpers.dynamically_batch import dynamically_batch
 from mlip.data.helpers.hessian_utils import (
     _concat_hessian_rows,  # noqa
     _sample_hessian_rows,  # noqa
+    request_full_direct_hessian,
+    single_graph_hessian_from_batch,
+    single_graph_hessian_from_subsampled_batch,
 )
 
 # fmt: off
@@ -46,10 +49,7 @@ EXPECTED_QUADRATIC_MLIP_HESSIAN = np.array([
 # fmt: on
 
 
-@pytest.mark.parametrize(
-    "hessian_rows",
-    [None, np.array(True), np.array([[0, 2]])],  # arbitrary indices
-)
+@pytest.mark.parametrize("hessian_rows", [None, np.array([[0, 2]]), np.array(False)])
 def test_quadratic_mlip_hessian_predictor(
     salt_graph, quadratic_hessian_force_field, hessian_rows
 ):
@@ -68,33 +68,31 @@ def test_quadratic_mlip_hessian_predictor(
     n_real_node = sum(graph.n_node[padding_mask])
 
     hessian = quadratic_hessian_force_field(graph).hessian
-    if hessian_rows is not None:
-        if hessian_rows.ndim == 0:
-            # crop padding nodes
-            hessian = hessian[:n_real_node, :, :n_real_node, :]
-            assert hessian.shape == (n_real_node, 3, n_real_node, 3)
-            np.testing.assert_allclose(
-                EXPECTED_QUADRATIC_MLIP_HESSIAN, hessian, rtol=1e-3
-            )
+    if hessian_rows is None:
+        hessian = hessian[:n_real_node, :, :n_real_node, :]
+        assert hessian.shape == (n_real_node, 3, n_real_node, 3)
+        np.testing.assert_allclose(EXPECTED_QUADRATIC_MLIP_HESSIAN, hessian, rtol=1e-3)
 
-        else:
-            # mimic how Hessians are processed in GraphDataset
-            # [n_rows, n_graph, n_node, 3]
-            n_graph, num_hessian_rows = hessian_rows.shape
-            true_hessian_sample = EXPECTED_QUADRATIC_MLIP_HESSIAN.reshape(
-                n_real_node * 3, n_real_node, 3
-            )[hessian_rows].transpose(1, 0, 2, 3)
+    # Hessian subsample
+    elif isinstance(hessian_rows, np.ndarray) and hessian_rows.ndim > 0:
+        # mimic how Hessians are processed in GraphDataset
+        # [n_rows, n_graph, n_node, 3]
+        n_graph, num_hessian_rows = hessian_rows.shape
+        true_hessian_sample = EXPECTED_QUADRATIC_MLIP_HESSIAN.reshape(
+            n_real_node * 3, n_real_node, 3
+        )[hessian_rows].transpose(1, 0, 2, 3)
 
-            true_hessian_sample = true_hessian_sample.reshape(
-                num_hessian_rows, n_graph * n_real_node, 3
-            ).transpose(1, 0, -1)
+        true_hessian_sample = true_hessian_sample.reshape(
+            num_hessian_rows, n_graph * n_real_node, 3
+        ).transpose(1, 0, -1)
 
-            hessian = hessian[:n_real_node]
+        hessian = hessian[:n_real_node]
 
-            assert hessian.shape == (n_real_node, num_hessian_rows, 3)
-            assert hessian.shape == true_hessian_sample.shape
-            np.testing.assert_allclose(true_hessian_sample, hessian, rtol=1e-3)
+        assert hessian.shape == (n_real_node, num_hessian_rows, 3)
+        assert hessian.shape == true_hessian_sample.shape
+        np.testing.assert_allclose(true_hessian_sample, hessian, rtol=1e-3)
 
+    # Skip Hessian prediction
     else:
         assert hessian is None
 
@@ -115,11 +113,14 @@ def test_hessian_distillation(salt_graph, quadratic_hessian_force_field):
     padding_mask = jraph.get_graph_padding_mask(graph)
     n_real_node = sum(graph.n_node[padding_mask])
 
-    # full Hessian returned when graph.globals.hessian_rows is not None
-    # and graph.globals.hessian_rows.ndims == 0
-    graph = graph.replace_globals(sample_hessian_rows=np.array(True))
     teacher_hessian = quadratic_hessian_force_field(graph).hessian
-    teacher_hessian = teacher_hessian[:n_real_node, :, :n_real_node, :]
+
+    graph_start = 0
+    graph_end = graph.n_node[0]
+    teacher_hessian = single_graph_hessian_from_batch(
+        teacher_hessian, graph_start, graph_end
+    )
+
     assert teacher_hessian.shape == (n_real_node, 3, n_real_node, 3)
 
     # remove padding and reshape to (n_node * 3, max_system_size, 3)
@@ -146,3 +147,38 @@ def test_hessian_distillation(salt_graph, quadratic_hessian_force_field):
     assert student_hessian.shape == (n_real_node, num_hessian_rows, 3)
     assert teacher_hessian_sample.shape == student_hessian.shape
     np.testing.assert_allclose(teacher_hessian_sample, student_hessian, rtol=1e-4)
+
+
+@pytest.mark.parametrize("use_single_graph", [True, False])
+def test_iterative_hessian_matches_full_hessian(
+    salt_graph, quadratic_hessian_force_field, use_single_graph
+):
+    graph = salt_graph
+    if use_single_graph:
+        graph = next(
+            dynamically_batch(
+                [graph],
+                n_node=salt_graph.nodes.positions.shape[0] + 1,
+                n_edge=salt_graph.senders.shape[0] + 1,
+                n_graph=2,
+            )
+        )
+
+    padding_mask = jraph.get_graph_padding_mask(graph)
+    n_real_node = int(sum(graph.n_node[padding_mask]))
+
+    result_iterative = quadratic_hessian_force_field(graph)
+    hessian_iterative = single_graph_hessian_from_batch(
+        result_iterative.hessian, start_idx=0, end_idx=n_real_node
+    )
+
+    # Single pass Hessian via jacrev
+    graph_jacrev = request_full_direct_hessian(graph)
+    result_jacrev = quadratic_hessian_force_field(graph_jacrev)
+    hessian_jacrev = single_graph_hessian_from_subsampled_batch(
+        result_jacrev.hessian, start_idx=0, end_idx=n_real_node
+    )
+
+    assert hessian_iterative.shape == (n_real_node, 3, n_real_node, 3)
+    assert hessian_jacrev.shape == (n_real_node, 3, n_real_node, 3)
+    np.testing.assert_allclose(hessian_iterative, hessian_jacrev, rtol=1e-4)

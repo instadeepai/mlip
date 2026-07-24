@@ -40,8 +40,8 @@ dependencies = [
     "h5py >=3.12.1",
     "tqdm >=4.0",
     "tqdm-loggable >=0.2",
-    "e3j >=0.1.0b3, <0.1.1",
-    "pymatgen-core<=2026.7.16",
+    "e3j >=0.1.0b5, <0.1.1",
+    "pymatgen-core <=2026.7.16",
 ]
 
 [project.optional-dependencies]

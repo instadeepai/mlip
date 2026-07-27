@@ -63,6 +63,11 @@ class ChemicalSystemsReader(abc.ABC):
             self.property_name_mapping = (
                 DEFAULT_PROPERTY_KEY_MAPPING | property_name_mapping
             )
+        # _paths is for streaming dataset, maintaining the order when filepaths
+        # order changes.
+        if not isinstance(filepaths, list):
+            filepaths = [filepaths]
+        self._paths = sorted([Path(p).resolve() for p in filepaths])
 
     @abc.abstractmethod
     def load(self) -> ChemicalSystems:
@@ -95,3 +100,20 @@ class ChemicalSystemsReader(abc.ABC):
             objects.
         """
         pass
+
+
+def readers_metadata(
+    readers: ChemicalSystemsReader | list[ChemicalSystemsReader],
+) -> list[tuple[list[str], int]]:
+    """Readers metadata for cache fingerprinting, including file paths and limit of
+    systems to load."""
+
+    reader_list = readers if isinstance(readers, list) else [readers]
+    metadata: list[tuple[list[str], int]] = []
+
+    for reader in reader_list:
+        metadata.append((
+            [str(p) for p in reader._paths], reader.num_to_load
+        ))
+
+    return metadata

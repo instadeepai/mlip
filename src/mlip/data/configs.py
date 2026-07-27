@@ -18,6 +18,7 @@ from typing_extensions import Annotated
 
 PositiveInt = Annotated[int, pydantic.Field(gt=0)]
 PositiveFloat = Annotated[float, pydantic.Field(gt=0)]
+NonNegativeInt = Annotated[int, pydantic.Field(ge=0)]
 
 
 class GraphDatasetBuilderConfig(pydantic.BaseModel):
@@ -94,6 +95,17 @@ class GraphDatasetBuilderConfig(pydantic.BaseModel):
                     clear error otherwise. Multi-dataset merging typically
                     requires `True` because different subsets may not share
                     the same optional-field presence. Defaults to `False`.
+        keep_in_memory: If `True` (default), all graphs are materialised in memory
+                        before training (legacy behaviour). If `False`, graphs are
+                        created on demand via Grain and packed with dynamic batching,
+                        which is required for large datasets.
+        num_workers: Number of Grain multiprocessing workers used when
+                     ``keep_in_memory=False``. ``0`` means in-process loading.
+                     Default is ``0``.
+        batching_cache_dir: Optional directory (typically the training checkpoint
+            dir) used to cache :class:`~mlip.data.helpers.streaming_scan.BatchingInfo`
+            so repeated runs with the same data paths / batch size skip re-scanning.
+            Default is `None`.
     """
 
     graph_cutoff_angstrom: PositiveFloat = 5.0
@@ -123,3 +135,7 @@ class GraphDatasetBuilderConfig(pydantic.BaseModel):
     set_none_charges_to_zero: bool = False
 
     homogenize: bool = False
+
+    keep_in_memory: bool = True
+    num_workers: NonNegativeInt = 0
+    batching_cache_dir: str | None = None

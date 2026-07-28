@@ -223,7 +223,9 @@ class StreamingGraphDataset:
         )
         if self._worker_count > 0:
             iter_ds = iter_ds.mp_prefetch(
-                grain.MultiprocessingOptions(num_workers=self._worker_count)
+                grain.MultiprocessingOptions(
+                    num_workers=self._worker_count, per_worker_buffer_size=128
+                )
             )
         return iter(iter_ds)
 
@@ -350,7 +352,17 @@ class StreamingGraphDataset:
         """
         if self._num_nodes is not None:
             return self._num_nodes
-        total = 0
-        for graph in self:
-            total += int(graph.node_mask().sum())
-        return total
+
+        logger.warning(
+            "StreamingGraphDataset node count was not precomputed; counting "
+            "by iterating graphs once."
+        )
+        saved_state = self._state
+        self._state = self._state.replace(num_graphs_processed=jnp.int32(0))
+        try:
+            total = 0
+            for batch in self:
+                total += int(batch.node_mask().sum())
+            return total
+        finally:
+            self._state = saved_state

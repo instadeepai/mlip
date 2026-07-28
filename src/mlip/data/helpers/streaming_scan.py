@@ -89,7 +89,9 @@ def scan_chemical_map_dataset(
     )
     if num_workers > 0:
         iter_ds = iter_ds.mp_prefetch(
-            grain.MultiprocessingOptions(num_workers=num_workers)
+            grain.MultiprocessingOptions(
+                num_workers=num_workers, per_worker_buffer_size=128
+            )
         )
 
     preprocessing_fns = list(preprocessing_fns or [])

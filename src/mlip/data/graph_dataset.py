@@ -304,7 +304,4 @@ class GraphDataset:
         Returns:
             The number of nodes in this dataset.
         """
-        total = 0
-        for graph in self:
-            total += graph.node_mask().sum()
-        return total
+        return int(sum(int(graph.n_node.sum()) for graph in self.graphs))

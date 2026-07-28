@@ -33,6 +33,7 @@ from mlip.data.helpers.filtering_utils import (
     filter_systems_by_charges,
     filter_systems_by_elements,
 )
+from mlip.data.streaming_graph_dataset import StreamingGraphDataset
 from mlip.data.helpers.type_aliases import (
     FlatReadersDict,
     GraphPostProcessingFunction,
@@ -156,6 +157,10 @@ class GraphDatasetBuilder:
                 raise ValueError(
                     "MULTI mode with a 'replay' dataset requires a preset dataset_info."
                 )
+            if builder_config.keep_in_memory is False:
+                raise NotImplementedError(
+                    "MULTI mode does not support keep_in_memory=False yet."
+                )
 
     def get_datasets(
         self,
@@ -163,7 +168,7 @@ class GraphDatasetBuilder:
         mesh: jax.sharding.Mesh | None = None,
         systems_preprocessing: list[SystemsPreprocessingFunction] | None = None,
         graph_postprocessing: list[GraphPostProcessingFunction] | None = None,
-    ) -> dict[str, GraphDataset | PrefetchIterator]:
+    ) -> dict[str, GraphDataset | StreamingGraphDataset | PrefetchIterator]:
         """Build all dataset splits according to the configured mode.
 
         Args:
@@ -269,7 +274,7 @@ class GraphDatasetBuilder:
         systems_preprocessing: list[SystemsPreprocessingFunction] | None,
         graph_postprocessing: list[GraphPostProcessingFunction] | None,
         strict_unseen_atoms: bool = False,
-    ) -> tuple[dict[str, GraphDataset], DatasetInfo]:
+    ) -> tuple[dict[str, GraphDataset | StreamingGraphDataset], DatasetInfo]:
         """Build splits where the train split is processed first to obtain
         dataset info, and remaining splits filter out unseen elements.
 
@@ -286,7 +291,7 @@ class GraphDatasetBuilder:
             split name and dataset_info will be the `DatasetInfo` object
             computed for the 'train' split.
         """
-        datasets: dict[str, GraphDataset] = {}
+        datasets: dict[str, GraphDataset | StreamingGraphDataset] = {}
 
         # 1. Process the training split first to obtain dataset info.
         train_key = TRAIN_SPLIT_KEY
@@ -548,7 +553,11 @@ class GraphDatasetBuilder:
         allowed_zs: set[int],
     ) -> None:
         """Raise if any graph contains atoms not in the allowed set."""
+        skipped_streaming_splits: list[str] = []
         for split_name, dataset in datasets.items():
+            if isinstance(dataset, StreamingGraphDataset):
+                skipped_streaming_splits.append(split_name)
+                continue
             for graph in dataset.graphs:
                 graph_zs = set(graph.nodes.atomic_numbers.tolist())
                 unseen = graph_zs - allowed_zs
@@ -558,6 +567,14 @@ class GraphDatasetBuilder:
                         f"numbers {sorted(unseen)} not present in the "
                         f"allowed set (allowed: {sorted(allowed_zs)})."
                     )
+        if skipped_streaming_splits:
+            logger.warning(
+                "Skipping unseen-atom validation for streaming split(s) %s "
+                "(graphs are not materialised). Ensure these splits contain "
+                "only allowed atomic numbers %s yourself.",
+                skipped_streaming_splits,
+                sorted(allowed_zs),
+            )
 
     @staticmethod
     def _validate_no_unseen_total_charges(
@@ -565,7 +582,11 @@ class GraphDatasetBuilder:
         available_total_charges: set[int],
     ) -> None:
         """Raise if any graph contains charge values not in the allowed set."""
+        skipped_streaming_splits: list[str] = []
         for split_name, dataset in datasets.items():
+            if isinstance(dataset, StreamingGraphDataset):
+                skipped_streaming_splits.append(split_name)
+                continue
             for graph in dataset.graphs:
                 if graph.globals.charge is not None:
                     graph_total_charges = set(
@@ -578,6 +599,14 @@ class GraphDatasetBuilder:
                             f"charges {sorted(unseen)} not present in the "
                             f"allowed set (allowed: {sorted(available_total_charges)})."
                         )
+        if skipped_streaming_splits:
+            logger.warning(
+                "Skipping unseen-total-charge validation for streaming "
+                "split(s) %s (graphs are not materialised). Ensure these "
+                "splits contain only allowed total charges %s yourself.",
+                skipped_streaming_splits,
+                sorted(available_total_charges),
+            )
 
     @staticmethod
     def _sum_num_graphs(dataset_infos: list[DatasetInfo]) -> int | None:
@@ -720,8 +749,11 @@ class GraphDatasetBuilder:
         `atomic_energies_removed` field of the dataset info to true.
         Then returns the updated dataset and dataset info again.
         """
-        dataset.graphs = remove_e0s_from_graphs(
-            dataset.graphs, ds_info.atomic_energies_map
-        )
+        if isinstance(dataset, StreamingGraphDataset):
+            dataset = dataset.with_formation_energies(ds_info.atomic_energies_map)
+        else:
+            dataset.graphs = remove_e0s_from_graphs(
+                dataset.graphs, ds_info.atomic_energies_map
+            )
         ds_info = ds_info.model_copy(update={"atomic_energies_removed": True})
         return dataset, ds_info

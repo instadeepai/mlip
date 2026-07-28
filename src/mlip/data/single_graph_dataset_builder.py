@@ -42,6 +42,14 @@ from mlip.data.helpers.filtering_utils import (
     filter_systems_without_partial_charges,
     set_system_none_charges_to_zero,
 )
+from mlip.data.streaming_graph_dataset import StreamingGraphDataset
+from mlip.data.chemical_systems_readers.chemical_systems_dataset import (
+    map_dataset_from_readers,
+    filter_excluded_indices,
+)
+from mlip.data.helpers.streaming_scan import (
+    scan_chemical_map_dataset,
+)
 from mlip.data.helpers.type_aliases import (
     GraphPostProcessingFunction,
     SystemsPreprocessingFunction,
@@ -58,6 +66,10 @@ class SingleGraphDatasetBuilder:
     Handles loading chemical systems, converting them to graphs,
     auto-filling batch dimensions, and optionally computing
     :class:`DatasetInfo`.
+
+    When ``builder_config.keep_in_memory`` is ``False``, returns a
+    :class:`~mlip.data.streaming_graph_dataset.StreamingGraphDataset`
+    that creates graphs on demand via Grain and packs them with dynamic batching.
     """
 
     def __init__(
@@ -169,12 +181,12 @@ class SingleGraphDatasetBuilder:
         mesh: jax.sharding.Mesh | None = None,
         systems_preprocessing: list[SystemsPreprocessingFunction] | None = None,
         graph_postprocessing: list[GraphPostProcessingFunction] | None = None,
-    ) -> GraphDataset | PrefetchIterator:
+    ) -> GraphDataset | StreamingGraphDataset | PrefetchIterator:
         """Build and return the dataset.
 
-        Loads systems, converts to graphs, builds a :class:`GraphDataset`,
-        optionally computes :class:`DatasetInfo`, and wraps in a prefetch
-        iterator if requested.
+        Loads systems, converts to graphs, builds a :class:`GraphDataset`
+        (or a streaming Grain-backed dataset), optionally computes
+        :class:`DatasetInfo`, and wraps in a prefetch iterator if requested.
 
         Args:
             prefetch: Whether to wrap the dataset in a :class:`PrefetchIterator`. By
@@ -187,8 +199,38 @@ class SingleGraphDatasetBuilder:
                 functions passed to :class:`GraphDataset`.
 
         Returns:
-            A :class:`GraphDataset` or :class:`PrefetchIterator`.
+            A :class:`GraphDataset`, :class:`StreamingGraphDataset`, or
+            :class:`PrefetchIterator`.
         """
+        if self._builder_config.keep_in_memory:
+            self._build_dataset(
+                systems_preprocessing=systems_preprocessing,
+                graph_postprocessing=graph_postprocessing,
+            )
+        else:
+            self._build_streaming_dataset(
+                systems_preprocessing=systems_preprocessing,
+                graph_postprocessing=graph_postprocessing,
+            )
+
+        if prefetch:
+            if mesh is None:
+                mesh = create_device_mesh()
+
+            return wrap_dataset_with_prefetch(
+                dataset=self._dataset,
+                mesh=mesh,
+                num_batch_prefetch_host=self._builder_config.num_batch_prefetch_host,
+                num_batch_prefetch_device=self._builder_config.num_batch_prefetch_device,
+            )
+
+        return self._dataset
+
+    def _build_dataset(
+        self,
+        systems_preprocessing: list[SystemsPreprocessingFunction] | None,
+        graph_postprocessing: list[GraphPostProcessingFunction] | None,
+    ):
         self._prepare_graphs(systems_preprocessing=systems_preprocessing)
         max_n_node, max_n_edge, max_n_edge_long_range = (
             self._determine_autofill_batch_dimensions(self._graphs)
@@ -223,18 +265,80 @@ class SingleGraphDatasetBuilder:
                 update={"atomic_energies_removed": True}
             )
 
-        if prefetch:
-            if mesh is None:
-                mesh = create_device_mesh()
-
-            return wrap_dataset_with_prefetch(
-                dataset=self._dataset,
-                mesh=mesh,
-                num_batch_prefetch_host=self._builder_config.num_batch_prefetch_host,
-                num_batch_prefetch_device=self._builder_config.num_batch_prefetch_device,
+    def _build_streaming_dataset(
+        self,
+        systems_preprocessing: list[SystemsPreprocessingFunction] | None,
+        graph_postprocessing: list[GraphPostProcessingFunction] | None,
+    ) -> StreamingGraphDataset | PrefetchIterator:
+        """Build a Grain-backed streaming dataset with dynamic batching."""
+        if self._builder_config.homogenize:
+            raise NotImplementedError(
+                "homogenize=True is not supported with keep_in_memory=False yet."
             )
 
-        return self._dataset
+        all_preprocessing = self._preprocessing_fns_from_config() + list(
+            systems_preprocessing or []
+        )
+        chemical_dataset = map_dataset_from_readers(self._readers)
+
+        # Always scan (or load cache): needed for exclude_ids even when max_n_* are set.
+        batching_info = scan_chemical_map_dataset(
+            chemical_dataset,
+            self._readers,
+            graph_cutoff_angstrom=self._builder_config.graph_cutoff_angstrom,
+            long_range_cutoff_angstrom=self._builder_config.long_range_cutoff_angstrom,
+            preprocessing_fns=all_preprocessing,
+            batch_size=self._builder_config.batch_size,
+            max_n_node=self._builder_config.max_n_node,
+            max_n_edge=self._builder_config.max_n_edge,
+            max_n_edge_long_range=self._builder_config.max_n_edge_long_range,
+            cache_dir=self._builder_config.batching_cache_dir,
+            num_workers=self._builder_config.num_workers,
+        )
+        if self._dataset_info is True:
+            self._dataset_info = batching_info.dataset_info
+            updates: dict[str, float] = {}
+            if self._builder_config.avg_num_neighbors is not None:
+                updates["avg_num_neighbors"] = self._builder_config.avg_num_neighbors
+            if self._builder_config.avg_r_min_angstrom is not None:
+                updates["avg_r_min_angstrom"] = self._builder_config.avg_r_min_angstrom
+            if updates:
+                self._dataset_info = self._dataset_info.model_copy(update=updates)
+
+        chemical_dataset = filter_excluded_indices(
+            chemical_dataset, batching_info.exclude_ids
+        )
+
+        max_n_node = batching_info.max_n_node
+        max_n_edge = batching_info.max_n_edge
+        max_n_edge_long_range = batching_info.max_n_edge_long_range
+
+        atomic_energies_map = None
+        if self._builder_config.use_formation_energies:
+            atomic_energies_map = self._dataset_info.atomic_energies_map
+            self._dataset_info = self._dataset_info.model_copy(
+                update={"atomic_energies_removed": True}
+            )
+
+        self._dataset = StreamingGraphDataset(
+            chemical_dataset,
+            batch_size=self._builder_config.batch_size,
+            max_n_node=max_n_node,
+            max_n_edge=max_n_edge,
+            max_n_edge_long_range=max_n_edge_long_range,
+            graph_cutoff_angstrom=self._builder_config.graph_cutoff_angstrom,
+            long_range_cutoff_angstrom=self._builder_config.long_range_cutoff_angstrom,
+            preprocessing_fns=all_preprocessing,
+            atomic_energies_map=atomic_energies_map,
+            shuffle=self._shuffle,
+            graph_postprocessing=graph_postprocessing,
+            worker_count=self._builder_config.num_workers,
+            num_nodes=batching_info.num_nodes,
+            num_batches=batching_info.num_batches,
+            # exclude_ids already applied; leftover drops should error, and
+            # mid-epoch resume can slice without draining reads.
+            raise_exc_if_graphs_discarded=True,
+        )
 
     @property
     def dataset_info(self) -> DatasetInfo | None:

@@ -14,6 +14,9 @@
 
 from mlip.data.chemical_system import ChemicalSystem
 from mlip.data.chemical_systems_readers.ase_atoms_reader import ASEAtomsReader
+from mlip.data.chemical_systems_readers.chemical_systems_dataset import (
+    ChemicalSystemsDataset,
+)
 from mlip.data.chemical_systems_readers.chemical_systems_reader import (
     ChemicalSystemsReader,
 )
@@ -33,3 +36,4 @@ from mlip.data.helpers.hessian_utils import (
     skip_graph_hessian,
 )
 from mlip.data.single_graph_dataset_builder import SingleGraphDatasetBuilder
+from mlip.data.streaming_graph_dataset import StreamingGraphDataset

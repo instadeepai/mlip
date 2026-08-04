@@ -1,5 +1,20 @@
 # Changelog
 
+## Release 0.2.4
+
+- Updating the `FEPSimulationSampler` to only stop early due to an exploded simulation
+  if no neighbor lists overflowed in the same episode, improving the success rate of
+  FEP simulations.
+- Updating the FEP tutorial to document the model and system preparation pipeline used
+  to compute the hydration free energy of small molecules in production.
+- Fixing an error in `load_parameters_from_checkpoint` when loading a checkpoint
+  trained with sharding (multi-GPU) onto a single device.
+- Adding a check to simulation and batched inference to check that the system is
+  compatible with the force field.
+- Upgrading `jax-md` dependency to minimum version of 0.2.29, and removing `dm-haiku`
+  as a dependency.
+- Upgrading `e3j` dependency to minimum version of 0.1.0b5.
+
 ## Release 0.2.3
 
 - Adding support for running free energy perturbation MD simulations using the JAX-MD

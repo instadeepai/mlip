@@ -126,24 +126,33 @@ def test_fep_sampler_builds_alchemical_force_field(
 def test_fep_sampler_runs(atoms, two_lambda_sampler) -> None:
     """FEP sampler runs to completion and produces correct output shapes per window.
 
-    Also tests that `_global_reallocate_neighbors` is run on overflow, reallocates,
-    then continues to complete the run.
+    Also tests that an overflow is prioritised over an explosion, in which case
+    `_global_reallocate_neighbors` is run, reallocates, then the run continues.
     """
     num_atoms = len(atoms)
     num_snapshots = N_STEPS // SNAPSHOT_INTERVAL
     sampler = two_lambda_sampler
 
-    # Trigger overflow on the 3rd overflow check.
+    # Trigger overflow and explosion on the 3rd overflow check.
     overflow_responses = ([False] * 2) + [True] + ([False] * 100)
+    exploded_responses = ([False] * 2) + [True] + ([False] * 100)
 
     def mock_did_overflow(state):
         return overflow_responses.pop(0)
+
+    def mock_did_explode(state):
+        return exploded_responses.pop(0)
 
     with (
         patch.object(
             AlchemicalJaxMDSimulationEngine,
             "_did_neighbor_buffer_overflow",
             side_effect=mock_did_overflow,
+        ),
+        patch.object(
+            AlchemicalJaxMDSimulationEngine,
+            "_has_simulation_exploded",
+            side_effect=mock_did_explode,
         ),
         patch.object(
             sampler,
@@ -199,6 +208,11 @@ def test_run_loop_terminates_early_on_explosion(two_lambda_sampler):
     sampler = two_lambda_sampler
 
     with (
+        patch.object(
+            AlchemicalJaxMDSimulationEngine,
+            "_did_neighbor_buffer_overflow",
+            return_value=False,
+        ),
         patch.object(
             AlchemicalJaxMDSimulationEngine,
             "_has_simulation_exploded",

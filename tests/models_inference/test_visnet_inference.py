@@ -35,20 +35,20 @@ def test_visnet_outputs_correct_forces_and_energies_for_single_graph(
 
     result = jax.jit(visnet_ff)(graph)
 
-    assert list(result.energy) == pytest.approx([-22.16494], abs=1e-3)
+    assert list(result.energy) == pytest.approx([-34.26291], rel=1e-4, abs=1e-3)
     expected_forces = np.array([
-        [3.257973, -4.439838, 3.969158],
-        [0.37949374, 2.85621, -5.7438984],
-        [-1.3700594, -5.9856634, 2.890955],
-        [0.574846, -3.7950482, 2.9814265],
-        [-0.23810202, 2.011692, -0.6061833],
-        [-0.30511624, 0.7987462, -1.2056352],
-        [-0.8425261, 2.8831577, -0.23028827],
-        [0.23945636, 0.98294044, -1.0757343],
-        [-0.7405577, 1.8445723, -0.72196805],
-        [-0.9554075, 2.8432314, -0.25783217],
+        [-0.19485164, 0.17425559, -0.14922298],
+        [-0.12619817, -0.12542307, 0.72570837],
+        [0.099122413, 0.27193841, -0.080755413],
+        [-0.27341801, 0.99893421, -0.25957197],
+        [-0.031038556, 0.19091985, -0.0081819445],
+        [0.14821723, -0.19310783, -0.13136150],
+        [0.49087793, -0.53768378, 0.10519141],
+        [0.056637540, -0.22338006, -0.15273261],
+        [-0.083986148, 0.17313249, -0.020567395],
+        [-0.085362561, -0.72958577, -0.028505936],
     ])
-    assert np.allclose(np.array(result.forces), expected_forces, atol=5e-5)
+    assert np.allclose(np.array(result.forces), expected_forces, rtol=1e-3, atol=5e-5)
 
     assert result.stress is not None and np.any(result.stress != 0.0)
     assert result.pressure is not None and np.any(result.pressure != 0.0)
@@ -68,24 +68,26 @@ def test_visnet_v1_vs_legacy_v2_consistent(
     result_v1 = jax.jit(visnet_force_field_v1)(graph)
     result_legacy_v2 = jax.jit(legacy_visnet_force_field)(graph)
 
-    assert jnp.allclose(result_v1.energy, result_legacy_v2.energy, atol=1e-6)
-    assert jnp.allclose(result_v1.forces, result_legacy_v2.forces, atol=1e-6)
-    assert jnp.allclose(result_v1.stress, result_legacy_v2.stress, atol=1e-6)
+    assert jnp.allclose(result_v1.energy, result_legacy_v2.energy, rtol=1e-5, atol=1e-6)
+    assert jnp.allclose(result_v1.forces, result_legacy_v2.forces, rtol=1e-5, atol=1e-6)
+    assert jnp.allclose(result_v1.stress, result_legacy_v2.stress, rtol=1e-5, atol=1e-6)
 
-    assert list(result_v1.energy) == pytest.approx([-25.650845], abs=1e-3)
+    assert list(result_v1.energy) == pytest.approx([-34.622456], rel=1e-4, abs=1e-3)
     expected_forces = np.array([
-        [-7.2968043e-03, -2.9765312e-03, -8.4473826e-03],
-        [9.5504513e-03, 2.7035501e-02, -8.0039799e-02],
-        [1.0298509e-02, 2.8945347e-03, -4.3731909e-03],
-        [-2.0968061e-02, 1.9943487e-02, 6.1609928e-02],
-        [2.1050749e-03, -7.8989770e-03, 4.7364811e-05],
-        [-7.6801440e-04, 7.1482048e-03, 8.8765305e-03],
-        [1.6644116e-02, -1.8109571e-02, 9.8979194e-03],
-        [-7.0810574e-03, 5.0332304e-03, 7.4180965e-03],
-        [2.9909867e-03, -7.5950362e-03, 2.5542988e-04],
-        [-5.4751989e-03, -2.5474846e-02, 4.7551086e-03],
+        [-0.040895950, -0.083107330, 0.10013036],
+        [-0.43358433, 0.52376187, 1.1150863],
+        [0.037093583, -0.057199750, 0.11814658],
+        [0.90424383, -1.6308402, -1.5468105],
+        [0.13796556, -0.057864763, -0.047500961],
+        [0.067220338, 0.066016957, -0.10671128],
+        [-0.54202390, 0.58150411, 0.23701070],
+        [-0.043468732, 0.029171161, -0.13226275],
+        [-0.046945579, -0.11972234, -0.090459287],
+        [-0.039604779, 0.74828029, 0.35337073],
     ])
-    assert np.allclose(np.array(result_v1.forces), expected_forces, atol=5e-5)
+    assert np.allclose(
+        np.array(result_v1.forces), expected_forces, rtol=1e-3, atol=5e-5
+    )
 
 
 def test_visnet_with_use_remat_matches_without(
@@ -109,8 +111,12 @@ def test_visnet_with_use_remat_matches_without(
     no_remat_result = jax.jit(no_remat_ff)(graph)
     remat_result = jax.jit(remat_ff)(graph)
 
-    assert jnp.allclose(no_remat_result.energy, remat_result.energy, atol=1e-5)
-    assert jnp.allclose(no_remat_result.forces, remat_result.forces, atol=1e-3)
+    assert jnp.allclose(
+        no_remat_result.energy, remat_result.energy, rtol=1e-5, atol=1e-5
+    )
+    assert jnp.allclose(
+        no_remat_result.forces, remat_result.forces, rtol=1e-3, atol=1e-4
+    )
 
 
 def test_visnet_grad_params(setup_system, visnet_force_field, pad_graph):

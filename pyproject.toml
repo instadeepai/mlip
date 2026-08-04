@@ -1,6 +1,6 @@
 [project]
 name = "mlip"
-version = "0.2.3"
+version = "0.2.4"
 description = "Machine Learning Interatomic Potentials in JAX"
 license-files = [
     "LICENSE"
@@ -28,49 +28,47 @@ dependencies = [
     "ase >=3.22.1",
     "orbax-checkpoint >=0.11",
     "omegaconf >=2.3.0",
-    "dm-haiku >=0.0.14",
     "dm-tree >=0.1.8",
     "e3nn-jax >=0.20.7",
     "flax >=0.9.0",
-    "jax >=0.4.32, !=0.9.0, <0.11.0", # 0.9.0 yanked for sharding/pmap issues
-    "jax-md >=0.2.26",
+    "jax >=0.4.32, !=0.9.0", # 0.9.0 yanked for sharding/pmap issues
+    "jax-md >=0.2.29",
     "roundmantissa >=0.2.1",
     "matscipy >=1.1.0",
     "pydantic >=2.10.2",
     "h5py >=3.12.1",
     "tqdm >=4.0",
     "tqdm-loggable >=0.2",
-    "e3j >=0.1.0b3, <0.1.1",
-    "pymatgen-core <=2026.7.16",
+    "e3j >=0.1.0b5, <0.1.1",
 ]
 
 [project.optional-dependencies]
 cuda13 = [
-    "jax[cuda13] >= 0.8.0, <0.11.0",
-    "jaxlib >= 0.8.0, <0.11.0",
-    "e3j_ops >= 0.1.0b3, < 0.1.1"
+    "jax[cuda13] >= 0.8.0",
+    "jaxlib >= 0.8.0",
+    "e3j_ops >= 0.1.0b5, < 0.1.1"
 ]
 cuda = [
     "mlip[cuda13]"
 ]
 cuda13_local = [
-    "jax[cuda13_local] >= 0.8.0, <0.11.0",
-    "jaxlib >= 0.8.0, <0.11.0",
-    "e3j_ops >= 0.1.0b3, < 0.1.1"
+    "jax[cuda13_local] >= 0.8.0",
+    "jaxlib >= 0.8.0",
+    "e3j_ops >= 0.1.0b5, < 0.1.1"
 ]
 cuda12 = [
-    "jax[cuda12] >=0.4.32, <0.11.0",
-    "jaxlib >=0.4.32, <0.11.0",
-    "e3j_ops >= 0.1.0b3, < 0.1.1"
+    "jax[cuda12] >=0.4.32",
+    "jaxlib >=0.4.32",
+    "e3j_ops >= 0.1.0b5, < 0.1.1"
 ]
 cuda12_local = [
-    "jax[cuda12_local] >=0.4.32, <0.11.0",
-    "jaxlib >=0.4.32, <0.11.0",
-    "e3j_ops >= 0.1.0b3, < 0.1.1"
+    "jax[cuda12_local] >=0.4.32",
+    "jaxlib >=0.4.32",
+    "e3j_ops >= 0.1.0b5, < 0.1.1"
 ]
 tpu = [
-    "jax[tpu]>=0.5.2, <0.11.0",
-    "jaxlib>=0.5.1, <0.11.0",
+    "jax[tpu]>=0.5.2",
+    "jaxlib>=0.5.1",
     "libtpu>=0.0.10.1"
 ]
 

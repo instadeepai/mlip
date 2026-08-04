@@ -231,6 +231,7 @@ def run_batched_inference(
 
     for batch_idx, batch in enumerate(graph_dataset):
         start_time = time.perf_counter()
+        force_field.check_graph_compatible(batch)
         (
             energies_batch,
             forces_batch,

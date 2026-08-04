@@ -57,9 +57,9 @@ class EpisodeStatus(Enum):
     """Enum for the status of an episode after completion.
 
     Attributes:
-        SUCCESS: Episode completed successfully without overflowing or exploding.
-        OVERFLOW: Overflow in neighbor list was encountered during episode.
-        EXPLODED: Simulation exploded during episode.
+        SUCCESS: Episode completed successfully for all simulations.
+        OVERFLOW: Overflow in neighbor list of at least one simulation.
+        EXPLODED: At least one simulation exploded, and none encountered overflow.
     """
 
     SUCCESS = "SUCCESS"

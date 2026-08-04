@@ -22,7 +22,6 @@ import e3nn_jax as e3nn
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import numpy as np
 from e3j.core.scalar_mixing import ScalarMixing
 from e3j.utils.options import Layout
 from flax.linen.linear import default_embed_init as default_nn_embed_init
@@ -149,18 +148,6 @@ class ChargeIndexAssignmentBlock:
         expanded_charge_indices = expanded_charge + CHARGE_IDX_OFFSET
         charge_indices = lookup_table[expanded_charge_indices.astype(jnp.int32)]
 
-        def raise_error_for_unseen_charges(charge_indices: jax.Array) -> None:
-            unseen_charges = np.sum(
-                jnp.where(charge_indices == CHARGE_PLACEHOLDER, 1, 0)
-            )
-            if unseen_charges > 0:
-                raise ValueError(
-                    "Some charge indices are not present in the dataset."
-                    " Try using the `ensure_no_unseen_total_charges` option "
-                    "in the dataset builder config."
-                )
-
-        jax.debug.callback(raise_error_for_unseen_charges, charge_indices)
         return graph.update_node_features(charge_indices=charge_indices)
 
 

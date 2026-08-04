@@ -13,6 +13,8 @@ Force Field
 
     .. automethod:: init
 
+    .. automethod:: check_graph_compatible
+
     .. automethod:: replace_config
 
     .. automethod:: replace_required_properties

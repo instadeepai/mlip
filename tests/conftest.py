@@ -48,6 +48,7 @@ GRAPH_CUTOFF_ANGSTROM = 3.0
 SAMPLE_DATA_DIR = Path(__file__).parent / "sample_data"
 XYZ_FILE_PATH = SAMPLE_DATA_DIR / "Dimethyl_sulfoxide.xyz"
 KEY = jax.random.key(123)
+PARAM_SCALE = 0.5
 
 # Cache compilations
 jax.config.update(
@@ -102,8 +103,8 @@ def make_customizable_graph():
 
 @pytest.fixture(scope="session")
 def dataset_info() -> DatasetInfo:
-    """Returns a dataset info for H, C, O, Na, S, Cl atoms and 3 Ångström cutoff."""
-    allowed_z_numbers = {1, 6, 8, 11, 16, 17}
+    """Returns a dataset info for H, C, N, O, Na, S, Cl atoms and 3 Ångström cutoff."""
+    allowed_z_numbers = {1, 6, 7, 8, 11, 16, 17}
     available_total_charges = {1, 0, -1}
     return DatasetInfo(
         atomic_energies_map={k: float(-k) for k in allowed_z_numbers},
@@ -122,7 +123,7 @@ def multi_head_dataset_info() -> DatasetInfo:
 
     Index 0 values match the single-head `dataset_info` fixture.
     """
-    allowed_z_numbers = {1, 6, 8, 11, 16, 17}
+    allowed_z_numbers = {1, 6, 7, 8, 11, 16, 17}
     e0_map_0 = {k: float(-k) for k in allowed_z_numbers}
     e0_map_1 = {k: float(-k + 1) for k in allowed_z_numbers}
     return DatasetInfo(
@@ -194,7 +195,7 @@ def _replace_v1_linear_weights(params: dict) -> dict:
             and leaf_key.startswith("w[")
         )
         if is_v1_linear_weights:
-            return jax.random.normal(key, (p.shape[1], p.shape[0])).T
+            return PARAM_SCALE * jax.random.normal(key, (p.shape[1], p.shape[0])).T
         return p
 
     return jax.tree_util.tree_map_with_path(fix, params)
@@ -213,7 +214,7 @@ def standardize_parameters(params: dict) -> dict:
     """
     key = KEY
     standardized_params = jax.tree.map(
-        lambda p: jax.random.normal(key, p.shape), params
+        lambda p: PARAM_SCALE * jax.random.normal(key, p.shape), params
     )
     standardized_params = _replace_v1_linear_weights(standardized_params)
     return standardized_params

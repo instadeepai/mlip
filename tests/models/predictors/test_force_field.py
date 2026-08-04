@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 from pydantic import BaseModel
 
 from mlip.data import ChemicalSystem
+from mlip.data.helpers.dynamically_batch import dynamically_batch
 from mlip.graph import Graph
 from mlip.models.force_field import ForceField
 from mlip.models.inference_context import InferenceContext
@@ -188,3 +190,44 @@ def test_replace_inference_context_resolves_partial_dataset_name(
 
     assert updated_ff.inference_context.dataset_name == "dataset_1"
     assert updated_ff.inference_context.dataset_idx == 1
+
+
+@pytest.mark.parametrize("atomic_numbers,error", [(None, None), ([11, 30], "not seen")])
+def test_check_compatible_atomic_numbers(
+    force_field, salt_graph, atomic_numbers, error
+):
+    if atomic_numbers is not None:
+        salt_graph = salt_graph.replace_nodes(atomic_numbers=np.array(atomic_numbers))
+
+    if error is None:
+        force_field.check_graph_compatible(salt_graph)
+    else:
+        with pytest.raises(ValueError, match=error):
+            force_field.check_graph_compatible(salt_graph)
+
+
+@pytest.mark.parametrize(
+    "charge,error", [(1.0, None), (42.0, "not seen"), (None, "graph.globals.charge`")]
+)
+def test_check_compatible_charges(force_field, setup_system, charge, error):
+    force_field = force_field.replace_config(use_total_charge_embedding=True)
+    _, graph = setup_system
+    if charge is not None:
+        graph = graph.replace_globals(charge=jnp.array([charge]))
+
+    if error is None:
+        force_field.check_graph_compatible(graph)
+    else:
+        with pytest.raises(ValueError, match=error):
+            force_field.check_graph_compatible(graph)
+
+
+def test_check_compatible_edge_cases(force_field, salt_graph):
+    # Accepts None charge if not using total charge embedding.
+    assert not force_field.config.use_total_charge_embedding
+    graph = salt_graph.replace_globals(charge=None)
+
+    # Padding (dummy) nodes get atomic_numbers == 0, which must not be flagged.
+    padded_graph = next(dynamically_batch([graph], n_node=3, n_edge=17, n_graph=2))
+
+    force_field.check_graph_compatible(padded_graph)

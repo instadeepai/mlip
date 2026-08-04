@@ -84,6 +84,7 @@ class MLIPForceFieldASECalculator(Calculator):
             self.graph_cutoff_angstrom,
             long_range_cutoff_angstrom=self.long_range_cutoff_angstrom,
         )
+        force_field.check_graph_compatible(self.base_graph)
 
         num_edges = len(self.base_graph.senders)
         self.current_edge_capacity = ceil(self.edge_capacity_multiplier * num_edges)
@@ -114,6 +115,8 @@ class MLIPForceFieldASECalculator(Calculator):
             self.graph_cutoff_angstrom,
             long_range_cutoff_angstrom=self.long_range_cutoff_angstrom,
         )
+        if self.allow_nodes_to_change:
+            self.force_field.check_graph_compatible(graph)
 
         if not self.allow_nodes_to_change:
             if len(atoms) != len(self.atoms):

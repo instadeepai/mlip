@@ -101,6 +101,9 @@ We can run a prediction with an MLIP force field like this:
 
     graph = _get_graph_from_somewhere()  # placeholder
 
+    # Optional: check that the force field is suitable for predicting on this graph
+    force_field.check_graph_compatible(graph)
+
     # Option 1: output a prediction
     prediction = force_field(graph)
 

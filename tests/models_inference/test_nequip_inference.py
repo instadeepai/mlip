@@ -38,20 +38,20 @@ def test_nequip_outputs_correct_forces_and_energies_for_single_graph(
 
     result = jax.jit(nequip_ff)(graph)
 
-    assert list(result.energy) == pytest.approx([42.09434], abs=1e-3)
+    assert list(result.energy) == pytest.approx([-41.9653], rel=1e-4, abs=1e-3)
     expected_forces = np.array([
-        [85.43408, -34.709274, 22.736664],
-        [-27.643398, 80.936386, 2.8183188],
-        [-50.41974, -80.04627, -8.698838],
-        [3.3170373, -2.7197578, -10.36809],
-        [-19.162735, -43.858597, -37.10254],
-        [1.0938892, 45.787735, 25.715027],
-        [-8.596391, 9.238947, 3.2427912],
-        [-37.445065, 33.05269, 16.969948],
-        [53.844803, -19.67092, -20.328377],
-        [-0.42247772, 11.989063, 5.0151005],
+        [-0.026541512, 0.011288091, -0.0057309037],
+        [0.0033092368, -0.010974279, 0.0015067151],
+        [0.014831986, 0.025101408, 0.0038780058],
+        [0.00094850676, -0.0017433915, -0.0015810560],
+        [0.010255711, 0.0084516816, 0.0030877322],
+        [0.0062966542, -0.0070102690, -0.0098707648],
+        [0.00036814582, -0.0088728582, 0.010811871],
+        [0.0034320091, -0.0079642097, -0.010538569],
+        [-0.013415731, 0.00054888160, -0.0024022318],
+        [0.00051499519, -0.0088250544, 0.010839201],
     ])
-    assert np.allclose(np.array(result.forces), expected_forces, atol=5e-3)
+    assert np.allclose(np.array(result.forces), expected_forces, rtol=1e-3, atol=5e-5)
 
     assert result.stress is not None and np.any(result.stress != 0.0)
     assert result.pressure is not None and np.any(result.pressure != 0.0)

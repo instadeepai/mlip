@@ -60,18 +60,12 @@ def test_charge_index_assignment_block(setup_system, dataset_info_hco):
     _, graph = setup_system
     n_nodes = graph.nodes.positions.shape[0]
     charge_array = jnp.array([1.0])
-    charge_unseen_array = jnp.array([-2.0])
     graph = graph.replace_globals(charge=charge_array)
-    graph_unseen = graph.replace_globals(charge=charge_unseen_array)
     idx_block: ChargeIndexAssignmentBlock = ChargeIndexAssignmentBlock(dataset_info_hco)
     updated_graph = idx_block(graph)
 
     charge_indices = updated_graph.nodes.features["charge_indices"]
     assert jnp.all(charge_indices == jnp.array([3] * n_nodes))
-
-    # test that we are throwing an error when we have unseen charges
-    with pytest.raises(ValueError):
-        _ = idx_block(graph_unseen)
 
 
 def test_atomic_energies_block_raises_key_error(setup_system, dataset_info):

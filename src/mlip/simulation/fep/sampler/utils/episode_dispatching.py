@@ -34,16 +34,25 @@ logger = logging.getLogger("mlip")
 def _detect_episode_status(
     completed_states: dict[int, JaxMDSimulationState],
 ) -> EpisodeStatus:
-    """Classify overall episode status from per-engine completed states."""
+    """Classify overall episode status from per-engine completed states.
+
+    Returns:
+        SUCCESS if all engines completed the episode successfully.
+        OVERFLOW if at least one engine encountered a neighbor list overflow.
+        EXPLODED if any simulation exploded, and no overflow was encountered.
+    """
     episode_status = EpisodeStatus.SUCCESS
+    exploded_indices = []
     for engine_index, state in completed_states.items():
-        if AlchemicalJaxMDSimulationEngine._has_simulation_exploded(state):
-            logger.error("Simulation exploded for engine %s.", engine_index)
-            episode_status = EpisodeStatus.EXPLODED
-        elif AlchemicalJaxMDSimulationEngine._did_neighbor_buffer_overflow(state):
+        if AlchemicalJaxMDSimulationEngine._did_neighbor_buffer_overflow(state):
             logger.warning("Neighbor list overflow in engine %s.", engine_index)
-            if episode_status != EpisodeStatus.EXPLODED:
-                episode_status = EpisodeStatus.OVERFLOW
+            episode_status = EpisodeStatus.OVERFLOW
+        if AlchemicalJaxMDSimulationEngine._has_simulation_exploded(state):
+            if episode_status != EpisodeStatus.OVERFLOW:
+                exploded_indices.append(engine_index)
+                episode_status = EpisodeStatus.EXPLODED
+    if episode_status == EpisodeStatus.EXPLODED:
+        logger.error("Simulation exploded for engines %s.", exploded_indices)
     return episode_status
 
 

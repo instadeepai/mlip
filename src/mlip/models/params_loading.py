@@ -12,33 +12,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import os
-from typing import Any, Mapping, Union
+from pathlib import Path
+from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import orbax.checkpoint as ocp
+from absl import logging as absl_logging
 from orbax.checkpoint import CheckpointManager
 
 from mlip.typing import ModelParameters
 from mlip.utils.multihost import single_host_jax_and_orbax
 
+_NETWORK_KEY = "mlip_network"
 
-def _restored_state(
-    ckpt_manager: CheckpointManager,
-    epoch_to_load: int,
-    load_ema_params: bool,
-) -> Union[Any, Mapping[str, Any]]:
-    # Restore without templates - let Orbax infer structure from checkpoint.
-    # This avoids type mismatch issues with optimizer states between different runs.
-    to_restore = {"training_state": ocp.args.PyTreeRestore()}
-    if load_ema_params:
-        to_restore["params_ema"] = ocp.args.PyTreeRestore()
 
-    restored_state = ckpt_manager.restore(
-        epoch_to_load, args=ocp.args.Composite(**to_restore)
-    )
-    return restored_state
+@contextlib.contextmanager
+def _quiet_absl_logging():
+    """Silences Orbax's INFO-level absl logs for the duration of the block."""
+    previous_verbosity = absl_logging.get_verbosity()
+    absl_logging.set_verbosity(absl_logging.WARNING)
+    try:
+        yield
+    finally:
+        absl_logging.set_verbosity(previous_verbosity)
+
+
+def _restore_args(item: Any) -> Any:
+    """Restores every leaf as a numpy array, ignoring the saved sharding."""
+    return jax.tree.map(lambda _: ocp.RestoreArgs(restore_type=np.ndarray), item)
+
+
+def _params_only_item(params_template: ModelParameters, state_metadata: Any) -> Any:
+    """Builds a restore item that reads the params and skips the rest."""
+    item = jax.tree.map(lambda _: ocp.PLACEHOLDER, dict(state_metadata))
+    item["params"] = params_template
+    return item
+
+
+def _merge_leaf(path: Any, restored: Any, reference: Any) -> jax.Array:
+    """Checks one restored parameter against the model's own parameter."""
+    if reference.size == 0:
+        return jnp.empty(reference.shape, dtype=reference.dtype)
+    if restored.shape != reference.shape:
+        raise ValueError(
+            f"Checkpoint parameter {jax.tree_util.keystr(path)} has shape "
+            f"{restored.shape}, but this model expects {reference.shape}."
+        )
+    return jnp.asarray(restored)
 
 
 def load_parameters_from_checkpoint(
@@ -48,6 +72,9 @@ def load_parameters_from_checkpoint(
     load_ema_params: bool = False,
 ) -> ModelParameters:
     """Loads model parameters from a checkpoint.
+
+    The parameters are restored as host numpy arrays, so the checkpoint can be
+    loaded on a different number of devices than it was trained on.
 
     Args:
         checkpoint_dir: The directory (Orbax-compatible) where the model
@@ -61,49 +88,51 @@ def load_parameters_from_checkpoint(
 
     Returns:
         The loaded model parameters.
-    """
-    item_names = ["training_state"]
-    if load_ema_params:
-        item_names.append("params_ema")
 
-    is_old_params_version = False
-    with single_host_jax_and_orbax():
+    Raises:
+        ValueError: If the checkpoint does not hold exactly the parameters this
+                    model expects.
+    """
+    item_name = "params_ema" if load_ema_params else "training_state"
+
+    with single_host_jax_and_orbax(), _quiet_absl_logging():
+        handler = ocp.PyTreeCheckpointHandler()
         ckpt_manager = CheckpointManager(
             checkpoint_dir,
-            item_names=item_names,
+            item_handlers={item_name: handler},
         )
 
         cpu_device = jax.devices("cpu")[0]
         with jax.default_device(cpu_device):
-            try:
-                restored_state = _restored_state(
-                    ckpt_manager, epoch_to_load, load_ema_params
-                )
-            except KeyError:
-                initial_params = {"params": initial_params["params"]["mlip_network"]}
-                restored_state = _restored_state(
-                    ckpt_manager, epoch_to_load, load_ema_params
-                )
-                is_old_params_version = True
+            # Avoid `ckpt_manager.item_metadata()` warnings about all other items.
+            item_dir = Path(checkpoint_dir) / str(epoch_to_load) / item_name
+            metadata = handler.metadata(item_dir)
+            params_metadata = metadata if load_ema_params else metadata["params"]
 
-    if load_ema_params:
-        params = restored_state["params_ema"]
-    else:
-        # When restoring without template, Orbax returns a dict
-        training_state_dict = restored_state["training_state"]
-        if isinstance(training_state_dict, dict):
-            params = training_state_dict["params"]
-        else:
-            params = training_state_dict.params
+            is_old_params_version = _NETWORK_KEY not in params_metadata["params"]
+            params_template = (
+                {"params": initial_params["params"][_NETWORK_KEY]}
+                if is_old_params_version
+                else initial_params
+            )
+
+            item = (
+                params_template
+                if load_ema_params
+                else _params_only_item(params_template, metadata)
+            )
+            restored = ckpt_manager.restore(
+                epoch_to_load,
+                args=ocp.args.Composite(**{
+                    item_name: ocp.args.PyTreeRestore(
+                        item=item, restore_args=_restore_args(item)
+                    )
+                }),
+            )[item_name]
+
+    params = restored if load_ema_params else restored["params"]
+    params = jax.tree_util.tree_map_with_path(_merge_leaf, params, params_template)
 
     if is_old_params_version:
-        return jax.tree.map(jnp.asarray, {"params": {"mlip_network": params["params"]}})
-
-    # Parameter blocks can be zero-size (e.g. unused irreps). Re-initialize zero-size
-    # leaves from the freshly-constructed reference so the shape and dtype are correct.
-    def _restore_empty(t, ref):
-        return jnp.empty(ref.shape, dtype=ref.dtype) if ref.size == 0 else t
-
-    params = jax.tree.map(_restore_empty, params, initial_params)
-
-    return jax.tree.map(jnp.asarray, params)
+        return {"params": {_NETWORK_KEY: params["params"]}}
+    return params

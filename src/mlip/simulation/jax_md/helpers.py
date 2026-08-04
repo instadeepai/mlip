@@ -351,8 +351,6 @@ def update_graph_in_simulation_step(
     num_nodes = int(positions.shape[0])
     new_receivers = _concat(receivers, [num_nodes])
     new_senders = _concat(senders, [num_nodes])
-    new_receivers = _concat(receivers, [num_nodes])
-    new_senders = _concat(senders, [num_nodes])
 
     new_n_node = _concat(graph.n_node, [1])
     new_n_edge = _concat(graph.n_edge, [1])

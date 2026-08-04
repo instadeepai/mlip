@@ -191,6 +191,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             long_range_neighbors = None
 
         graph = self._init_base_graph(atoms, neighbors, long_range_neighbors)
+        force_field.check_graph_compatible(graph)
 
         system_state = self._system_state_from_neighbors(
             neighbors, long_range_neighbors

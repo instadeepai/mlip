@@ -15,6 +15,7 @@
 from dataclasses import dataclass, replace
 
 import jax
+import numpy as np
 from jax import Array
 from typing_extensions import Callable, Self
 
@@ -273,6 +274,47 @@ class ForceField:
         return cls(
             predictor=predictor, params=params, inference_context=inference_context
         )
+
+    def check_graph_compatible(self, graph: Graph) -> None:
+        """Check that the input graph is compatible with this force field.
+
+        Should be used before prediction to avoid returning inaccurate or invalid
+        outputs from the model due to out-of-bounds indexing. Checks that all atomic
+        numbers and total charges were seen by the model during training.
+
+        Args:
+            graph: The input graph to validate against this force field.
+
+        Raises:
+            ValueError: If `graph` contains unseen atomic numbers or total charge.
+        """
+        atomic_numbers = graph.nodes.atomic_numbers[graph.node_mask()]
+        unseen_atomic_numbers = (
+            set(np.asarray(atomic_numbers).tolist()) - self.allowed_atomic_numbers
+        )
+        if len(unseen_atomic_numbers) > 0:
+            raise ValueError(
+                "Structure contains atomic numbers not seen during training: "
+                f"{sorted(unseen_atomic_numbers)}. Model supports: "
+                f"{sorted(self.allowed_atomic_numbers)}."
+            )
+
+        if getattr(self.config, "use_total_charge_embedding", False):
+            if graph.globals.charge is None:
+                raise ValueError(
+                    "Model was configured with `use_total_charge_embedding=True` "
+                    "but `graph.globals.charge` is None. Set the total charge on input "
+                    "structures, or pass `set_none_charges_to_zero` where available."
+                )
+            allowed_charges = set(self.dataset_info.available_total_charges)
+            charges = set(np.asarray(graph.globals.charge).tolist())
+            unseen_charges = charges - allowed_charges
+            if len(unseen_charges) > 0:
+                raise ValueError(
+                    "Structure has total charge(s) not seen during training: "
+                    f"{sorted(unseen_charges)}. Model supports: "
+                    f"{sorted(allowed_charges)}."
+                )
 
     def prepare_experts_for_inference(self) -> Self:
         """Contract MoE expert parameters for a fixed inference context.

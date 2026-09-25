@@ -418,3 +418,66 @@ def test_graphdataset_multi_device_warning(caplog):
 
     assert "GraphDataset only supports single-device training" in caplog.text
     assert len(new_mesh.devices.flat) == 1
+
+
+@pytest.mark.parametrize(
+    "terminate_on_nan, expected_final_epoch",
+    [(True, 1), (False, 3)],
+    ids=["terminate", "keep_going"],
+)
+def test_training_stops_on_nan_when_enabled(
+    quadratic_force_field,
+    setup_datasets_for_training,
+    tmp_path,
+    terminate_on_nan,
+    expected_final_epoch,
+):
+    """With `terminate_on_nan`, a non-finite training loss stops the loop after
+    the current epoch instead of continuing to burn compute; when disabled, the
+    loop runs to completion regardless."""
+    train_set, valid_set = setup_datasets_for_training
+
+    training_config = TrainingLoop.Config(
+        num_epochs=3,
+        run_eval_at_start=False,
+        terminate_on_nan=terminate_on_nan,
+    )
+
+    loss = MSELoss(lambda x: 1.0, lambda x: 1.0, lambda x: 0, extended_metrics=True)
+
+    io_handler = TrainingIOHandler(
+        TrainingIOHandler.Config(
+            checkpoint_dir=tmp_path,
+            max_to_keep=5,
+            save_debiased_ema=True,
+            ema_decay=0.99,
+            restore_checkpoint_if_exists=False,
+            epoch_to_restore=None,
+            restore_optimizer_state=False,
+            clear_previous_checkpoints=False,
+        )
+    )
+
+    training_loop = TrainingLoop(
+        train_dataset=train_set,
+        validation_dataset=valid_set,
+        force_field=quadratic_force_field,
+        loss=loss,
+        optimizer=optax.sgd(learning_rate=LEARNING_RATE),
+        config=training_config,
+        io_handler=io_handler,
+    )
+
+    # Force every training step to report a non-finite loss.
+    original_step = training_loop.training_step
+
+    def nan_training_step(state, batch, epoch):
+        new_state, metrics = original_step(state, batch, epoch)
+        return new_state, {**metrics, "loss": float("nan")}
+
+    training_loop.training_step = nan_training_step
+
+    training_loop.run()
+
+    assert training_loop.training_diverged is terminate_on_nan
+    assert training_loop.epoch_number == expected_final_epoch

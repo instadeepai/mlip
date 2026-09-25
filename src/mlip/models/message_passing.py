@@ -25,9 +25,10 @@ import jax.numpy as jnp
 from e3j.utils.options import Layout
 from jax import Array
 
-from mlip.graph import Graph
+from mlip.graph import EdgeOrdering, Graph
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING
 from mlip.models import options
-from mlip.models.blocks import MLP, BetaSwish, SO3Convolution
+from mlip.models.blocks import MLP, BetaSwish
 
 
 class O3MessagePassingBlock(nn.Module):
@@ -41,6 +42,11 @@ class O3MessagePassingBlock(nn.Module):
       (Clebsch-Gordan tensor product) to form messages,
     * Reweight messages with the edge scalars,
     * Aggregate messages on receiver nodes.
+
+    Note:
+        When using the e3j CUDA / Mosaic TPU kernels, edges (and their features)
+        should be sorted by senders. The topology ordering should be enforced at
+        graph creation time, see :meth:`~Graph.from_chemical_system()`.
 
     Attributes:
         source_irreps: Expected irreps of the input node features, used to
@@ -65,6 +71,9 @@ class O3MessagePassingBlock(nn.Module):
         normalize_activation: Whether to normalize the activation function with
             respect to the L2-norm for a normal Gaussian measure.
             See `e3nn.normalize_function()`. The default is True.
+        edge_ordering: Edge ordering to enforce on graphs, passed to `e3j.Convolution`
+            for fused e3j convolution kernels. Input graphs must have this as their
+            `graph.ordering`. Default is SENDER, which works for all device types.
     """
 
     source_irreps: e3nn.Irreps
@@ -78,12 +87,13 @@ class O3MessagePassingBlock(nn.Module):
     radial_mlp_variance_scale: float | None = None
     deterministic_scatter_ops: bool = False
     normalize_activation: bool = True
+    edge_ordering: EdgeOrdering = DEFAULT_EDGE_ORDERING
 
     @property
     def message_irreps(self) -> e3nn.Irreps:
         """Fitlered tensor product representation of node features with harmonics."""
         return e3nn.tensor_product(
-            self.source_irreps,
+            self._src,
             e3nn.Irreps.spherical_harmonics(self.l_max),
             filter_ir_out=self.target_irreps,
         )
@@ -113,7 +123,7 @@ class O3MessagePassingBlock(nn.Module):
             else:
                 raise NotImplementedError(msg)
         else:
-            gcd = source_irreps.mul_gcd
+            gcd = self.num_channels
             src = e3nn.Irreps([(m // gcd, ir) for m, ir in source_irreps])
         return src
 
@@ -124,8 +134,8 @@ class O3MessagePassingBlock(nn.Module):
     def setup(self):
 
         harmonics_irreps = e3nn.Irreps.spherical_harmonics(self.l_max)
-        target_irreps = e3nn.Irreps(self.target_irreps)
-        num_scalars = self.message_irreps.num_irreps
+        channel_factor = 1 if self.layout == Layout.E3NN else self.num_channels
+        num_scalars = self.message_irreps.num_irreps * channel_factor
 
         # Radial MLP: accomodates for both MACE and Nequip V1 options.
         # - MACE uses FAN_IN_NORMAL + gradient scaling
@@ -165,17 +175,18 @@ class O3MessagePassingBlock(nn.Module):
             rescale_gradients=True,
         )
 
-        self.convolution_block = SO3Convolution(
-            source_irreps=(self._src, harmonics_irreps),
-            target_irreps=e3nn.Irreps([i for m, i in target_irreps]),
+        # Enforce graph edge ordering.
+        self.convolution_block = e3j.core.Convolution(
+            source=(str(self._src), str(harmonics_irreps)),
+            target=str(e3nn.Irreps(self.target_irreps).set_mul(1)),
             avg_num_neighbors=self.avg_num_neighbors,
-            deterministic_scatter_ops=self.deterministic_scatter_ops,
             layout=self.layout,
+            graph_ordering=self.edge_ordering,
         )
 
         # Note: Nequip requires to rechunk non-grouped gate_irreps.
         self.linear_out = e3j.linen.Linear(
-            source_irreps=self.message_irreps,
+            source_irreps=channel_factor * self.message_irreps,
             target_irreps=self.target_irreps,
             layout="E3NN",
             kernel_init="FAN_IN",
@@ -183,9 +194,21 @@ class O3MessagePassingBlock(nn.Module):
         )
 
     def __call__(self, graph: Graph) -> Graph:
+        # Edge ordering only matters for the fused CUDA / Mosaic TPU convolution
+        # kernels. When `edge_ordering` is NONE (e.g. unfused CPU convolution),
+        # aggregation is order-independent.
+        if EdgeOrdering.parse(self.edge_ordering) != EdgeOrdering.NONE:
+            # Single edge is trivially ordered, and avoids raising on dummy graph.
+            if graph.ordering != self.edge_ordering and len(graph.senders) > 1:
+                raise RuntimeError(
+                    "O3MessagePassingBlock requires `graph.ordering` to "
+                    f"match {self.edge_ordering}, got {graph.ordering}."
+                )
+
         node_feats = graph.nodes.features["latent"]
         spherical_embedding = graph.edges.features["spherical_embedding"]
         radial_embedding = graph.edges.features["radial_embedding"].array
+
         senders = graph.senders
         receivers = graph.receivers
 
@@ -213,12 +236,17 @@ class O3MessagePassingBlock(nn.Module):
 
         # Apply message passing:
         # Gather + tensor product + scalar mixing + scatter-add
-        y_lm = spherical_embedding.array
         x_feats = self._cast_inputs(node_feats)
-        y_feats = self.convolution_block(
-            x_feats, y_lm, edge_scalars, senders, receivers
+        y_lm = spherical_embedding.array
+
+        # Note: padding edges skipped to avoid wasted compute on a single padding node.
+        node_mask = graph.node_mask()
+
+        message = self.convolution_block(
+            x_feats, y_lm, edge_scalars, senders, receivers, node_mask
         )
-        node_feats = self._cast_outputs(y_feats)
+
+        node_feats = self._cast_outputs(message)
 
         # Linear out
         node_feats = e3nn.IrrepsArray(
@@ -247,8 +275,7 @@ class O3MessagePassingBlock(nn.Module):
         if layout == Layout.E3NN:
             return e3nn.IrrepsArray(self.message_irreps, y_feats)
         # Channels are in their own axis
-        gcd = self.num_channels
-        tgt = e3nn.Irreps([(mul // gcd, ir) for mul, ir in self.message_irreps])
+        tgt = self.message_irreps
         if layout == Layout.LEADING_CHANNELS:
             return e3nn.IrrepsArray(tgt, y_feats).axis_to_mul()
         elif layout == Layout.TRAILING_CHANNELS:

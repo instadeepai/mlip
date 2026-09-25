@@ -237,63 +237,39 @@ class ParallelGraphDataset:
     def number_of_graphs(self) -> int:
         """Returns the number of graphs in the dataset.
 
+        Returns a count over the full dataset without batching. When batching, graphs
+        may be dropped if the final parallel group of batches is incomplete, or if
+        `skip_last_batch=True` in the underlying dataset. In either case, the count can
+        be larger than the number yielded when iterating over the dataset in batches.
+
         Returns:
             The number of graphs in this dataset.
         """
-        total = 0
-
-        # In multi-host mode, global arrays only expose local shards.
-        # Use a JIT-compiled function to count across ALL devices so
-        # every host gets identical totals.
-        @jax.jit
-        def _count_all(stacked_batch):
-            def _count_single(batch):
-                return batch.graph_mask().sum()
-
-            _n_graphs = jax.vmap(_count_single)(stacked_batch)
-            return _n_graphs.sum()
-
-        for stacked_batch in self:
-            n_graphs = _count_all(stacked_batch)
-            total += int(jax.device_get(n_graphs))
-
-        return total
+        return self.graph_dataset.number_of_graphs()
 
     def number_of_nodes(self) -> int:
         """Returns the number of nodes in the dataset.
 
+        Returns a count over the full dataset without batching. When batching, graphs
+        may be dropped if the final parallel group of batches is incomplete, or if
+        `skip_last_batch=True` in the underlying dataset. In either case, the count can
+        be larger than the number yielded when iterating over the dataset in batches.
+
         Returns:
             The number of nodes in this dataset.
         """
-        total = 0
-
-        # In multi-host mode, global arrays only expose local shards.
-        # Use a JIT-compiled function to count across ALL devices so
-        # every host gets identical totals.
-        @jax.jit
-        def _count_all(stacked_batch):
-            def _count_single(batch):
-                return batch.node_mask().sum()
-
-            _n_nodes = jax.vmap(_count_single)(stacked_batch)
-            return _n_nodes.sum()
-
-        for stacked_batch in self:
-            n_nodes = _count_all(stacked_batch)
-            total += int(jax.device_get(n_nodes))
-
-        return total
+        return self.graph_dataset.number_of_nodes()
 
 
 def create_global_arrays(stacked_batch: Graph, mesh: Mesh) -> Graph:
     """Convert a stacked numpy batch to a global jax.Array for multi-host training.
 
-    Each host provides its local sub-batches (one per local device). This function
-    places each sub-batch on the corresponding local device and assembles them into
-    a global array that is properly sharded across the full mesh.
+    `stacked_batch` holds the full global stack on every host. This function selects
+    only the sub-batches addressable by this host's local devices, places them on those
+    devices, and assembles into a global array that is sharded across the full mesh.
 
     Args:
-        stacked_batch: A pytree with arrays of shape (n_local_devices, ...).
+        stacked_batch: A pytree with arrays of shape (n_global_devices, ...).
         mesh: The JAX device mesh (must have a single axis for data parallelism).
 
     Returns:

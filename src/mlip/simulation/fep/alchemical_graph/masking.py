@@ -130,6 +130,7 @@ def prune_edges_with_mask(
     """
     n_nodes = jnp.sum(graph.n_node[:-1]) if len(graph.n_node) > 1 else graph.n_node[0]
 
+    # Note: graph.ordering stays respected by _pack_edges
     senders, receivers, n_edge, shifts = _pack_edges(
         graph.senders, graph.receivers, graph.n_edge, graph.edges.shifts, mask, n_nodes
     )

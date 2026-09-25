@@ -214,13 +214,22 @@ class ForceField:
         Returns:
             The graph updated with the calculated properties.
         """
-        if self.inference_context is not None:
-            inference_context = self.inference_context.resolve(self.dataset_info)
-            graph = apply_inference_context_to_graph(
-                graph, inference_context=inference_context
-            )
+        return self.predictor.apply(self.params, self._apply_inference_context(graph))
 
-        return self.predictor.apply(self.params, graph)
+    def _apply_inference_context(self, graph: Graph) -> Graph:
+        """Populate the graph globals supplied by the attached inference context.
+
+        Args:
+            graph: The input graph.
+
+        Returns:
+            The graph with the context's globals applied.
+        """
+        if self.inference_context is None:
+            return graph
+        return apply_inference_context_to_graph(
+            graph, inference_context=self.inference_context.resolve(self.dataset_info)
+        )
 
     def predict(self, graph: Graph) -> Prediction:
         """Computes a forward pass of the predictor and returns predicted properties.
@@ -282,12 +291,17 @@ class ForceField:
         outputs from the model due to out-of-bounds indexing. Checks that all atomic
         numbers and total charges were seen by the model during training.
 
+        Any attached inference context is applied first, so the globals it supplies
+        are validated rather than reported as missing.
+
         Args:
             graph: The input graph to validate against this force field.
 
         Raises:
             ValueError: If `graph` contains unseen atomic numbers or total charge.
         """
+        graph = self._apply_inference_context(graph)
+
         atomic_numbers = graph.nodes.atomic_numbers[graph.node_mask()]
         unseen_atomic_numbers = (
             set(np.asarray(atomic_numbers).tolist()) - self.allowed_atomic_numbers

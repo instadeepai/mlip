@@ -17,7 +17,10 @@ from unittest.mock import patch
 
 import pytest
 
-from mlip.data.helpers.atomic_energies import remove_e0s_from_graphs
+from mlip.data.helpers.atomic_energies import (
+    compute_average_e0s_from_graphs,
+    remove_e0s_from_graphs,
+)
 
 
 @dataclass
@@ -110,3 +113,18 @@ def test_convert_energy_to_formation_energy_helper_called_for_each_graph():
         remove_e0s_from_graphs(graphs, {})
 
         assert mock_fn.call_count == 2
+
+
+def test_compute_average_e0s_from_graphs_recovers_exact_solution():
+    e0_h, e0_c = 2.0, 5.0
+    graphs = [
+        DummyGraph(2 * e0_h + 1 * e0_c, [1, 1, 6]),
+        DummyGraph(1 * e0_h + 2 * e0_c, [1, 6, 6]),
+        DummyGraph(3 * e0_h + 1 * e0_c, [1, 1, 1, 6]),
+        DummyGraph(2 * e0_c, [6, 6]),
+    ]
+
+    atomic_energies = compute_average_e0s_from_graphs(graphs)
+
+    assert atomic_energies[1] == pytest.approx(e0_h)
+    assert atomic_energies[6] == pytest.approx(e0_c)

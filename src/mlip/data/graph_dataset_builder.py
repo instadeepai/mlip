@@ -20,6 +20,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from mlip.data.chemical_systems_readers.chemical_systems_reader import (
+    ChemicalSystemsReader,
+)
 from mlip.data.configs import GraphDatasetBuilderConfig
 from mlip.data.dataset_info import DatasetInfo, check_compatibility_of_ds_info
 from mlip.data.graph_dataset import GraphDataset
@@ -33,6 +36,7 @@ from mlip.data.helpers.filtering_utils import (
     filter_systems_by_charges,
     filter_systems_by_elements,
 )
+from mlip.data.helpers.parallel_reading import read_chemical_systems_in_parallel
 from mlip.data.helpers.type_aliases import (
     FlatReadersDict,
     GraphPostProcessingFunction,
@@ -47,6 +51,25 @@ logger = logging.getLogger("mlip")
 
 TRAIN_SPLIT_KEY = "train"
 REPLAY_DATASET_KEY = "replay"
+
+
+def _flatten_chemical_systems_readers(readers_obj) -> list[ChemicalSystemsReader]:
+    """Collect every `ChemicalSystemsReader` leaf from a dict/list of readers
+
+    Non-reader leaves (e.g. an `ASEAtomsReader`, which holds in-memory
+    `ase.Atoms` rather than a file) are silently skipped: they're left to be
+    loaded lazily via the normal `reader.load()` fallback.
+    """
+    flat: list[ChemicalSystemsReader] = []
+    if isinstance(readers_obj, dict):
+        for value in readers_obj.values():
+            flat.extend(_flatten_chemical_systems_readers(value))
+    elif isinstance(readers_obj, list):
+        for value in readers_obj:
+            flat.extend(_flatten_chemical_systems_readers(value))
+    elif isinstance(readers_obj, ChemicalSystemsReader):
+        flat.append(readers_obj)
+    return flat
 
 
 class BuilderMode(Enum):
@@ -108,6 +131,7 @@ class GraphDatasetBuilder:
         self.datasets = None
         self._readers = readers
         self._builder_config = builder_config
+        self._preloaded_systems: dict[int, list] | None = None
         if isinstance(mode, str):
             mode = BuilderMode(mode)
         self._mode = mode
@@ -183,6 +207,15 @@ class GraphDatasetBuilder:
 
         self.datasets = {}
 
+        if self._builder_config.num_reader_workers > 1:
+            # Flatten to put all readers into one shared worker pool. Results are keyed
+            # by `id(reader)`, and each builder still holds its original readers.
+            flat_readers = _flatten_chemical_systems_readers(self._readers)
+            if flat_readers:
+                self._preloaded_systems = read_chemical_systems_in_parallel(
+                    flat_readers, num_workers=self._builder_config.num_reader_workers
+                )
+
         if self._mode == BuilderMode.CUSTOM:
             self._handle_custom_build_mode(
                 systems_preprocessing=systems_preprocessing,
@@ -241,7 +274,10 @@ class GraphDatasetBuilder:
 
         for key, reader in self._readers.items():
             builder = SingleGraphDatasetBuilder(
-                reader, self._single_builder_config, compute_ds_info
+                reader,
+                self._single_builder_config,
+                compute_ds_info,
+                preloaded_systems=self._preloaded_systems,
             )
             self.datasets[key] = builder.get_dataset(
                 prefetch=False,
@@ -295,6 +331,7 @@ class GraphDatasetBuilder:
             builder_config=self._single_builder_config,
             dataset_info=True,
             shuffle=True,
+            preloaded_systems=self._preloaded_systems,
         )
         datasets[train_key] = train_builder.get_dataset(
             prefetch=False,
@@ -323,6 +360,7 @@ class GraphDatasetBuilder:
                 readers=reader,
                 builder_config=self._single_builder_config,
                 dataset_info=False,
+                preloaded_systems=self._preloaded_systems,
             )
             datasets[key] = builder.get_dataset(
                 prefetch=False,
@@ -396,6 +434,7 @@ class GraphDatasetBuilder:
                     builder_config=self._single_builder_config,
                     dataset_info=False,
                     shuffle=is_training_split,
+                    preloaded_systems=self._preloaded_systems,
                 )
                 datasets[replay_key][split_name] = builder.get_dataset(
                     prefetch=False,

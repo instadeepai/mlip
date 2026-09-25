@@ -74,6 +74,57 @@ def test_hdf5_reader_with_multiple_filepaths(num_to_load):
         assert isinstance(system, ChemicalSystem)
 
 
+@pytest.mark.parametrize("num_chunks", [1, 2, 5])
+def test_hdf5_reader_prepare_parallel_readers_matches_sequential(num_chunks, tmp_path):
+    filepath = SPICE_SMALL_HDF5_PATH.resolve()
+    reader = Hdf5Reader(filepaths=filepath)
+    sequential_systems = reader.load()
+
+    sub_readers = reader.prepare_parallel_readers(tmp_path, num_chunks)
+
+    if num_chunks <= 1:
+        assert len(sub_readers) == 1
+    else:
+        assert len(sub_readers) > 1
+
+    chunked_systems = []
+    for sub_reader in sub_readers:
+        chunked_systems.extend(sub_reader.load())
+
+    assert sorted(s.energy for s in chunked_systems) == sorted(
+        s.energy for s in sequential_systems
+    )
+
+
+def test_hdf5_reader_only_visits_top_level_groups(tmp_path):
+    filepath = tmp_path / "nested.hdf5"
+    with h5py.File(filepath, "w") as h5file:
+        for i in range(2):
+            group = h5file.create_group(f"structure_{i}")
+            group.create_dataset("elements", data=np.array([1, 8]))
+            group.create_dataset(
+                "positions", data=np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.96]])
+            )
+            group.create_dataset("forces", data=np.zeros((2, 3)))
+            group.attrs["energy"] = float(-i)
+        # A nested subgroup: must be skipped.
+        h5file["structure_0"].create_group("nested_metadata")
+        # A top-level dataset (not a group): must be skipped.
+        h5file.create_dataset("file_level_dataset", data=np.arange(5))
+
+    reader = Hdf5Reader(filepaths=filepath)
+
+    systems = reader.load()
+    assert len(systems) == 2
+    assert sorted(s.energy for s in systems) == [-1.0, 0.0]
+
+    # prepare_parallel_readers relies on the same enumeration.
+    assert sorted(reader._list_group_names(filepath)) == [
+        "/structure_0",
+        "/structure_1",
+    ]
+
+
 def test_hdf5_reader_with_charge_and_spin_multiplicity(tmp_path):
     filepath = tmp_path / "charge_spin.hdf5"
     with h5py.File(filepath, "w") as h5file:

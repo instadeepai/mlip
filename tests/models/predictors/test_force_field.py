@@ -222,6 +222,24 @@ def test_check_compatible_charges(force_field, setup_system, charge, error):
             force_field.check_graph_compatible(graph)
 
 
+@pytest.mark.parametrize("context_charge,error", [(1, None), (42, "not seen")])
+def test_check_compatible_charges_from_inference_context(
+    force_field, setup_system, context_charge, error
+):
+    # Checks that charge supplied by the inference context is not reported missing.
+    force_field = force_field.replace_config(
+        use_total_charge_embedding=True
+    ).replace_inference_context(InferenceContext(charge=context_charge))
+    _, graph = setup_system
+    assert graph.globals.charge is None
+
+    if error is None:
+        force_field.check_graph_compatible(graph)
+    else:
+        with pytest.raises(ValueError, match=error):
+            force_field.check_graph_compatible(graph)
+
+
 def test_check_compatible_edge_cases(force_field, salt_graph):
     # Accepts None charge if not using total charge embedding.
     assert not force_field.config.use_total_charge_embedding

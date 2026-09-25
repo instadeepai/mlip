@@ -1,5 +1,32 @@
 # Changelog
 
+## Release 0.2.5
+
+- Updating the `O3MessagePassingBlock` used by MACE and NequIP to use
+  `e3j.core.Convolution`, which enables fused convolution kernels on GPU and TPU but
+  requires an explicit edge ordering to be set.
+- Adding the `Graph.ordering` field to specify the edge ordering explicitly, and the
+  `Graph.sort_edges()` helper. All graphs created within the library are now
+  sender-ordered by default, matching the default setting in `O3MessagePassingBlock`.
+- Changing the default `target_irreps` in `NequipConfig` to use 32 channels for l=2
+  features (previously 4), increasing the default model size.
+- Adding `num_reader_workers` to `GraphDatasetBuilderConfig` to enable reading data
+  using a worker pool. Used to read multiple datasets or splits in parallel, and to
+  also parallelize over groups inside HDF5 files.
+- Changing the default setting of `Graph.edges.shifts` from all-zeros to `None` when
+  a system does not have PBCs. This can greatly reduce the memory required to hold a
+  processed dataset in RAM during training.
+- Fixing a bug where the `property_name_mapping` was not correctly handled in the
+  `ASEAtomsReader`.
+- Reducing the runtime of the `GraphDataset` preparation workflow by reducing
+  device-to-host memory transfers when shuffling, removing unnecessary iterables over
+  the batched dataset, and simplifying the computation of per-element atomic energies.
+- Filtering out graphs with no edges during dataset building, and guarding the minimum-
+  neighbor-distance statistic against edgeless graphs.
+- Adding a `terminate_on_nan` option to `TrainingLoopConfig` that stops training as soon
+  as an epoch's mean loss or gradient norm becomes NaN/Inf.
+- Upgrading `e3j` dependency to minimum version of 0.1.1.
+
 ## Release 0.2.4
 
 - Updating the `FEPSimulationSampler` to only stop early due to an exploded simulation

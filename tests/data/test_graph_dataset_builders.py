@@ -15,11 +15,14 @@
 import random
 from pathlib import Path
 
+import ase
 import numpy as np
 import pytest
 
 from mlip.data import DatasetInfo
+from mlip.data.chemical_systems_readers.ase_atoms_reader import ASEAtomsReader
 from mlip.data.chemical_systems_readers.extxyz_reader import ExtxyzReader
+from mlip.data.chemical_systems_readers.hdf5_reader import Hdf5Reader
 from mlip.data.configs import GraphDatasetBuilderConfig
 from mlip.data.graph_dataset_builder import (
     BuilderMode,
@@ -30,7 +33,12 @@ from mlip.data.graph_dataset_builder import (
 )
 from mlip.data.helpers.exceptions import DatasetsHaveNotBeenProcessedError
 from mlip.graph import Graph
-from mlip.graph.batching_helpers import batch_graphs, homogenize_graph_fields
+from mlip.graph.batching_helpers import (
+    batch_graphs,
+    homogenize_graph_fields,
+    validate_batch_compatible,
+)
+from mlip.graph.graph import GraphEdges
 from mlip.utils.multihost import create_device_mesh
 
 DATA_DIR = Path(__file__).parent.parent / "sample_data"
@@ -40,6 +48,7 @@ SMALL_ASPIRIN_UNSEEN_ATOMS_DATASET_PATH = (
     DATA_DIR / "small_aspirin_test_unseen_atoms.xyz"
 )
 SMALL_MP_DATASET_PATH = DATA_DIR / "small_materials_test.extxyz"
+SPICE_SMALL_HDF5_PATH = DATA_DIR / "spice2-1000_429_md_0-1.hdf5"
 
 CUTOFF_ANGSTROM = 6
 
@@ -79,7 +88,8 @@ def test_single_graph_dataset_builder_works_correctly(use_formation_energies):
 
     num_nodes, num_edges = 30 * 5 + 1, 90 * 5 * 2
     assert batch.nodes.positions.shape == (num_nodes, 3)
-    assert batch.edges.shifts.shape == (num_edges, 3)
+    # The aspirin systems are not periodic, so they carry no shifts.
+    assert batch.edges.shifts is None
     assert list(batch.globals.weight) == pytest.approx([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
     assert len(batch.senders) == num_edges
     assert len(batch.receivers) == num_edges
@@ -181,7 +191,8 @@ def test_graph_dataset_builder_training_mode(use_formation_energies):
 
     num_nodes, num_edges = 30 * 5 + 1, 90 * 5 * 2
     assert batch.nodes.positions.shape == (num_nodes, 3)
-    assert batch.edges.shifts.shape == (num_edges, 3)
+    # The aspirin systems are not periodic, so they carry no shifts.
+    assert batch.edges.shifts is None
     assert list(batch.globals.weight) == pytest.approx([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
     assert len(batch.senders) == num_edges
     assert len(batch.receivers) == num_edges
@@ -211,6 +222,41 @@ def test_graph_dataset_builder_training_mode(use_formation_energies):
     splits = [*datasets.values()]
     for i in range(3):
         assert isinstance(splits[i], PrefetchIterator)
+
+
+def test_single_hdf5_reader_parallel_reading():
+    config = GraphDatasetBuilderConfig(
+        graph_cutoff_angstrom=3.0,
+        max_n_node=30,
+        max_n_edge=200,
+        batch_size=1,
+        num_batch_prefetch_host=1,
+        num_batch_prefetch_device=1,
+    )
+
+    def build(num_reader_workers):
+        builder = GraphDatasetBuilder(
+            {"train": Hdf5Reader(filepaths=SPICE_SMALL_HDF5_PATH.resolve())},
+            config.model_copy(update={"num_reader_workers": num_reader_workers}),
+            mode="training",
+        )
+        return builder, builder.get_datasets(prefetch=False)
+
+    sequential_builder, sequential_datasets = build(1)
+    parallel_builder, parallel_datasets = build(2)
+
+    # `None` means the preload never ran; `{}` means it ran and was drained.
+    assert sequential_builder._preloaded_systems is None
+    assert parallel_builder._preloaded_systems == {}
+
+    sequential_graphs = sequential_datasets["train"].graphs
+    parallel_graphs = parallel_datasets["train"].graphs
+    assert len(parallel_graphs) == len(sequential_graphs)
+    assert sorted(g.globals.energy.item() for g in parallel_graphs) == sorted(
+        g.globals.energy.item() for g in sequential_graphs
+    )
+    # All systems are non-periodic
+    assert all(g.edges.shifts is None for g in parallel_graphs)
 
 
 @pytest.mark.parametrize("use_dataset_info", [True, False])
@@ -680,6 +726,55 @@ class TestGraphDatasetBuilderMultiMode:
 
         assert len(datasets["train"].graphs) == num_a + num_b
 
+    def test_merged_graph_counts_with_parallel_loader(self):
+        """num_reader_workers > 1 produces the same graphs as sequential loading."""
+        num_a, num_b = 3, 5
+
+        config = GraphDatasetBuilderConfig(
+            graph_cutoff_angstrom=2.0,
+            max_n_node=30,
+            max_n_edge=90,
+            batch_size=5,
+            num_batch_prefetch_host=1,
+            num_batch_prefetch_device=1,
+        )
+
+        def build(num_reader_workers):
+            readers = {
+                "ds_a": {
+                    "train": ExtxyzReader(
+                        filepaths=SMALL_ASPIRIN_DATASET_PATH.resolve(),
+                        num_to_load=num_a,
+                    ),
+                },
+                "ds_b": {
+                    "train": ExtxyzReader(
+                        filepaths=SMALL_ASPIRIN_DATASET_PATH.resolve(),
+                        num_to_load=num_b,
+                    ),
+                },
+            }
+            builder = GraphDatasetBuilder(
+                readers,
+                config.model_copy(update={"num_reader_workers": num_reader_workers}),
+                mode="multi",
+            )
+            return builder, builder.get_datasets(prefetch=False)
+
+        sequential_builder, sequential_datasets = build(1)
+        parallel_builder, parallel_datasets = build(2)
+
+        assert len(parallel_datasets["train"].graphs) == num_a + num_b
+        seq_energies = sorted(
+            g.globals.energy.item() for g in sequential_datasets["train"].graphs
+        )
+        parallel_energies = sorted(
+            g.globals.energy.item() for g in parallel_datasets["train"].graphs
+        )
+        assert seq_energies == parallel_energies
+        # All preloaded systems were popped from the builder dict.
+        assert parallel_builder._preloaded_systems == {}
+
     def test_replay_with_unseen_atoms_raises_error(self, builder_config, dataset_info):
         """Replay data with atoms not in the preset DatasetInfo should error."""
         readers = {
@@ -763,6 +858,58 @@ class TestHomogenizeGraphFields:
         batched = batch_graphs(result)
         assert np.asarray(batched.globals.spin_multiplicity)[0] == spin_array[0]
         assert np.isnan(np.asarray(batched.globals.spin_multiplicity)[1])
+
+    @staticmethod
+    def _with_long_range_edges(graph, n_edges_long_range, shifts):
+        """Attach a long-range edge set to a graph."""
+        senders = np.zeros(n_edges_long_range, dtype=np.int32)
+        return graph.replace(
+            senders_long_range=senders,
+            receivers_long_range=senders,
+            n_edge_long_range=np.array([n_edges_long_range]),
+            edges_long_range=GraphEdges(shifts=shifts, displ_fun=None),
+        )
+
+    def test_fills_missing_long_range_shifts(self, make_customizable_graph):
+        n_lr = 5
+        g_periodic = self._with_long_range_edges(
+            make_customizable_graph(3, 4), n_lr, np.zeros((n_lr, 3))
+        )
+        g_non_periodic = self._with_long_range_edges(
+            make_customizable_graph(3, 4).replace_edges(shifts=None), n_lr, None
+        )
+
+        result = homogenize_graph_fields([g_periodic, g_non_periodic])
+
+        filled = result[1]
+        assert filled.edges.shifts is not None
+        assert filled.edges_long_range.shifts is not None
+        assert filled.edges_long_range.shifts.shape == (n_lr, 3)
+        assert np.all(filled.edges_long_range.shifts == 0.0)
+
+        batched = batch_graphs(result)
+        assert np.all(np.asarray(batched.edges_long_range.shifts) == 0.0)
+
+    def test_validator_flags_mixed_long_range_shifts(self, make_customizable_graph):
+        n_lr = 5
+        g_periodic = self._with_long_range_edges(
+            make_customizable_graph(3, 4), n_lr, np.zeros((n_lr, 3))
+        )
+        g_non_periodic = self._with_long_range_edges(
+            make_customizable_graph(3, 4), n_lr, None
+        )
+
+        with pytest.raises(ValueError, match="heterogeneous optional fields") as exc:
+            validate_batch_compatible([g_periodic, g_non_periodic])
+        assert "edges_long_range.shifts" in str(exc.value)
+
+    def test_no_op_when_long_range_edges_absent(self, make_customizable_graph):
+        graphs = [make_customizable_graph(3, 3), make_customizable_graph(2, 2)]
+        assert all(g.edges_long_range is None for g in graphs)
+
+        validate_batch_compatible(graphs)
+        result = homogenize_graph_fields(graphs)
+        assert all(g.edges_long_range is None for g in result)
 
 
 class TestGraphDatasetBuilderValidation:
@@ -911,3 +1058,25 @@ def test_autofill_batch_dims_creates_correct_dummy_graphs(
     batch = next(iter(ds))
     assert list(batch.n_node) == expected_n_node
     assert list(batch.n_edge) == expected_n_edge
+
+
+def test_prepare_graphs_discards_empty_graphs():
+    """Graphs with no edges (e.g. an isolated atom) must be dropped."""
+    h2 = ase.Atoms("H2", positions=[[0.0, 0.0, 0.0], [0.0, 0.0, 0.7]])
+    lone_atom = ase.Atoms("H", positions=[[0.0, 0.0, 0.0]])
+    reader = ASEAtomsReader(atoms_list=[h2, lone_atom, h2])
+
+    builder_config = GraphDatasetBuilderConfig(
+        graph_cutoff_angstrom=2.0,
+        max_n_node=10,
+        max_n_edge=20,
+        batch_size=2,
+        num_batch_prefetch_host=1,
+        num_batch_prefetch_device=1,
+    )
+    builder = SingleGraphDatasetBuilder(reader, builder_config, dataset_info=False)
+
+    builder._prepare_graphs([])
+
+    assert len(builder._graphs) == 2
+    assert all(graph.n_edge.sum() > 0 for graph in builder._graphs)

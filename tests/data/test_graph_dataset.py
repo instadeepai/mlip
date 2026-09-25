@@ -95,10 +95,21 @@ class TestGraphDatasetSubset:
             ds.subset("invalid")
 
 
-class TestGraphDatasetNumberOfGraphs:
+class TestGraphDatasetCounters:
     def test_number_of_graphs_correct(self, make_customizable_graph):
         ds = _make_dataset(make_customizable_graph, n_graphs=7)
         assert ds.number_of_graphs() == 7
+
+    def test_number_of_nodes_correct(self, make_customizable_graph):
+        graphs = [make_customizable_graph(n, 4) for n in (2, 3, 5)]
+        ds = GraphDataset(
+            graphs=graphs,
+            batch_size=4,
+            max_n_node=10,
+            max_n_edge=20,
+            shuffle=False,
+        )
+        assert ds.number_of_nodes() == 2 + 3 + 5
 
 
 class TestGraphDatasetHomogenize:
@@ -107,14 +118,16 @@ class TestGraphDatasetHomogenize:
     def test_homogenize_true_fills_missing_fields_and_batches(
         self, make_customizable_graph
     ):
-        """With `homogenize=True`, graphs missing an optional field get NaN
-        padding and the dataset iterates without error."""
-        g_with_stress = make_customizable_graph(3, 3)
-        g_without_stress = make_customizable_graph(3, 3).replace_globals(stress=None)
+        """With `homogenize=True`, graphs missing an optional field get filled
+        (NaN for globals, zero for edges) and the dataset iterates without
+        error."""
+        g_with_stress = make_customizable_graph(3, 4)
+        g_without_stress = make_customizable_graph(3, 4).replace_globals(stress=None)
+        g_without_shifts = make_customizable_graph(3, 4).replace_edges(shifts=None)
 
         ds = GraphDataset(
-            graphs=[g_with_stress, g_without_stress],
-            batch_size=2,
+            graphs=[g_with_stress, g_without_stress, g_without_shifts],
+            batch_size=3,
             max_n_node=10,
             max_n_edge=20,
             shuffle=False,
@@ -123,23 +136,35 @@ class TestGraphDatasetHomogenize:
         batch = next(iter(ds))
 
         # The graph without stress should have NaN in its stress row; the
-        # first graph keeps its original (0.0) stress.
+        # others keep their original (0.0) stress.
         stress = np.asarray(batch.globals.stress)
         assert np.all(stress[0] == 0.0)
         assert np.all(np.isnan(stress[1]))
+        assert np.all(stress[2] == 0.0)
 
+        # Edge fields are zero-filled rather than NaN-filled (shifts=None
+        # already means "zero" for a non-periodic graph).
+        assert batch.edges.shifts is not None
+        assert np.all(np.asarray(batch.edges.shifts) == 0.0)
+
+    @pytest.mark.parametrize("missing", ["stress", "shifts"])
     def test_homogenize_false_raises_on_heterogeneous_graphs(
-        self, make_customizable_graph
+        self, make_customizable_graph, missing
     ):
         """With `homogenize=False`, heterogeneous optional fields produce a
         clear `ValueError` instead of a cryptic tree-map failure later inside
         `batch_graphs`."""
-        g_with_stress = make_customizable_graph(3, 3)
-        g_without_stress = make_customizable_graph(3, 3).replace_globals(stress=None)
+        base_graph = make_customizable_graph(3, 3)
+        if missing == "stress":
+            modified_graph = base_graph.replace_globals(stress=None)
+        elif missing == "shifts":
+            modified_graph = base_graph.replace_edges(shifts=None)
+        else:
+            raise ValueError
 
         with pytest.raises(ValueError, match="heterogeneous optional fields") as exc:
             GraphDataset(
-                graphs=[g_with_stress, g_without_stress],
+                graphs=[base_graph, modified_graph],
                 batch_size=2,
                 max_n_node=10,
                 max_n_edge=20,
@@ -147,8 +172,13 @@ class TestGraphDatasetHomogenize:
                 homogenize=False,
             )
         msg = str(exc.value)
-        assert "globals.stress" in msg
         assert "homogenize=True" in msg
+        if missing == "stress":
+            assert "globals.stress" in msg
+        elif missing == "shifts":
+            assert "edges.shifts" in msg
+        else:
+            raise ValueError
 
     def test_homogenize_false_is_noop_on_homogeneous_graphs(
         self, make_customizable_graph

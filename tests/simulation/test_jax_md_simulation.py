@@ -23,6 +23,7 @@ from pydantic import ValidationError
 
 from mlip.data.chemical_system import ChemicalSystem
 from mlip.graph import Graph
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING
 from mlip.inference import run_batched_inference
 from mlip.simulation.configs.simulation_config import TemperatureScheduleConfig
 from mlip.simulation.enums import (
@@ -50,6 +51,7 @@ def test_jax_md_step_zero_forces_match_direct_force_field_call(
         ChemicalSystem.from_ase_atoms(atoms),
         graph_cutoff_angstrom=force_field.cutoff_distance,
         long_range_cutoff_angstrom=force_field.long_range_cutoff_distance,
+        ordering=DEFAULT_EDGE_ORDERING,
     )
     ref_pred = force_field(ref_graph)
     ref_forces = np.asarray(ref_pred.forces)

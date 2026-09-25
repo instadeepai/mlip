@@ -145,6 +145,13 @@ def run_batched_inference(
     `max_n_edge` explicitly to avoid edge cases in the automated computation of these
     parameters that may cause errors.
 
+    Note: When computing on structures that have been transformed to a `GraphDataset`
+    object prior to passing it to this function, be careful that graphs without edges
+    might have been discarded during the data processing step. To prevent this,
+    consider setting `discard_graphs_without_edges` to false in your dataset builder
+    config. When passing a list of `ase.Atoms` objects to this inference function
+    instead, `discard_graphs_without_edges` will be disabled automatically for you.
+
     Args:
         structures: The list of `ase.Atoms` to iterate over and then compute
                     predictions for. Optionally, an already processed `GraphDataset`
@@ -202,6 +209,7 @@ def run_batched_inference(
             max_n_edge=max_n_edge,
             batch_size=batch_size,
             set_none_charges_to_zero=set_none_charges_to_zero,
+            discard_graphs_without_edges=False,  # otherwise losing 1-to-1 mapping
         )
 
         reader = ASEAtomsReader(structures)

@@ -30,10 +30,10 @@ class NequipConfig(MLIPNetworkConfig):
     Attributes:
         num_layers: Number of NequIP layers. Default is 2.
         target_irreps: Target O3 representation space for node features at each
-                       layer, with number of channels that may depend on the
-                       degree `l`. Each layer attempts to produce these irreps,
-                       filtered to what is reachable via the tensor product.
-                       Default `"128x0e + 128x0o + 64x1o + 64x1e + 4x2e + 4x2o"`.
+                     layer, with number of channels that may depend on the
+                     degree `l`. Each layer attempts to produce these irreps,
+                     filtered to what is reachable via the tensor product.
+                     Default `"128x0e + 128x0o + 64x1o + 64x1e + 32x2e + 32x2o"`.
         l_max: Maximal degree of spherical harmonics used for the angular encoding of
                edge vectors. Default is 3.
         num_rbf: The number of Bessel basis functions to use (default is 8).
@@ -74,7 +74,7 @@ class NequipConfig(MLIPNetworkConfig):
     """
 
     num_layers: PositiveInt = 2
-    target_irreps: Irreps = "128x0e + 128x0o + 64x1o + 64x1e + 4x2e + 4x2o"
+    target_irreps: Irreps = "128x0e + 128x0o + 64x1o + 64x1e + 32x2e + 32x2o"
     l_max: NonNegativeInt = 3
     num_rbf: PositiveInt = 8
     radial_envelope: RadialEnvelope = RadialEnvelope.POLYNOMIAL

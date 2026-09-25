@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
 from typing import Any, Callable, TypeAlias
 
 import ase
@@ -21,7 +22,7 @@ import jax_md
 import numpy as np
 from ase.units import Ang, J, bar, eV, fs, kB, kcal, kg, m, mol, s
 
-from mlip.graph import Graph
+from mlip.graph import EdgeOrdering, Graph
 from mlip.models.force_field import ForceField
 from mlip.simulation.configs.jax_md_config import JaxMDSimulationConfig
 from mlip.simulation.enums import MDIntegrator, SimulationType
@@ -181,31 +182,51 @@ def _get_dummy_edge_mask_for_batched_graph(
     return dummy_edge_mask
 
 
-def get_neighbor_list_senders(neighbors: NeighborList) -> jax.Array:
-    """Return senders from a jax-md neighbor list (channel 1 of `idx`)."""
-    return neighbors.idx[1, :]
+def get_neighbor_list_senders(
+    neighbors: NeighborList, ordering: EdgeOrdering = EdgeOrdering.NONE
+) -> jax.Array:
+    """Return senders from a jax-md neighbor list.
 
-
-def get_neighbor_list_receivers(neighbors: NeighborList) -> jax.Array:
-    """Return receivers from a jax-md neighbor list (channel 0 of `idx`)."""
+    Assumes jax-md returns a symmetric graph, and that `neighbors.idx` is lex-sorted
+    with last coordinate 1 dominating the order (`np.lexsort` convention).
+    """
+    if ordering in (EdgeOrdering.SENDER, EdgeOrdering.NONE):
+        return neighbors.idx[1, :]
     return neighbors.idx[0, :]
+
+
+def get_neighbor_list_receivers(
+    neighbors: NeighborList, ordering: EdgeOrdering = EdgeOrdering.NONE
+) -> jax.Array:
+    """Return receivers from a jax-md neighbor list.
+
+    Assumes jax-md returns a symmetric graph, and that `neighbors.idx` is lex-sorted
+    with last coordinate 1 dominating the order (`np.lexsort` convention).
+    """
+    if ordering in (EdgeOrdering.SENDER, EdgeOrdering.NONE):
+        return neighbors.idx[0, :]
+    return neighbors.idx[1, :]
 
 
 def _extract_neighbor_indices(
     neighbors: NeighborList | list[NeighborList],
+    ordering: EdgeOrdering,
 ) -> tuple[jax.Array | list[jax.Array], jax.Array | list[jax.Array]]:
     """Returns `(senders, receivers)` extracted from a neighbor list.
 
-    The output preserves the pytree structure of `neighbors`: a single
-    `NeighborList` yields a pair of `jax.Array`, while a list of
-    `NeighborList` (batched simulations) yields a pair of lists of
-    `jax.Array`.
+    The output preserves the pytree structure of `neighbors`: a single `NeighborList`
+    yields a pair of `jax.Array`, while a list of `NeighborList` (batched simulations)
+    yields a pair of lists of `jax.Array`.
     """
     senders = jax.tree.map(
-        get_neighbor_list_senders, neighbors, is_leaf=is_neighbor_list
+        partial(get_neighbor_list_senders, ordering=ordering),
+        neighbors,
+        is_leaf=is_neighbor_list,
     )
     receivers = jax.tree.map(
-        get_neighbor_list_receivers, neighbors, is_leaf=is_neighbor_list
+        partial(get_neighbor_list_receivers, ordering=ordering),
+        neighbors,
+        is_leaf=is_neighbor_list,
     )
     return senders, receivers
 
@@ -267,6 +288,7 @@ def update_graph_in_simulation_step(
     Returns:
         The updated and batched graph.
     """
+
     if is_batched and not isinstance(box, list):
         box = [box] * len(positions)
 
@@ -277,7 +299,7 @@ def update_graph_in_simulation_step(
         box,
         is_leaf=is_system_state,
     )
-    senders, receivers = _extract_neighbor_indices(neighbors)
+    senders, receivers = _extract_neighbor_indices(neighbors, graph.ordering)
 
     has_long_range = graph.n_edge_long_range is not None
     if has_long_range:
@@ -289,7 +311,7 @@ def update_graph_in_simulation_step(
             is_leaf=is_system_state,
         )
         senders_long_range, receivers_long_range = _extract_neighbor_indices(
-            long_range_neighbors
+            long_range_neighbors, graph.ordering
         )
     else:
         senders_long_range = None
@@ -386,6 +408,7 @@ def update_graph_in_simulation_step(
             receivers_long_range, [num_nodes]
         )
         replace_kwargs["n_edge_long_range"] = _concat(graph.n_edge_long_range, [1])
+
     return graph.replace(**replace_kwargs)
 
 

@@ -140,11 +140,12 @@ def test_mace_predicts_partial_charges(setup_system, partial_charges_mace_force_
 
 
 def test_mace_uses_coulomb_term(setup_system, lri_mace_force_field, mace_force_field):
-    atoms, _ = setup_system
+    atoms, graph = setup_system
     graph = Graph.from_chemical_system(
         ChemicalSystem.from_ase_atoms(atoms),
         graph_cutoff_angstrom=3.0,
         long_range_cutoff_angstrom=5.0,
+        ordering=graph.ordering,
     )
     graph = graph.replace_globals(charge=jnp.array([1.0]))
     lri_out_graph = jax.jit(lri_mace_force_field.calculate)(graph)

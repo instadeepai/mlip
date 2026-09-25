@@ -237,7 +237,8 @@ class JaxMDMetadynamicsSimulationEngine(JaxMDSimulationEngine):
             num_gaussians=s.num_gaussians,
         )
 
-    def _get_update_graph_in_sim_step_fun(self):
+    @staticmethod
+    def _get_update_graph_in_sim_step_fun():
         """Override parent method to add metadynamics values to the global features."""
         return update_graph_in_metadynamics_simulation_step
 

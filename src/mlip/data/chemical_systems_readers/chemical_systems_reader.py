@@ -95,3 +95,55 @@ class ChemicalSystemsReader(abc.ABC):
             objects.
         """
         pass
+
+    def prepare_parallel_readers(
+        self, download_dir: str | os.PathLike, num_chunks: int
+    ) -> list["ChemicalSystemsReader"]:
+        """Convert this reader to a list of readers suitable for parallel reading.
+
+        Resolves local paths for all files, then prepares a list of local readers.
+        The base implementation returns a single reader pointed at the local files.
+        Child classes that can split reading into chunks (e.g. HDF5 groups) should
+        override this method to return multiple readers.
+
+        Used by
+        :func:`~mlip.data.helpers.parallel_reading.read_chemical_systems_in_parallel`
+        to read and process files using multiple workers.
+        """
+        local_filepaths = self._resolve_local_filepaths(download_dir)
+        return [self._with_local_filepaths(local_filepaths)]
+
+    def _resolve_local_filepaths(self, download_dir: str | os.PathLike) -> list[Path]:
+        """Resolve all filepaths to local paths.
+
+        If `data_download_fun` is set, downloads all files once into `download_dir`
+        so that they can be accessed by all parallel workers during processing.
+        """
+        filepaths = (
+            self.filepaths if isinstance(self.filepaths, list) else [self.filepaths]
+        )
+        if self.data_download_fun is None:
+            return [Path(fp) for fp in filepaths]
+        download_dir = Path(download_dir)
+        local_paths = []
+        for i, filepath in enumerate(filepaths):
+            target_dir = download_dir / str(i)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target = target_dir / Path(filepath).name
+            self.data_download_fun(filepath, target)
+            local_paths.append(target)
+        return local_paths
+
+    def _with_local_filepaths(
+        self, local_filepaths: list[Path]
+    ) -> "ChemicalSystemsReader":
+        """Return a copy of this reader pointed at already-local files."""
+        filepaths = (
+            local_filepaths if isinstance(self.filepaths, list) else local_filepaths[0]
+        )
+        return type(self)(
+            filepaths=filepaths,
+            data_download_fun=None,
+            num_to_load=self.num_to_load,
+            property_name_mapping=self.property_name_mapping,
+        )

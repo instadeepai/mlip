@@ -24,6 +24,7 @@ from ase import Atoms
 from mlip.data.chemical_system import ChemicalSystem
 from mlip.graph import Graph, GraphEdges, GraphGlobals, GraphNodes
 from mlip.graph.batching_helpers import batch_graphs, pad_with_graphs
+from mlip.graph.edge_ordering import EdgeOrdering
 from mlip.models.charge_utils import compute_long_range_interactions
 
 WITH_SHIFTS_DISTANCE_CUTOFF = 0.11
@@ -35,9 +36,11 @@ WITH_SHIFTS_LONG_RANGE_CUTOFF = 5.5
 def _sort_edges_in_graph(graph: Graph) -> Graph:
     sorted_indices = jnp.lexsort(graph.edges.shifts.T)
     graph = graph.replace_edges(shifts=graph.edges.shifts[sorted_indices])
+    # Re-sorting by shift breaks any sender/receiver ordering label.
     return graph.replace(
         senders=graph.senders[sorted_indices],
         receivers=graph.receivers[sorted_indices],
+        ordering=None,
     )
 
 
@@ -207,6 +210,59 @@ def test_graph_edge_vectors(
 
     result = graph_with_displ_fun.edge_vectors()
     assert jnp.allclose(expect, result)
+
+
+@pytest.fixture
+def non_periodic_graph(setup_system) -> Graph:
+    """A real molecule (no PBCs), built through the production pipeline."""
+    _, graph = setup_system
+    return graph
+
+
+@pytest.mark.parametrize("use_np", [False, True])
+def test_edge_vectors_identical_with_and_without_zero_shifts(
+    non_periodic_graph: Graph, use_np: bool
+):
+    """Dropping the all-zero shifts array must be a numerical no-op.
+
+    Bit-for-bit rather than `allclose`: the skipped arithmetic is a subtraction
+    of exact zero, so any difference would be a dtype or sign-convention bug.
+    """
+    num_edges = non_periodic_graph.senders.shape[0]
+    graph_with_zeros = non_periodic_graph.replace_edges(shifts=np.zeros((num_edges, 3)))
+
+    without = np.asarray(non_periodic_graph.edge_vectors(use_np=use_np))
+    with_zeros = np.asarray(graph_with_zeros.edge_vectors(use_np=use_np))
+
+    assert without.dtype == with_zeros.dtype
+    np.testing.assert_array_equal(without, with_zeros)
+
+
+def test_batch_and_pad_non_periodic_graphs_without_shifts(non_periodic_graph: Graph):
+    """`batch_graphs` / `pad_with_graphs` tolerate a fully absent shifts leaf."""
+    assert non_periodic_graph.edges.shifts is None
+
+    graphs = [non_periodic_graph, non_periodic_graph]
+    num_edges = non_periodic_graph.senders.shape[0]
+    num_nodes = non_periodic_graph.nodes.positions.shape[0]
+
+    batched = batch_graphs(graphs)
+    assert batched.edges.shifts is None
+    assert list(batched.n_edge) == [num_edges, num_edges]
+
+    padded = pad_with_graphs(
+        batched,
+        n_node=2 * num_nodes + 5,
+        n_edge=2 * num_edges + 7,
+        n_graph=4,
+    )
+    assert padded.edges.shifts is None
+    assert padded.senders.shape[0] == 2 * num_edges + 7
+    # Padding edges only touch the padding node, so the real prefix is untouched.
+    np.testing.assert_array_equal(
+        np.asarray(padded.edge_vectors())[: 2 * num_edges],
+        np.asarray(batched.edge_vectors()),
+    )
 
 
 def test_replace_methods(graph_with_shifts: Graph):
@@ -459,3 +515,139 @@ def test_pad_with_graphs_no_long_range_keeps_none(
         n_graph=graph_with_shifts.num_graphs + 1,
     )
     assert padded.edges_long_range is None
+
+
+@pytest.fixture
+def unsorted_graph() -> Graph:
+    """A small graph whose edges are deliberately not in sender order.
+
+    An extra edge feature ``tag`` is attached so tests can verify that edge
+    features are permuted together with senders/receivers/shifts.
+    """
+    senders = jnp.array([2, 0, 1, 0])
+    receivers = jnp.array([0, 2, 0, 1])
+    shifts = jnp.array(
+        [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0]], dtype=jnp.float32
+    )
+    tag = jnp.array([10.0, 20.0, 30.0, 40.0])
+    return Graph(
+        nodes=GraphNodes(
+            positions=jnp.zeros((3, 3)), atomic_numbers=jnp.array([1, 1, 1])
+        ),
+        edges=GraphEdges(shifts=shifts, features={"tag": tag}),
+        globals=GraphGlobals(
+            cell=jnp.zeros((1, 3, 3)),
+            weight=jnp.array([1.0]),
+            energy=jnp.array([0.0]),
+        ),
+        senders=senders,
+        receivers=receivers,
+        n_edge=jnp.array([4]),
+        n_node=jnp.array([3]),
+    )
+
+
+@pytest.fixture
+def unsorted_graph_with_long_range(unsorted_graph: Graph) -> Graph:
+    """`unsorted_graph`, plus a separate, differently-shuffled long-range edge set."""
+    senders_long_range = jnp.array([1, 2, 0])
+    receivers_long_range = jnp.array([2, 1, 1])
+    shifts_long_range = jnp.array([[2, 0, 0], [0, 2, 0], [0, 0, 2]], dtype=jnp.float32)
+    return unsorted_graph.replace(
+        senders_long_range=senders_long_range,
+        receivers_long_range=receivers_long_range,
+        n_edge_long_range=jnp.array([3]),
+        edges_long_range=GraphEdges(shifts=shifts_long_range),
+    )
+
+
+def _edge_tuples(graph: Graph) -> set:
+    """Set of (sender, receiver, shift, tag) tuples, one per edge.
+
+    Sorting only permutes edges, so this set is invariant under `sort_edges`
+    while row order is not — comparing sets checks that senders, receivers,
+    shifts and edge features stay mutually aligned after the permutation.
+    """
+    return {
+        (int(s), int(r), tuple(np.asarray(shift).tolist()), float(t))
+        for s, r, shift, t in zip(
+            graph.senders,
+            graph.receivers,
+            graph.edges.shifts,
+            graph.edges.features["tag"],
+        )
+    }
+
+
+def _long_range_edge_tuples(graph: Graph) -> set:
+    """Like `_edge_tuples`, but for the long-range edge set (no `tag` feature)."""
+    return {
+        (int(s), int(r), tuple(np.asarray(shift).tolist()))
+        for s, r, shift in zip(
+            graph.senders_long_range,
+            graph.receivers_long_range,
+            graph.edges_long_range.shifts,
+        )
+    }
+
+
+@pytest.mark.parametrize(
+    "ordering, sorted_field",
+    [
+        (EdgeOrdering.SENDER, "senders"),
+        (EdgeOrdering.RECEIVER, "receivers"),
+        ("SENDER", "senders"),  # ordering argument is parsed from strings
+    ],
+)
+def test_sort_edges(unsorted_graph: Graph, ordering, sorted_field: str):
+    sorted_graph = unsorted_graph.sort_edges(ordering)
+
+    # The requested field ends up non-decreasing.
+    field = np.asarray(getattr(sorted_graph, sorted_field))
+    assert np.all(np.diff(field) >= 0)
+    # The ordering label is updated to match.
+    assert sorted_graph.ordering == EdgeOrdering.parse(ordering)
+    # No edge is lost, duplicated, or misaligned — only reordered.
+    assert _edge_tuples(sorted_graph) == _edge_tuples(unsorted_graph)
+
+
+@pytest.mark.parametrize(
+    "ordering, sorted_field",
+    [
+        (EdgeOrdering.SENDER, "senders_long_range"),
+        (EdgeOrdering.RECEIVER, "receivers_long_range"),
+    ],
+)
+def test_sort_edges_sorts_long_range_edges(
+    unsorted_graph_with_long_range: Graph, ordering, sorted_field: str
+):
+    sorted_graph = unsorted_graph_with_long_range.sort_edges(ordering)
+
+    field = np.asarray(getattr(sorted_graph, sorted_field))
+    assert np.all(np.diff(field) >= 0)
+    # No long-range edge is lost, duplicated, or misaligned — only reordered.
+    assert _long_range_edge_tuples(sorted_graph) == _long_range_edge_tuples(
+        unsorted_graph_with_long_range
+    )
+    # Short-range edges are still sorted independently, as before.
+    short_range_field = np.asarray(
+        getattr(sorted_graph, sorted_field.split("_", maxsplit=1)[0])
+    )
+    assert np.all(np.diff(short_range_field) >= 0)
+
+
+def test_sort_edges_default_is_sender(unsorted_graph: Graph):
+    """The default ordering argument is SENDER."""
+    default_sorted = unsorted_graph.sort_edges()
+    explicit_sorted = unsorted_graph.sort_edges(EdgeOrdering.SENDER)
+    assert default_sorted.ordering == EdgeOrdering.SENDER
+    jax.tree.map(np.testing.assert_array_equal, default_sorted, explicit_sorted)
+
+
+def test_sort_edges_none_does_not_reorder(unsorted_graph: Graph):
+    """NONE never reorders edges, even if the graph is already tagged NONE."""
+    already_tagged = unsorted_graph.replace(ordering=None)
+    result = already_tagged.sort_edges(EdgeOrdering.NONE)
+    assert result.ordering == EdgeOrdering.NONE
+    np.testing.assert_array_equal(result.senders, already_tagged.senders)
+    np.testing.assert_array_equal(result.receivers, already_tagged.receivers)

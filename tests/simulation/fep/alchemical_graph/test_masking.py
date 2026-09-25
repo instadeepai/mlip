@@ -193,6 +193,14 @@ def test_prune_edges_matches_neighbor_list_padding(
     assert_array_equal(graph_pruned.receivers, receivers_jax_md)
 
 
+def test_prune_edges_leaves_absent_shifts(
+    distant_waters_connected: Graph, distant_waters_mask: np.ndarray
+):
+    assert distant_waters_connected.edges.shifts is None
+    graph_pruned = prune_edges_with_mask(distant_waters_connected, distant_waters_mask)
+    assert graph_pruned.edges.shifts is None
+
+
 @pytest.mark.parametrize("translate_shifts", [0.0, 1.0])
 def test_prune_edges_matches_dynamically_batch(
     distant_waters_connected: Graph,
@@ -205,18 +213,18 @@ def test_prune_edges_matches_dynamically_batch(
     `dynamically_batch` is used to add a dummy graph, treated as padding. This test
     checks that the padding behaviour of `prune_edges_with_mask` matches this.
     """
-    graph_connected = distant_waters_connected.replace(
-        edges=GraphEdges(
-            shifts=distant_waters_connected.edges.shifts + translate_shifts,
-            displ_fun=None,
-        ),
-    )
-    graph_disconnected = distant_waters_disconnected.replace(
-        edges=GraphEdges(
-            shifts=distant_waters_disconnected.edges.shifts + translate_shifts,
-            displ_fun=None,
-        ),
-    )
+
+    # Add shifts to check they are treated consistently between the methods.
+    def with_uniform_shifts(graph: Graph) -> Graph:
+        return graph.replace(
+            edges=GraphEdges(
+                shifts=np.full((graph.senders.shape[0], 3), translate_shifts),
+                displ_fun=None,
+            ),
+        )
+
+    graph_connected = with_uniform_shifts(distant_waters_connected)
+    graph_disconnected = with_uniform_shifts(distant_waters_disconnected)
 
     # Pad to shape given by the capacities, and add dummy graph
     graph_padded = next(

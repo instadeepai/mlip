@@ -23,6 +23,7 @@ from ase.calculators.calculator import Calculator, all_changes
 from mlip.data.chemical_system import ChemicalSystem
 from mlip.data.helpers.dynamically_batch import dynamically_batch
 from mlip.graph import Graph
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING
 from mlip.models import ForceField
 
 logger = logging.getLogger("mlip")
@@ -68,7 +69,7 @@ class MLIPForceFieldASECalculator(Calculator):
         """
         self.atoms = atoms
         self.num_atoms = len(self.atoms)
-        self.model_apply_fun = jax.jit(force_field.predictor.apply)
+        self.model_apply_fun = jax.jit(force_field.calculate)
         self.model_params = force_field.params
         self.graph_cutoff_angstrom = force_field.cutoff_distance
         self.long_range_cutoff_angstrom = force_field.long_range_cutoff_distance
@@ -83,6 +84,7 @@ class MLIPForceFieldASECalculator(Calculator):
             chem_system,
             self.graph_cutoff_angstrom,
             long_range_cutoff_angstrom=self.long_range_cutoff_angstrom,
+            ordering=DEFAULT_EDGE_ORDERING,
         )
         force_field.check_graph_compatible(self.base_graph)
 
@@ -114,6 +116,7 @@ class MLIPForceFieldASECalculator(Calculator):
             chem_system,
             self.graph_cutoff_angstrom,
             long_range_cutoff_angstrom=self.long_range_cutoff_angstrom,
+            ordering=DEFAULT_EDGE_ORDERING,
         )
         if self.allow_nodes_to_change:
             self.force_field.check_graph_compatible(graph)
@@ -193,9 +196,7 @@ class MLIPForceFieldASECalculator(Calculator):
         batched_graph = self._prepare_graph(atoms)
 
         # Run predictions
-        predictions = self.model_apply_fun(
-            self.model_params, batched_graph
-        ).to_prediction()
+        predictions = self.model_apply_fun(batched_graph).to_prediction()
 
         energy = (
             predictions.energy[0] if predictions.energy.shape else predictions.energy

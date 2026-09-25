@@ -162,7 +162,7 @@ def create_device_mesh() -> Mesh:
     """
     devices = jax.devices()
     return jax.make_mesh(
-        axis_shapes=(len(devices),),
+        (len(devices),),
         axis_names=(DATA_PARALLELISM_AXIS_NAME,),
         axis_types=(AxisType.Auto,),
     )

@@ -18,6 +18,7 @@ from typing import Callable
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from flax.struct import dataclass as flax_dataclass
 
 from mlip.data.helpers.dynamically_batch import dynamically_batch
@@ -177,8 +178,9 @@ class GraphDataset:
             logger.debug("Shuffling data now...")
             rng, subkey = jax.random.split(self._state.rng, 2)
             self._state = self._state.replace(rng=rng)
-            indices = jax.random.permutation(subkey, len(self.graphs))
+            indices = np.asarray(jax.random.permutation(subkey, len(self.graphs)))
             self.graphs = [self.graphs[i] for i in indices]
+            logger.debug("Finished shuffling.")
 
         self._graph_postprocessing = graph_postprocessing or []
 
@@ -200,7 +202,9 @@ class GraphDataset:
             # We dont update the rng immediately so the state
             # has the info to yield these batches
             self._next_rng = rng
-            graphs = [graphs[i] for i in jax.random.permutation(subkey, len(graphs))]
+            indices = np.asarray(jax.random.permutation(subkey, len(graphs)))
+            graphs = [graphs[i] for i in indices]
+            logger.debug("Finished shuffling.")
 
         graphs = graphs[int(self._state.num_graphs_processed) :]
 
@@ -293,6 +297,10 @@ class GraphDataset:
     def number_of_graphs(self) -> int:
         """Returns the number of graphs in the dataset.
 
+        Returns a count over the full dataset without batching. When batching, graphs
+        may be dropped if `skip_last_batch=True`. In this case, the count can be larger
+        than the number of graphs yielded when iterating over the dataset in batches.
+
         Returns:
             The number of graphs in this dataset.
         """
@@ -301,10 +309,11 @@ class GraphDataset:
     def number_of_nodes(self) -> int:
         """Returns the number of nodes in the dataset.
 
+        Returns a count over the full dataset without batching. When batching, graphs
+        may be dropped if `skip_last_batch=True`. In this case, the count can be larger
+        than the number of nodes yielded when iterating over the dataset in batches.
+
         Returns:
             The number of nodes in this dataset.
         """
-        total = 0
-        for graph in self:
-            total += graph.node_mask().sum()
-        return total
+        return int(sum(np.asarray(graph.n_node).sum() for graph in self.graphs))

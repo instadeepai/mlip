@@ -47,6 +47,7 @@ from mlip.data.helpers.type_aliases import (
     SystemsPreprocessingFunction,
 )
 from mlip.graph import Graph
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING
 from mlip.utils.multihost import create_device_mesh
 
 logger = logging.getLogger("mlip")
@@ -66,6 +67,7 @@ class SingleGraphDatasetBuilder:
         builder_config: GraphDatasetBuilderConfig,
         dataset_info: DatasetInfo | bool,
         shuffle: bool = False,
+        preloaded_systems: dict[int, list] | None = None,
     ):
         """Constructor.
 
@@ -78,12 +80,17 @@ class SingleGraphDatasetBuilder:
                           Pass `False` to skip dataset info computation.
                           Pass a :class:`DatasetInfo` instance to use a
                           pre-computed one (e.g. from a trained model).
+            preloaded_systems: Optional dict mapping `id(reader)` to loaded chemical
+                systems, keyed by reader identity. Used for parallel loading by
+                :class:`~mlip.data.graph_dataset_builder.GraphDatasetBuilder`.
+                Entries are removed when consumed, so this is mutated by `get_dataset`.
         """
         self._dataset = None
         self._readers = readers if isinstance(readers, list) else [readers]
         self._builder_config = builder_config
         self._dataset_info = dataset_info
         self._shuffle = shuffle
+        self._preloaded_systems = preloaded_systems
         self._graphs: list[Graph] | None = None
 
         if not dataset_info and self._builder_config.use_formation_energies:
@@ -146,7 +153,13 @@ class SingleGraphDatasetBuilder:
         """
         systems = []
         for reader in self._readers:
-            systems.extend(reader.load())
+            # Each reader leaf is consumed exactly once.
+            preloaded = (
+                self._preloaded_systems.pop(id(reader), None)
+                if self._preloaded_systems is not None
+                else None
+            )
+            systems.extend(preloaded if preloaded is not None else reader.load())
 
         all_preprocessing = self._preprocessing_fns_from_config() + list(
             systems_preprocessing or []
@@ -154,14 +167,31 @@ class SingleGraphDatasetBuilder:
         for preprocess_function in all_preprocessing:
             systems = preprocess_function(systems)
 
-        self._graphs = [
-            Graph.from_chemical_system(
+        logger.debug("Creating graphs...")
+        graphs, num_discarded = [], 0
+
+        for system in tqdm(systems, desc="graph creation"):
+            graph = Graph.from_chemical_system(
                 chemical_system=system,
                 graph_cutoff_angstrom=self._builder_config.graph_cutoff_angstrom,
                 long_range_cutoff_angstrom=self._builder_config.long_range_cutoff_angstrom,
+                ordering=DEFAULT_EDGE_ORDERING,
             )
-            for system in tqdm(systems, desc="graph creation")
-        ]
+            if (
+                self._builder_config.discard_graphs_without_edges
+                and graph.n_edge.sum() == 0
+            ):
+                num_discarded += 1
+            else:
+                graphs.append(graph)
+
+        if num_discarded > 0:
+            logger.info(
+                "Discarded %d empty graphs (no edges within cutoff)", num_discarded
+            )
+        self._graphs = graphs
+
+        logger.debug("Graph creation completed.")
 
     def get_dataset(
         self,

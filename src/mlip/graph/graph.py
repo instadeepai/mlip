@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-import logging
+import functools
 import warnings
 from typing import TYPE_CHECKING, Callable, Self, TypeAlias
 
@@ -25,6 +25,7 @@ from e3nn_jax import IrrepsArray
 from flax import struct
 from jax.typing import ArrayLike
 
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING, EdgeOrdering
 from mlip.graph.mask_helpers import (
     get_graph_padding_mask,
     get_node_padding_mask,
@@ -35,8 +36,6 @@ from mlip.utils.safe_norm import safe_divide
 
 if TYPE_CHECKING:
     from mlip.data.chemical_system import ChemicalSystem
-
-logger = logging.getLogger("mlip")
 
 Positions: TypeAlias = ArrayLike  # [num_nodes, 3]
 DisplacementVectors: TypeAlias = ArrayLike  # [num_edges, 3]
@@ -86,8 +85,9 @@ class GraphEdges:
 
     Attributes:
         shifts: Shift vectors to compute edge vectors from positions taking into account
-                PBCs. Either this needs to be specified or the `displ_fun` attribute
-                instead, but not both. If both exist, shifts will be used.
+                PBCs. For systems with PBCs, either this or the `displ_fun` attribute
+                should be provided, but not both. For systems without PBCs, this should
+                either be set to `None` or all-zeros.
         displ_fun: Alternative to `shifts` to compute edge vectors from positions
                    taking into account PBCs. The displacement function should be
                    vmapped already, meaning it can take in a position matrix for
@@ -181,12 +181,16 @@ class Graph:
     receivers_long_range: ArrayLike | None = None
     edges_long_range: GraphEdges | None = None
 
+    # Edge ordering: static (compile-time) metadata, not a traced pytree leaf.
+    ordering: EdgeOrdering | None = struct.field(pytree_node=False, default=None)
+
     @classmethod
     def from_chemical_system(
         cls,
         chemical_system: ChemicalSystem,
         graph_cutoff_angstrom: float,
         long_range_cutoff_angstrom: float | None = None,
+        ordering: EdgeOrdering | str = DEFAULT_EDGE_ORDERING,
     ) -> Self:
         """Create a `Graph` object from a chemical system and dataset info.
 
@@ -198,15 +202,19 @@ class Graph:
             graph_cutoff_angstrom: The graph distance cutoff in Angstrom.
             long_range_cutoff_angstrom: The long range distance cutoff in Angstrom.
                 If None, long range interactions are not computed.
+            ordering: Edge ordering of the output graph.
 
         Returns:
             The `Graph` object for the given chemical system.
         """
+        ordering = EdgeOrdering.parse(ordering)
+
         senders, receivers, shift_vectors = get_neighborhood(
             positions=chemical_system.positions,
             cutoff=graph_cutoff_angstrom,
             pbc=chemical_system.pbc,
             cell=chemical_system.cell,
+            ordering=ordering,
         )
 
         if long_range_cutoff_angstrom is not None:
@@ -216,6 +224,7 @@ class Graph:
                     cutoff=long_range_cutoff_angstrom,
                     pbc=chemical_system.pbc,
                     cell=chemical_system.cell,
+                    ordering=ordering,
                 )
             )
             n_edge_long_range = np.array([senders_long_range.shape[0]])
@@ -284,6 +293,7 @@ class Graph:
             senders_long_range=senders_long_range,
             receivers_long_range=receivers_long_range,
             edges_long_range=edges_long_range,
+            ordering=ordering,
         )
 
         return graph
@@ -388,6 +398,23 @@ class Graph:
         """
         return get_node_padding_mask(self)
 
+    def edge_mask(self) -> jax.Array:
+        """Evaluates the edge padding mask array for the graph.
+
+        `True` refers to a real edge, while `False` refers to a dummy edge in
+        the (batched) graph.
+
+        .. note::
+            Typically dummy edges *all point to the first dummy node*,
+            which may produce very imbalanced neighbour aggregations
+            in the message-passing step when not masked out.
+
+
+        Returns:
+            The edge padding mask.
+        """
+        return self.node_mask()[self.senders] & self.node_mask()[self.receivers]
+
     def graph_mask(self) -> jax.Array:
         """Evaluates the graph padding mask array for the batched graph.
 
@@ -443,8 +470,11 @@ class Graph:
     ) -> ArrayLike:
         """Compute relative edge vectors from senders to receivers, applying PBC
         shifts or `displ_fun` if provided."""
-        vectors_senders = self.nodes.positions[senders]  # [n_edges, 3]
-        vectors_receivers = self.nodes.positions[receivers]  # [n_edges, 3]
+        np_ = np if use_np else jnp
+
+        positions = np_.asarray(self.nodes.positions)
+        vectors_senders = positions[senders]  # [n_edges, 3]
+        vectors_receivers = positions[receivers]  # [n_edges, 3]
 
         if edges.displ_fun is not None:
             assert edges.shifts is None
@@ -453,14 +483,13 @@ class Graph:
             )
             return vectors
 
-        if self.globals.cell is not None:
-            assert edges.shifts is not None
-            if use_np:
-                np_ = np
-                kwargs_num_edges = {}
-            else:
-                np_ = jnp
-                kwargs_num_edges = {"total_repeat_length": senders.shape[0]}
+        # If shifts are present, use them to transform vectors.
+        if edges.shifts is not None:
+            assert edges.displ_fun is None
+            assert self.globals.cell is not None
+            kwargs_num_edges = (
+                {} if use_np else {"total_repeat_length": senders.shape[0]}
+            )
 
             shifts = np_.einsum(
                 "ei,eij->ej",
@@ -481,8 +510,9 @@ class Graph:
         """Compute the relative edge vectors from senders to receivers.
 
         We use `displ_fun` if available, otherwise edge vectors are computed directly
-        using the `positions` and `shifts`. In the case of PBCs, sender nodes are
-        translated from the unit cell to the receiver's nearest neighbouring cell:
+        using the `positions` and optionally `shifts`. If using PBCs with `shifts`,
+        sender nodes are translated from the unit cell to the receiver's nearest
+        neighbouring cell:
 
         .. code-block:: python
 
@@ -551,3 +581,63 @@ class Graph:
         )
 
         return feature_per_graph
+
+    def sort_edges(self, ordering: EdgeOrdering | str = DEFAULT_EDGE_ORDERING) -> Graph:
+        """Sort a graph's edges to enable optimized equivariant message passing.
+
+        Note that this method should only be called at graph creation time, to avoid
+        expensive re-ordering of edge features. All graphs created with `mlip` are by
+        default ordered by sender node, for compatibility with `e3j` message-passing
+        blocks on GPU and TPU.
+
+        Args:
+            ordering: One of SENDER, RECEIVER or NONE. See :class:`EdgeOrdering`.
+
+        Returns:
+            A new graph whose edges and edge features have been reordered,
+            and whose `.ordering` attribute matches the requested ordering.
+
+        .. note::
+
+            Ordering a graph should only be done at data-processing time for
+            efficiency, since sorting edge features incurs significant overhead.
+        """
+
+        ordering = EdgeOrdering.parse(ordering)
+
+        if ordering == EdgeOrdering.NONE:
+            return self.replace(ordering=ordering)
+
+        def _take(sigma, array):
+            return array[sigma]
+
+        def _sigma_for(senders, receivers):
+            if ordering == EdgeOrdering.SENDER:
+                return jnp.argsort(senders)
+            elif ordering == EdgeOrdering.RECEIVER:
+                return jnp.argsort(receivers)
+            else:
+                raise ValueError(f"Unsupported ordering {ordering}")
+
+        sigma = _sigma_for(self.senders, self.receivers)
+        sort = functools.partial(_take, sigma)
+
+        replace_kwargs = dict(
+            edges=jax.tree.map(sort, self.edges),
+            senders=sort(self.senders),
+            receivers=sort(self.receivers),
+            ordering=ordering,
+        )
+
+        if self.senders_long_range is not None:
+            sigma_long_range = _sigma_for(
+                self.senders_long_range, self.receivers_long_range
+            )
+            sort_long_range = functools.partial(_take, sigma_long_range)
+            replace_kwargs.update(
+                edges_long_range=jax.tree.map(sort_long_range, self.edges_long_range),
+                senders_long_range=sort_long_range(self.senders_long_range),
+                receivers_long_range=sort_long_range(self.receivers_long_range),
+            )
+
+        return self.replace(**replace_kwargs)

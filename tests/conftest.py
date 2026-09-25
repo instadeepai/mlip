@@ -33,6 +33,7 @@ from mlip.data.helpers.dummy_init_graph import (
     get_dummy_graph_for_model_init as get_dummy_graph,  # noqa
 )
 from mlip.graph import Graph, GraphEdges, GraphGlobals, GraphNodes
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING
 from mlip.models import Mace, Nequip, Visnet
 from mlip.models.blocks import SpeciesAssignmentBlock
 from mlip.models.charge_utils import correct_partial_charge_feature
@@ -63,7 +64,8 @@ jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
 
 e3j.config(
     layout=Layout.E3NN,
-    tensor_product="SPARSE",
+    tensor_product="UNFUSED",
+    convolution="UNFUSED",
 )
 
 
@@ -148,7 +150,9 @@ def setup_system(dataset_info) -> tuple[Atoms, Graph]:
     graph_cutoff_angstrom = dataset_info.graph_cutoff_angstrom
 
     chemical_system = ChemicalSystem.from_ase_atoms(atoms)
-    graph = Graph.from_chemical_system(chemical_system, graph_cutoff_angstrom)
+    graph = Graph.from_chemical_system(
+        chemical_system, graph_cutoff_angstrom, ordering=DEFAULT_EDGE_ORDERING
+    )
 
     assert all(z in dataset_info.atomic_energies_map for z in atoms.numbers)
 
@@ -172,7 +176,7 @@ def salt_graph(dataset_info) -> Graph:
     # only Na-Cl bond should be within cutoff.
     cutoff = GRAPH_CUTOFF_ANGSTROM
 
-    graph = Graph.from_chemical_system(salt, cutoff)
+    graph = Graph.from_chemical_system(salt, cutoff, ordering=DEFAULT_EDGE_ORDERING)
     return graph
 
 
@@ -784,6 +788,7 @@ def pad_graph() -> Callable[[Graph, int, int, int], Graph]:
             n_edge=jnp.concat([graph.n_edge, dummy_n_edge, dummies_empty]),
             senders=jnp.concat([graph.senders, dummy_node]),
             receivers=jnp.concat([graph.receivers, dummy_node]),
+            ordering=graph.ordering,
         )
 
     return pad

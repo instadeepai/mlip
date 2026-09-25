@@ -185,6 +185,9 @@ class TrainingLoop:
         self.best_evaluation_epoch = 0
         self.best_evaluation_loss = float("inf")
         self._best_params = None
+        # Set to True if training diverges (non-finite loss/gradient) and
+        # `config.terminate_on_nan` is enabled; the run loop then stops early.
+        self.training_diverged = False
         self.num_batches = len(self.train_dataset)
         # Each host stacks n_local_devices batches, so the iterator
         # yields num_batches // n_local_devices stacked batches per host.
@@ -225,6 +228,15 @@ class TrainingLoop:
             self.epoch_number += 1
             t_before_train = time.perf_counter()
             self._run_training_epoch()
+
+            if self.training_diverged:
+                logger.error(
+                    "Terminating training after epoch %s due to non-finite "
+                    "(NaN/Inf) training metrics.",
+                    self.epoch_number,
+                )
+                break
+
             logger.debug(
                 "Parameter updates of epoch %s done, running evaluation next.",
                 self.epoch_number,
@@ -535,6 +547,9 @@ class TrainingLoop:
         for metric_name in metrics[0].keys():
             _metrics[metric_name] = np.mean([m[metric_name] for m in metrics])
 
+        if self.config.terminate_on_nan:
+            self._check_for_divergence(_metrics, epoch_number)
+
         try:
             opt_hyperparams = self.training_state.optimizer_state.hyperparams
             if self.extended_metrics:
@@ -560,6 +575,22 @@ class TrainingLoop:
             epoch_number,
             self._get_num_steps_from_training_state(),
         )
+
+    def _check_for_divergence(
+        self, epoch_metrics: dict[str, np.ndarray], epoch_number: int
+    ) -> None:
+        """Flag training as diverged if a key training metric is non-finite.
+
+        Checks the epoch-averaged loss and gradient/update norms for NaN or Inf.
+        These metrics are already on the host at this point, so the check adds no
+        extra device synchronisation. Sets `self.training_diverged`, which the
+        `run` loop reads to stop early.
+        """
+        for metric_name in ("loss", "gradient_norm", "param_update_norm"):
+            value = epoch_metrics.get(metric_name)
+            if value is not None and not np.isfinite(value):
+                self.training_diverged = True
+                return
 
     def _eval_params_from_current_training_state(self) -> ModelParameters:
         ema_decay = (

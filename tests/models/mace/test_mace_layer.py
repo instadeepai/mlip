@@ -189,9 +189,10 @@ class _TestMaceLayer:
             globals=GraphGlobals(cell=None, weight=1),
             senders=features["senders"],
             receivers=features["receivers"],
-            n_node=self.n_node,
-            n_edge=self.n_edge,
+            n_node=jnp.array([self.n_node]),
+            n_edge=jnp.array([self.n_edge]),
         )
+        graph = graph.sort_edges()
         return (graph,)
 
     def test_self_interaction_v1_against_v2(self, features, standardize_params):
@@ -287,8 +288,8 @@ class _TestMaceLayer:
         gfx = out_feats.array @ rotation_out
 
         # f(g(x)): rotate equivariant inputs, then run
-        node_feats = features["latent_node"]
-        edge_sh = features["spherical_embedding"]
+        node_feats = graph.nodes.features["embedding"]
+        edge_sh = graph.edges.features["spherical_embedding"]
         rotation_in_node = node_feats.irreps.D_from_matrix(rotation)
         rotation_in_sh = edge_sh.irreps.D_from_matrix(rotation)
 

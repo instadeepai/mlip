@@ -37,6 +37,10 @@ class TrainingLoopConfig(pydantic.BaseModel):
                          all the available graphs.
         run_eval_at_start: Whether to run an evaluation on the validation set before
                            we start the first epoch. By default, it is set to `True`.
+        terminate_on_nan: Whether to stop training as soon as an epoch's training
+                          loss or gradient norm becomes non-finite (NaN/Inf), rather
+                          than continuing to burn compute on a diverged run. Enabled
+                          by default.
     """
 
     num_epochs: PositiveInt
@@ -46,3 +50,4 @@ class TrainingLoopConfig(pydantic.BaseModel):
     use_ema_params_for_eval: bool = True
     eval_num_graphs: PositiveInt | None = None
     run_eval_at_start: bool = True
+    terminate_on_nan: bool = True

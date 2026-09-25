@@ -108,11 +108,11 @@ class ConservativePredictor(ForceFieldPredictor):
         Returns:
             The computed stress tensor.
         """
-        if graph.edges.shifts is None:
+        if graph.edges.displ_fun is not None:
             logger.warning(
-                "`stress` in `required_properties`, but graph does not contain "
-                "`shifts` so a real `stress` cannot be computed. Returning dummy values"
-                " of zeros for predicted stress."
+                "`stress` in `required_properties`, but the graph computes edge "
+                "vectors via a displacement function so a real `stress` cannot be "
+                "computed. Returning dummy values of zeros for predicted stress."
             )
             return jnp.zeros_like(pseudo_stress)
 

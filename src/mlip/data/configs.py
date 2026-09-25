@@ -94,6 +94,14 @@ class GraphDatasetBuilderConfig(pydantic.BaseModel):
                     clear error otherwise. Multi-dataset merging typically
                     requires `True` because different subsets may not share
                     the same optional-field presence. Defaults to `False`.
+        discard_graphs_without_edges: Whether to discard graphs that have zero edges
+            (meaning within the specified cutoff distance). By default, this is enabled.
+            In some cases, this might not be desired, for example, in the batched
+            inference function where this flag is explicitly disabled.
+        num_reader_workers: Number of parallel workers to use for reading and parsing.
+            Readers are parallelized across datasets and splits, and also for reading
+            chunks of each file where supported (e.g. with `Hdf5Reader`). Note that
+            maximum RAM usage increases with additional workers. Default is 1.
     """
 
     graph_cutoff_angstrom: PositiveFloat = 5.0
@@ -123,3 +131,7 @@ class GraphDatasetBuilderConfig(pydantic.BaseModel):
     set_none_charges_to_zero: bool = False
 
     homogenize: bool = False
+
+    discard_graphs_without_edges: bool = True
+
+    num_reader_workers: PositiveInt = 1

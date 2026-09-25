@@ -144,11 +144,12 @@ def test_nequip_predicts_partial_charges(
 def test_nequip_uses_coulomb_term(
     setup_system, lri_nequip_force_field, nequip_force_field
 ):
-    atoms, _ = setup_system
+    atoms, graph = setup_system
     graph = Graph.from_chemical_system(
         ChemicalSystem.from_ase_atoms(atoms),
         graph_cutoff_angstrom=3.0,
         long_range_cutoff_angstrom=5.0,
+        ordering=graph.ordering,
     )
     graph = graph.replace_globals(charge=jnp.array([1.0]))
     lri_out_graph = jax.jit(lri_nequip_force_field.calculate)(graph)

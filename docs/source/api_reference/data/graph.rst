@@ -11,6 +11,8 @@ Graph
 
     .. autoattribute:: num_graphs
 
+    .. automethod:: sort_edges
+
     .. automethod:: replace_nodes
 
     .. automethod:: replace_edges

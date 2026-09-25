@@ -34,14 +34,18 @@ from mlip.typing.properties import Properties
 
 
 def _graph_dataset_from_atoms(
-    atoms: list[ase.Atoms], batch_size=1, dataset_info=True, prefetch=False
+    atoms: list[ase.Atoms],
+    batch_size=1,
+    dataset_info=True,
+    prefetch=False,
+    discard_graphs_without_edges=True,
 ) -> GraphDataset:
     builder_config = GraphDatasetBuilderConfig(
         graph_cutoff_angstrom=3.0,
         max_n_node=None,
         max_n_edge=None,
         batch_size=batch_size,
-        should_shuffle=False,
+        discard_graphs_without_edges=discard_graphs_without_edges,
     )
     for system in atoms:
         if system.get_calculator() is None:
@@ -175,7 +179,10 @@ def test_batched_inference_with_graph_without_edges(
 
     structures = [atoms_without_edges, atoms]
     graph_dataset = _graph_dataset_from_atoms(
-        structures, batch_size=2, dataset_info=quadratic_force_field.dataset_info
+        structures,
+        batch_size=2,
+        dataset_info=quadratic_force_field.dataset_info,
+        discard_graphs_without_edges=False,
     )
     result = run_batched_inference(graph_dataset, quadratic_force_field, batch_size=2)
 

@@ -47,7 +47,9 @@ class ASEAtomsReader:
         Converts a single list[ase.Atoms] to a list of `ChemicalSystems`.
         """
         chemical_systems = [
-            ChemicalSystem.from_ase_atoms(atoms, self.property_name_mapping)
+            ChemicalSystem.from_ase_atoms(
+                atoms, property_name_mapping=self.property_name_mapping
+            )
             for atoms in self._atoms_list[: self._num_to_load]
         ]
 

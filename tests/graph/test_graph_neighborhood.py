@@ -122,7 +122,7 @@ def test_flat_molecule_uses_padded_cell_in_pbc_false_case():
     mock_get_cell.assert_called_once()
     assert senders.tolist() == [0, 1]
     assert receivers.tolist() == [1, 0]
-    assert shifts.tolist() == [[0, 0, 0], [0, 0, 0]]
+    assert shifts is None
 
 
 def test_matscipy_llinalg_error_is_handled_automatically_in_pbc_false_case(monkeypatch):
@@ -143,7 +143,7 @@ def test_matscipy_llinalg_error_is_handled_automatically_in_pbc_false_case(monke
 
     assert call_count == 2
     assert len(senders) > 0
-    assert np.all(shifts == 0.0)
+    assert shifts is None
 
 
 def test_no_pbc_graph_does_not_have_shifts(setup_system, mace_force_field):
@@ -170,7 +170,7 @@ def test_no_pbc_graph_does_not_have_shifts(setup_system, mace_force_field):
         (0 < distances) & (distances < graph_cutoff_angstrom)
     )
 
-    assert np.all(shifts == 0.0)
+    assert shifts is None
     assert len(senders) == 68
 
     expected_edges = []

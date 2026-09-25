@@ -59,10 +59,18 @@ def compute_avg_min_neighbor_distance(graphs: list[Graph]) -> float:
     for i, graph in enumerate(graphs):
         vectors = graph.edge_vectors(use_np=True)
         length = np.linalg.norm(vectors, axis=-1)
-        min_neighbor_distances.append(length.min())
+        # Skip graphs with no edges (e.g. an isolated atom with no neighbor
+        # within the cutoff); `length.min()` on an empty array raises.
+        if length.size > 0:
+            min_neighbor_distances.append(length.min())
 
         if (i + 1) % log_interval == 0 or i == len(graphs) - 1:
             percentage = ((i + 1) / len(graphs)) * 100
             logger.info("Processed %.0f%% of data", percentage)
 
+    if len(min_neighbor_distances) == 0:
+        raise ValueError(
+            "No graph had any edges; cannot compute average minimum neighbor "
+            "distance. Check the graph cutoff and for isolated-atom structures."
+        )
     return np.mean(min_neighbor_distances).item()

@@ -12,11 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mlip.graph.graph import (
-    EdgeOrdering,
-    Graph,
-    GraphEdges,
-    GraphGlobals,
-    GraphNodes,
-    ShiftVectors,
-)
+from mlip.data.helpers.data_prefetching import ParallelGraphDataset
+
+
+class _StubGraphDataset:
+    def number_of_graphs(self) -> int:
+        return 123
+
+    def number_of_nodes(self) -> int:
+        return 456
+
+
+def test_parallel_graph_dataset_number_of_graphs_and_nodes_delegate():
+    parallel_dataset = ParallelGraphDataset(_StubGraphDataset(), num_parallel=4)
+
+    assert parallel_dataset.number_of_graphs() == 123
+    assert parallel_dataset.number_of_nodes() == 456

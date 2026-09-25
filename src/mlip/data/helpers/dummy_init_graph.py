@@ -15,7 +15,7 @@
 import jax
 import numpy as np
 
-from mlip.graph import Graph, GraphEdges, GraphGlobals, GraphNodes
+from mlip.graph import EdgeOrdering, Graph, GraphEdges, GraphGlobals, GraphNodes
 
 
 def get_dummy_graph_for_model_init() -> Graph:
@@ -54,5 +54,6 @@ def get_dummy_graph_for_model_init() -> Graph:
         senders_long_range=np.array([0]),
         receivers_long_range=np.array([0]),
         edges_long_range=GraphEdges(shifts=np.zeros((1, 3)), displ_fun=None),
+        ordering=EdgeOrdering.SENDER,  # Correct for senders/receivers above.
     )
     return graph

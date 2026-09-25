@@ -34,7 +34,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mlip.graph.graph import Graph
+from mlip.graph.edge_ordering import EdgeOrdering
+from mlip.graph.graph import Graph, GraphEdges
 
 
 def batch_graphs(graphs: list[Graph], jittable: bool = False) -> Graph:
@@ -92,6 +93,14 @@ def batch_graphs(graphs: list[Graph], jittable: bool = False) -> Graph:
         concat_receivers_long_range = None
         concat_edges_long_range = None
 
+    # Assign joint graph ordering flag.
+    if all(g.ordering == EdgeOrdering.SENDER for g in graphs):
+        ordering = EdgeOrdering.SENDER
+    elif all(g.ordering == EdgeOrdering.RECEIVER for g in graphs):
+        ordering = EdgeOrdering.RECEIVER
+    else:
+        ordering = EdgeOrdering.NONE
+
     return graphs[0].replace(
         n_node=np_.concatenate([g.n_node for g in graphs]),
         n_edge=np_.concatenate([g.n_edge for g in graphs]),
@@ -104,6 +113,7 @@ def batch_graphs(graphs: list[Graph], jittable: bool = False) -> Graph:
         receivers_long_range=concat_receivers_long_range,
         n_edge_long_range=concat_n_edge_long_range,
         edges_long_range=concat_edges_long_range,
+        ordering=ordering,
     )
 
 
@@ -218,6 +228,7 @@ def pad_with_graphs(
         senders_long_range=senders_long_range_padded,
         receivers_long_range=receivers_long_range_padded,
         edges_long_range=edges_long_range_padded,
+        ordering=graph.ordering,
     )
     return batch_graphs([graph, padding_graph])
 
@@ -238,13 +249,18 @@ _NODE_PAD_FACTORIES: dict[str, Callable[[Graph], np.ndarray]] = {
     "partial_charges": lambda g: np.full(g.nodes.positions.shape[:1], np.nan),
 }
 
+_EDGE_PAD_FACTORIES: dict[str, Callable[[np.ndarray], np.ndarray]] = {
+    "shifts": lambda senders: np.zeros((senders.shape[0], 3)),
+}
+
 
 def homogenize_graph_fields(graphs: list[Graph]) -> list[Graph]:
     """Fill supported missing fields so graphs from heterogeneous datasets
     share the same pytree structure.
 
-    NaN is used as a sentinel so loss functions can detect and mask out samples
-    whose dataset did not provide the field.
+    NaN is used as a sentinel for graph/node features so loss functions can detect and
+    mask samples whose dataset did not provide the field. Edge shifts are zero-filled
+    for both short-range and long-range edges.
 
     Args:
         graphs: List of graphs that may have heterogeneous optional fields.
@@ -257,6 +273,8 @@ def homogenize_graph_fields(graphs: list[Graph]) -> list[Graph]:
 
     present_globals: set[str] = set()
     present_nodes: set[str] = set()
+    present_edges: set[str] = set()
+    present_edges_long_range: set[str] = set()
     for g in graphs:
         for f in _GLOBAL_PAD_FACTORIES:
             if getattr(g.globals, f) is not None:
@@ -264,6 +282,22 @@ def homogenize_graph_fields(graphs: list[Graph]) -> list[Graph]:
         for f in _NODE_PAD_FACTORIES:
             if getattr(g.nodes, f) is not None:
                 present_nodes.add(f)
+        for f in _EDGE_PAD_FACTORIES:
+            if getattr(g.edges, f) is not None:
+                present_edges.add(f)
+            if g.edges_long_range is not None and (
+                getattr(g.edges_long_range, f) is not None
+            ):
+                present_edges_long_range.add(f)
+
+    def _edge_updates(
+        edges: GraphEdges, senders: np.ndarray, present: set[str]
+    ) -> dict[str, np.ndarray]:
+        return {
+            f: _EDGE_PAD_FACTORIES[f](senders)
+            for f in present
+            if getattr(edges, f) is None
+        }
 
     def _fill(graph: Graph) -> Graph:
         global_updates = {
@@ -276,23 +310,43 @@ def homogenize_graph_fields(graphs: list[Graph]) -> list[Graph]:
             for f in present_nodes
             if getattr(graph.nodes, f) is None
         }
+        edge_updates = _edge_updates(graph.edges, graph.senders, present_edges)
         if global_updates:
             graph = graph.replace_globals(**global_updates)
         if node_updates:
             graph = graph.replace_nodes(**node_updates)
+        if edge_updates:
+            graph = graph.replace_edges(**edge_updates)
+        if graph.edges_long_range is not None:
+            long_range_updates = _edge_updates(
+                graph.edges_long_range,
+                graph.senders_long_range,
+                present_edges_long_range,
+            )
+            if long_range_updates:
+                graph = graph.replace(
+                    edges_long_range=graph.edges_long_range.replace(
+                        **long_range_updates
+                    )
+                )
         return graph
 
     return [_fill(g) for g in graphs]
 
 
 def _field_signature(graph: Graph) -> frozenset[str]:
-    """Per-graph signature of non-None optional fields across all three graph
-    components. Includes `features.*` dict keys so e.g. two graphs with
+    """Per-graph signature of non-None optional fields across graph components.
+
+    Includes `features.*` dict keys so e.g. two graphs with
     `nodes.features={"x": ...}` vs `nodes.features={}` are flagged as
-    incompatible."""
+    incompatible. `edges_long_range` is covered too, and is skipped when absent
+    so graphs built without a long-range cutoff keep their previous signature.
+    """
     present: set[str] = set()
-    for comp_name in ("nodes", "edges", "globals"):
+    for comp_name in ("nodes", "edges", "globals", "edges_long_range"):
         comp = getattr(graph, comp_name)
+        if comp is None:
+            continue
         for f in dataclasses.fields(comp):
             val = getattr(comp, f.name)
             if f.name == "features":

@@ -27,6 +27,7 @@ from jax_md.partition import NeighborList
 
 from mlip.data.helpers.dynamically_batch import dynamically_batch
 from mlip.graph import Graph, GraphEdges
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING
 from mlip.simulation.configs.jax_md_config import JaxMDSimulationConfig
 from mlip.simulation.enums import MDIntegrator, SimulationType
 from mlip.simulation.exceptions import SimulationIsNotInitializedError
@@ -858,6 +859,7 @@ class JaxMDSimulationEngine(SimulationEngine):
             The base graph (either batched or unbatched).
         """
 
+        # Edges will be sorted by `create_graph_from_atoms_and_edges`
         def _get_senders(nl):
             return jax.tree.map(get_neighbor_list_senders, nl, is_leaf=is_neighbor_list)
 
@@ -887,6 +889,7 @@ class JaxMDSimulationEngine(SimulationEngine):
                 cell_to_box_fun=self._cell_to_box_fun,
                 senders_long_range=slr,
                 receivers_long_range=rlr,
+                ordering=DEFAULT_EDGE_ORDERING,
             ),
             atoms,
             senders,
@@ -898,7 +901,7 @@ class JaxMDSimulationEngine(SimulationEngine):
         # Batched simulations
         if isinstance(atoms, list):
             assert isinstance(graph, list) and len(graph) == len(atoms)
-            # displ_fun is a Callable that dynamically_batch cannot handle.
+            # `displ_fun` is a Callable that dynamically_batch cannot handle.
             # We strip it and replace afterwards with make_batched_displ_fun.
             saved_edges_long_range = graph[0].edges_long_range
             dummy_edges = GraphEdges(shifts=None, displ_fun=None)

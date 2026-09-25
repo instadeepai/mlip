@@ -167,11 +167,21 @@ can execute:
 Note that the individual graphs and batches are of
 type :py:class:`Graph <mlip.graph.Graph>`.
 
+For datasets made up of many files or splits (e.g., multi-dataset training), or for
+file formats that support concurrent reading (e.g., HDF5 files), reading can be
+parallelized across a worker pool by setting `num_reader_workers` on the
+:py:class:`GraphDatasetBuilderConfig <mlip.data.configs.GraphDatasetBuilderConfig>` to a
+value greater than 1. Readers are distributed across workers by dataset/split, and
+formats that support it (currently
+:py:class:`Hdf5Reader <mlip.data.chemical_systems_readers.hdf5_reader.Hdf5Reader>`) are
+additionally split into per-worker chunks so that a single large file is also read
+concurrently.
 
-Also, you could use the `pickle <https://docs.python.org/3/library/pickle.html>`_
-library to save the pre-processed splits to disk
-in order to restore them later, for instance, when experimenting with
-multiple training runs that do not differ in their datasets (to avoid re-processing).
+Finally, after processing a dataset, note that you could use the
+`pickle <https://docs.python.org/3/library/pickle.html>`_ library to save the
+pre-processed splits to disk in order to restore them later, for instance, when
+experimenting with multiple training runs that do not differ in their datasets
+(to avoid re-processing).
 
 Get sharded batches
 -------------------

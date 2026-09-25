@@ -16,6 +16,8 @@
 import matscipy.neighbours
 import numpy as np
 
+from mlip.graph.edge_ordering import EdgeOrdering
+
 FLAT_CELL_THRESHOLD_ANGSTROM = 1e-6
 
 
@@ -86,15 +88,15 @@ def get_neighborhood(
     cutoff: float,
     pbc: tuple[bool, bool, bool] | None = None,
     cell: np.ndarray | None = None,  # [3, 3]
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Computes the edge information for a given set of positions, including senders,
-    receivers, and shift vectors.
+    ordering: EdgeOrdering | str = EdgeOrdering.NONE,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    """Computes the edge information for a given set of positions.
 
-    If `pbc` is `None` or `(False, False, False)`, then the shifts will be
-    returned as zero.
-    This is the default behavior. The cell is None as default and as a result, matscipy
-    will compute the minimal cell size needed to fit the whole system. See matscipy's
-    documentation for more information.
+    Returns (senders indices, receivers indices, shift vectors).
+
+    If `pbc` is `None` or `(False, False, False)`, then the shift vectors are `None`.
+    The cell is None as default, in which case matscipy will compute the minimal cell
+    size needed to fit the whole system. See matscipy's documentation for more details.
 
     Args:
         positions: The position matrix.
@@ -105,13 +107,14 @@ def get_neighborhood(
         cell: The unit cell of the system given as a 3x3 matrix or as None (default),
               which means that matscipy will compute the minimal cell size needed to
               fit the whole system.
+        ordering: Edge ordering to enforce on the outputs. Using a specific edge
+            ordering is required by some models to improve efficiency.
 
     Returns:
         A tuple of **senders** (starting indexes of atoms for each edge), **receivers**
         (ending indexes of atoms for each edge), and **shifts** (the shift vectors, see
-        matscipy's documentation for more information. If PBCs are false,
-        then we return shifts of zero).
-
+        matscipy's documentation for more information. If PBCs are false, then we
+        return `None`, which downstream code treats as shifts of zero).
     """
     if pbc is None:
         pbc = (False, False, False)
@@ -122,19 +125,38 @@ def get_neighborhood(
     assert len(pbc) == 3 and all(isinstance(i, (bool, np.bool_)) for i in pbc)
     assert cell is None or cell.shape == (3, 3)
 
+    is_periodic = any(pbc)
+
     # See docstring of functions get_edge_relative_vectors() and
     # get_edge_vectors() on how senders and receivers are used
-    senders, receivers, senders_unit_shifts = _safe_matscipy_neighbour_list(
-        quantities="ijS",
+    neighbour_list = _safe_matscipy_neighbour_list(
+        quantities="ijS" if is_periodic else "ij",
         pbc=pbc,
         cell=cell,
         positions=positions,
         cutoff=cutoff,
     )
 
-    # If we are not having PBCs, then use shifts of zero
-    shifts = senders_unit_shifts if any(pbc) else np.zeros((len(senders), 3))
+    if is_periodic:
+        senders, receivers, shifts = neighbour_list
+    else:
+        senders, receivers = neighbour_list
+        shifts = None
+
+    ordering = EdgeOrdering.parse(ordering)
 
     # See docstring of functions get_edge_relative_vectors() and
     # get_edge_vectors() on how these return values are used
-    return senders, receivers, shifts
+
+    if ordering == EdgeOrdering.NONE:
+        return senders, receivers, shifts
+
+    if ordering == EdgeOrdering.SENDER:
+        sigma = np.argsort(senders)
+        shifts = shifts[sigma] if shifts is not None else shifts
+        return senders[sigma], receivers[sigma], shifts
+
+    if ordering == EdgeOrdering.RECEIVER:
+        sigma = np.argsort(receivers)
+        shifts = shifts[sigma] if shifts is not None else shifts
+        return senders[sigma], receivers[sigma], shifts

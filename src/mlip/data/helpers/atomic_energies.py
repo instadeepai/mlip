@@ -40,13 +40,21 @@ def compute_average_e0s_from_graphs(
     )
     num_unique = len(unique_atomic_numbers)
 
+    # Dense lookup from atomic number to column index.
+    z_to_idx = np.full(unique_atomic_numbers[-1] + 1, -1, dtype=np.int64)
+    for idx, z in enumerate(unique_atomic_numbers):
+        z_to_idx[z] = idx
+
+    # Note: large array for very large datasets which could cause OOM
     element_count = np.zeros((num_graphs, num_unique))
     energies = np.zeros(num_graphs)
 
-    for i in range(num_graphs):
-        energies[i] = np.asarray(graphs[i].globals.energy).item()
-        for j, z in enumerate(unique_atomic_numbers):
-            element_count[i, j] = np.count_nonzero(graphs[i].nodes.atomic_numbers == z)
+    for i, graph in enumerate(graphs):
+        energies[i] = np.asarray(graph.globals.energy).item()
+        unique_atomic_nums, counts = np.unique(
+            graph.nodes.atomic_numbers, return_counts=True
+        )
+        element_count[i, z_to_idx[unique_atomic_nums]] = counts
 
     try:
         e0s = np.linalg.lstsq(element_count, energies, rcond=1e-8)[0]

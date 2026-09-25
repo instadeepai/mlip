@@ -19,7 +19,8 @@ import jax
 import jax.numpy as jnp
 
 from mlip.data.chemical_system import ChemicalSystem
-from mlip.graph import Graph, GraphEdges, GraphGlobals, GraphNodes
+from mlip.graph import EdgeOrdering, Graph, GraphEdges, GraphGlobals, GraphNodes
+from mlip.graph.edge_ordering import DEFAULT_EDGE_ORDERING
 
 
 def create_graph_from_atoms_and_edges(
@@ -30,16 +31,17 @@ def create_graph_from_atoms_and_edges(
     cell_to_box_fun: Callable[[jax.Array], jax.Array] | None = None,
     senders_long_range: jax.Array | None = None,
     receivers_long_range: jax.Array | None = None,
+    ordering: EdgeOrdering | str = DEFAULT_EDGE_ORDERING,
 ) -> Graph:
     """Creates a graph from an `ase.Atoms` object and a list of edges.
 
-    This is the graph creation function used in the JAX-MD simulation engine.
+    This is the graph creation function used in the JAX-MD simulation engine. This
+    method is only called once at the start of the simulation, then an update function
+    (e.g. `update_graph_in_simulation_step`) is used at each step.
 
-    This function will leave the shifts of the graph empty and will populate the
-    displacement function in the graph object instead. The total `charge` is
-    read from `atoms.info` via :meth:`ChemicalSystem.from_ase_atoms` so that
-    charge-aware models (e.g. with a Coulomb energy head) can apply the
-    partial-charge correction.
+    This function leaves the edge shifts of the graph empty and populates the
+    displacement function instead. The total `charge` is read from `atoms.info`
+    so that charge-aware models can apply a charge correction.
 
     Args:
         atoms: The `ase.Atoms` object of the system.
@@ -54,6 +56,8 @@ def create_graph_from_atoms_and_edges(
                             the resulting graph will carry a long-range neighbor
                             list using `displacement_fun` for vector computation.
         receivers_long_range: Optional receiver indexes of the long-range edges.
+        ordering: Edge ordering to be enforced on the output graph. This is applied
+            via `graph.sort_edges(ordering)` after the initial graph is constructed.
 
     Returns:
         The graph representing the system.
@@ -78,7 +82,7 @@ def create_graph_from_atoms_and_edges(
         n_edge_long_range = None
         edges_long_range = None
 
-    return Graph(
+    graph = Graph(
         nodes=GraphNodes(
             positions=atoms.get_positions(),
             forces=None,
@@ -106,3 +110,4 @@ def create_graph_from_atoms_and_edges(
         n_edge_long_range=n_edge_long_range,
         edges_long_range=edges_long_range,
     )
+    return graph.sort_edges(ordering)
